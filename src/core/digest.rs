@@ -1,1 +1,431 @@
+//! Markdown generation functionality
 
+use crate::core::walker::FileInfo;
+use crate::utils::file_ext::FileType;
+use anyhow::Result;
+use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
+
+/// Options for generating markdown digest
+#[derive(Debug, Clone)]
+pub struct DigestOptions {
+    /// Maximum tokens allowed in the output
+    pub max_tokens: Option<usize>,
+    /// Include file tree in output
+    pub include_tree: bool,
+    /// Include token count statistics
+    pub include_stats: bool,
+    /// Group files by type
+    pub group_by_type: bool,
+    /// Sort files by priority
+    pub sort_by_priority: bool,
+    /// Template for file headers
+    pub file_header_template: String,
+    /// Template for the document header
+    pub doc_header_template: String,
+    /// Include table of contents
+    pub include_toc: bool,
+}
+
+impl DigestOptions {
+    /// Create DigestOptions from CLI config
+    pub fn from_config(config: &crate::cli::Config) -> Result<Self> {
+        Ok(DigestOptions {
+            max_tokens: config.max_tokens,
+            include_tree: true,
+            include_stats: true,
+            group_by_type: false,
+            sort_by_priority: true,
+            file_header_template: "## {path}".to_string(),
+            doc_header_template: "# Code Digest: {directory}".to_string(),
+            include_toc: true,
+        })
+    }
+}
+
+impl Default for DigestOptions {
+    fn default() -> Self {
+        DigestOptions {
+            max_tokens: None,
+            include_tree: true,
+            include_stats: true,
+            group_by_type: false,
+            sort_by_priority: true,
+            file_header_template: "## {path}".to_string(),
+            doc_header_template: "# Code Digest: {directory}".to_string(),
+            include_toc: true,
+        }
+    }
+}
+
+/// Generate markdown from a list of files
+pub fn generate_markdown(files: Vec<FileInfo>, options: DigestOptions) -> Result<String> {
+    let mut output = String::new();
+    
+    // Add document header
+    if !options.doc_header_template.is_empty() {
+        let header = options.doc_header_template.replace("{directory}", ".");
+        output.push_str(&header);
+        output.push_str("\n\n");
+    }
+    
+    // Add statistics if requested
+    if options.include_stats {
+        let stats = generate_statistics(&files);
+        output.push_str(&stats);
+        output.push_str("\n\n");
+    }
+    
+    // Add file tree if requested
+    if options.include_tree {
+        let tree = generate_file_tree(&files);
+        output.push_str("## File Structure\n\n");
+        output.push_str("```\n");
+        output.push_str(&tree);
+        output.push_str("```\n\n");
+    }
+    
+    // Sort files if requested
+    let mut files = files;
+    if options.sort_by_priority {
+        files.sort_by(|a, b| {
+            b.priority.partial_cmp(&a.priority).unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| a.relative_path.cmp(&b.relative_path))
+        });
+    }
+    
+    // Add table of contents if requested
+    if options.include_toc {
+        output.push_str("## Table of Contents\n\n");
+        for file in &files {
+            let anchor = path_to_anchor(&file.relative_path);
+            output.push_str(&format!("- [{path}](#{anchor})\n", 
+                path = file.relative_path.display(),
+                anchor = anchor
+            ));
+        }
+        output.push_str("\n");
+    }
+    
+    // Group files if requested
+    if options.group_by_type {
+        let grouped = group_files_by_type(files);
+        for (file_type, group_files) in grouped {
+            output.push_str(&format!("## {} Files\n\n", file_type_display(&file_type)));
+            for file in group_files {
+                append_file_content(&mut output, &file, &options)?;
+            }
+        }
+    } else {
+        // Add all files
+        for file in files {
+            append_file_content(&mut output, &file, &options)?;
+        }
+    }
+    
+    Ok(output)
+}
+
+/// Append a single file's content to the output
+fn append_file_content(output: &mut String, file: &FileInfo, options: &DigestOptions) -> Result<()> {
+    // Read file content
+    let content = match fs::read_to_string(&file.path) {
+        Ok(content) => content,
+        Err(e) => {
+            eprintln!("Warning: Could not read file {}: {}", file.path.display(), e);
+            return Ok(());
+        }
+    };
+    
+    // Add file header
+    let header = options.file_header_template
+        .replace("{path}", &file.relative_path.display().to_string());
+    output.push_str(&header);
+    output.push_str("\n\n");
+    
+    // Add language hint for syntax highlighting
+    let language = get_language_hint(&file.file_type);
+    output.push_str(&format!("```{}\n", language));
+    output.push_str(&content);
+    if !content.ends_with('\n') {
+        output.push('\n');
+    }
+    output.push_str("```\n\n");
+    
+    Ok(())
+}
+
+/// Generate statistics about the files
+fn generate_statistics(files: &[FileInfo]) -> String {
+    let total_files = files.len();
+    let total_size: u64 = files.iter().map(|f| f.size).sum();
+    
+    // Count by file type
+    let mut type_counts: HashMap<FileType, usize> = HashMap::new();
+    for file in files {
+        *type_counts.entry(file.file_type.clone()).or_insert(0) += 1;
+    }
+    
+    let mut stats = String::new();
+    stats.push_str("## Statistics\n\n");
+    stats.push_str(&format!("- Total files: {}\n", total_files));
+    stats.push_str(&format!("- Total size: {} bytes\n", format_size(total_size)));
+    stats.push_str("\n### Files by type:\n");
+    
+    let mut types: Vec<_> = type_counts.into_iter().collect();
+    types.sort_by_key(|(_, count)| std::cmp::Reverse(*count));
+    
+    for (file_type, count) in types {
+        stats.push_str(&format!("- {}: {}\n", file_type_display(&file_type), count));
+    }
+    
+    stats
+}
+
+/// Generate a file tree representation
+fn generate_file_tree(files: &[FileInfo]) -> String {
+    use std::collections::BTreeMap;
+    
+    #[derive(Default)]
+    struct TreeNode {
+        files: Vec<String>,
+        dirs: BTreeMap<String, TreeNode>,
+    }
+    
+    let mut root = TreeNode::default();
+    
+    // Build tree structure
+    for file in files {
+        let parts: Vec<_> = file.relative_path
+            .components()
+            .map(|c| c.as_os_str().to_string_lossy().to_string())
+            .collect();
+        
+        let mut current = &mut root;
+        for (i, part) in parts.iter().enumerate() {
+            if i == parts.len() - 1 {
+                // File
+                current.files.push(part.clone());
+            } else {
+                // Directory
+                current = current.dirs.entry(part.clone()).or_default();
+            }
+        }
+    }
+    
+    // Render tree
+    fn render_tree(node: &TreeNode, prefix: &str, _is_last: bool) -> String {
+        let mut output = String::new();
+        
+        // Render directories
+        let dir_count = node.dirs.len();
+        for (i, (name, child)) in node.dirs.iter().enumerate() {
+            let is_last_dir = i == dir_count - 1 && node.files.is_empty();
+            let connector = if is_last_dir { "└── " } else { "├── " };
+            let extension = if is_last_dir { "    " } else { "│   " };
+            
+            output.push_str(&format!("{}{}{}/\n", prefix, connector, name));
+            output.push_str(&render_tree(child, &format!("{}{}", prefix, extension), is_last_dir));
+        }
+        
+        // Render files
+        let file_count = node.files.len();
+        for (i, name) in node.files.iter().enumerate() {
+            let is_last_file = i == file_count - 1;
+            let connector = if is_last_file { "└── " } else { "├── " };
+            output.push_str(&format!("{}{}{}\n", prefix, connector, name));
+        }
+        
+        output
+    }
+    
+    let mut output = String::new();
+    output.push_str(".\n");
+    output.push_str(&render_tree(&root, "", true));
+    output
+}
+
+/// Group files by their type
+fn group_files_by_type(files: Vec<FileInfo>) -> Vec<(FileType, Vec<FileInfo>)> {
+    let mut groups: HashMap<FileType, Vec<FileInfo>> = HashMap::new();
+    
+    for file in files {
+        groups.entry(file.file_type.clone()).or_default().push(file);
+    }
+    
+    let mut result: Vec<_> = groups.into_iter().collect();
+    result.sort_by_key(|(file_type, _)| file_type_priority(file_type));
+    result
+}
+
+/// Get display name for file type
+fn file_type_display(file_type: &FileType) -> &'static str {
+    match file_type {
+        FileType::Rust => "Rust",
+        FileType::Python => "Python",
+        FileType::JavaScript => "JavaScript",
+        FileType::TypeScript => "TypeScript",
+        FileType::Go => "Go",
+        FileType::Java => "Java",
+        FileType::Cpp => "C++",
+        FileType::C => "C",
+        FileType::CSharp => "C#",
+        FileType::Ruby => "Ruby",
+        FileType::Php => "PHP",
+        FileType::Swift => "Swift",
+        FileType::Kotlin => "Kotlin",
+        FileType::Scala => "Scala",
+        FileType::Haskell => "Haskell",
+        FileType::Markdown => "Markdown",
+        FileType::Json => "JSON",
+        FileType::Yaml => "YAML",
+        FileType::Toml => "TOML",
+        FileType::Xml => "XML",
+        FileType::Html => "HTML",
+        FileType::Css => "CSS",
+        FileType::Text => "Text",
+        FileType::Other => "Other",
+    }
+}
+
+/// Get language hint for syntax highlighting
+fn get_language_hint(file_type: &FileType) -> &'static str {
+    match file_type {
+        FileType::Rust => "rust",
+        FileType::Python => "python",
+        FileType::JavaScript => "javascript",
+        FileType::TypeScript => "typescript",
+        FileType::Go => "go",
+        FileType::Java => "java",
+        FileType::Cpp => "cpp",
+        FileType::C => "c",
+        FileType::CSharp => "csharp",
+        FileType::Ruby => "ruby",
+        FileType::Php => "php",
+        FileType::Swift => "swift",
+        FileType::Kotlin => "kotlin",
+        FileType::Scala => "scala",
+        FileType::Haskell => "haskell",
+        FileType::Markdown => "markdown",
+        FileType::Json => "json",
+        FileType::Yaml => "yaml",
+        FileType::Toml => "toml",
+        FileType::Xml => "xml",
+        FileType::Html => "html",
+        FileType::Css => "css",
+        FileType::Text => "text",
+        FileType::Other => "",
+    }
+}
+
+/// Get priority for file type ordering
+fn file_type_priority(file_type: &FileType) -> u8 {
+    match file_type {
+        FileType::Rust => 1,
+        FileType::Python => 2,
+        FileType::JavaScript => 3,
+        FileType::TypeScript => 3,
+        FileType::Go => 4,
+        FileType::Java => 5,
+        FileType::Cpp => 6,
+        FileType::C => 7,
+        FileType::CSharp => 8,
+        FileType::Ruby => 9,
+        FileType::Php => 10,
+        FileType::Swift => 11,
+        FileType::Kotlin => 12,
+        FileType::Scala => 13,
+        FileType::Haskell => 14,
+        FileType::Markdown => 15,
+        FileType::Json => 16,
+        FileType::Yaml => 17,
+        FileType::Toml => 18,
+        FileType::Xml => 19,
+        FileType::Html => 20,
+        FileType::Css => 21,
+        FileType::Text => 22,
+        FileType::Other => 23,
+    }
+}
+
+/// Convert path to anchor-friendly string
+fn path_to_anchor(path: &Path) -> String {
+    path.display()
+        .to_string()
+        .replace('/', "-")
+        .replace('\\', "-")
+        .replace('.', "-")
+        .replace(' ', "-")
+        .to_lowercase()
+}
+
+/// Format file size in human-readable format
+fn format_size(size: u64) -> String {
+    const UNITS: &[&str] = &["B", "KB", "MB", "GB"];
+    let mut size = size as f64;
+    let mut unit_index = 0;
+    
+    while size >= 1024.0 && unit_index < UNITS.len() - 1 {
+        size /= 1024.0;
+        unit_index += 1;
+    }
+    
+    if unit_index == 0 {
+        format!("{} {}", size as u64, UNITS[unit_index])
+    } else {
+        format!("{:.2} {}", size, UNITS[unit_index])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_format_size() {
+        assert_eq!(format_size(512), "512 B");
+        assert_eq!(format_size(1024), "1.00 KB");
+        assert_eq!(format_size(1536), "1.50 KB");
+        assert_eq!(format_size(1048576), "1.00 MB");
+    }
+
+    #[test]
+    fn test_path_to_anchor() {
+        assert_eq!(path_to_anchor(Path::new("src/main.rs")), "src-main-rs");
+        assert_eq!(path_to_anchor(Path::new("test file.txt")), "test-file-txt");
+    }
+
+    #[test]
+    fn test_file_type_display() {
+        assert_eq!(file_type_display(&FileType::Rust), "Rust");
+        assert_eq!(file_type_display(&FileType::Python), "Python");
+    }
+
+    #[test]
+    fn test_generate_statistics() {
+        let files = vec![
+            FileInfo {
+                path: PathBuf::from("test1.rs"),
+                relative_path: PathBuf::from("test1.rs"),
+                size: 100,
+                file_type: FileType::Rust,
+                priority: 1.0,
+            },
+            FileInfo {
+                path: PathBuf::from("test2.py"),
+                relative_path: PathBuf::from("test2.py"),
+                size: 200,
+                file_type: FileType::Python,
+                priority: 0.9,
+            },
+        ];
+        
+        let stats = generate_statistics(&files);
+        assert!(stats.contains("Total files: 2"));
+        assert!(stats.contains("Total size: 300 B"));
+        assert!(stats.contains("Rust: 1"));
+        assert!(stats.contains("Python: 1"));
+    }
+}

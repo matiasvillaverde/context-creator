@@ -2,6 +2,89 @@
 
 use std::path::Path;
 
+/// File type enumeration for categorizing files
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum FileType {
+    // Programming languages
+    Rust,
+    Python,
+    JavaScript,
+    TypeScript,
+    Go,
+    Java,
+    Cpp,
+    C,
+    CSharp,
+    Ruby,
+    Php,
+    Swift,
+    Kotlin,
+    Scala,
+    Haskell,
+    
+    // Data formats
+    Markdown,
+    Json,
+    Yaml,
+    Toml,
+    Xml,
+    Html,
+    Css,
+    
+    // Other
+    Text,
+    Other,
+}
+
+impl FileType {
+    /// Determine file type from path
+    pub fn from_path(path: &Path) -> Self {
+        let extension = path.extension()
+            .and_then(|ext| ext.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+            
+        match extension.as_str() {
+            "rs" => FileType::Rust,
+            "py" => FileType::Python,
+            "js" | "mjs" | "cjs" => FileType::JavaScript,
+            "ts" | "tsx" => FileType::TypeScript,
+            "go" => FileType::Go,
+            "java" => FileType::Java,
+            "cpp" | "cc" | "cxx" | "c++" | "hpp" | "hxx" | "h++" => FileType::Cpp,
+            "c" | "h" => FileType::C,
+            "cs" => FileType::CSharp,
+            "rb" => FileType::Ruby,
+            "php" => FileType::Php,
+            "swift" => FileType::Swift,
+            "kt" | "kts" => FileType::Kotlin,
+            "scala" => FileType::Scala,
+            "hs" => FileType::Haskell,
+            "md" | "markdown" => FileType::Markdown,
+            "json" => FileType::Json,
+            "yaml" | "yml" => FileType::Yaml,
+            "toml" => FileType::Toml,
+            "xml" => FileType::Xml,
+            "html" | "htm" => FileType::Html,
+            "css" | "scss" | "sass" | "less" => FileType::Css,
+            "txt" | "text" => FileType::Text,
+            _ => {
+                // Check if it's a text file by name
+                let filename = path.file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("");
+                    
+                match filename {
+                    "README" | "LICENSE" | "CHANGELOG" | "AUTHORS" | "CONTRIBUTORS" => FileType::Text,
+                    "Makefile" | "Dockerfile" | "Vagrantfile" | "Jenkinsfile" => FileType::Text,
+                    _ if !is_binary_extension(path) => FileType::Text,
+                    _ => FileType::Other,
+                }
+            }
+        }
+    }
+}
+
 /// Get the markdown code fence language for a file extension
 pub fn get_language_from_extension(path: &Path) -> &'static str {
     let extension = path.extension().and_then(|ext| ext.to_str()).unwrap_or("");
