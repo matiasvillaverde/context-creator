@@ -1,0 +1,17 @@
+# Priority files for this project
+
+# Core application files
+src/index.js
+src/utils.py
+
+# Configuration
+package.json
+.env.example
+
+# Important docs
+README.md
+docs/API.md
+
+# Main test files
+tests/test_api.js
+tests/test_utils.py

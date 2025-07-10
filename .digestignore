@@ -1,0 +1,56 @@
+# Dependencies and build artifacts
+target/
+node_modules/
+vendor/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Environment and secrets
+.env
+.env.*
+secrets/
+*.key
+*.pem
+
+# Logs and temporary files
+*.log
+*.tmp
+temp/
+tmp/
+
+# Large binary files
+*.exe
+*.dll
+*.so
+*.dylib
+*.bin
+
+# Media files (optional - uncomment if needed)
+# *.jpg
+# *.jpeg
+# *.png
+# *.gif
+# *.mp4
+# *.avi
+
+# Documentation build outputs
+docs/_build/
+site/
+
+# Test coverage
+coverage/
+*.lcov
+.coverage
+
+# Package manager locks (optional - these can be useful for LLM context)
+# Cargo.lock
+# package-lock.json
+# yarn.lock

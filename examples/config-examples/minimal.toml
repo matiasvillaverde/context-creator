@@ -1,0 +1,9 @@
+# Minimal configuration example
+# Only specify what differs from defaults
+
+[defaults]
+max_tokens = 50000
+
+[[priorities]]
+pattern = "src/**/*.rs"
+weight = 100

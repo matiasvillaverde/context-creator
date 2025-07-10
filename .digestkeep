@@ -1,0 +1,39 @@
+# Essential files that should always be included first
+# These patterns are prioritized when token limits are applied
+
+# Core source files
+src/main.rs
+src/lib.rs
+src/core/**/*.rs
+
+# API definitions
+src/api/**
+**/api.rs
+**/routes.rs
+
+# Configuration files
+Cargo.toml
+package.json
+pyproject.toml
+go.mod
+
+# Important documentation
+README.md
+API.md
+ARCHITECTURE.md
+
+# Schema and interface definitions
+**/*.proto
+**/*.graphql
+**/schema.*
+**/interface.*
+
+# Entry points
+**/index.*
+**/main.*
+**/app.*
+
+# Core business logic (customize for your project)
+# src/domain/**
+# src/services/**
+# src/models/**

@@ -1,0 +1,85 @@
+# Comprehensive configuration example
+# Shows all available options
+
+[defaults]
+max_tokens = 200000
+progress = true
+verbose = true
+quiet = false
+
+[ignore]
+patterns = [
+    "*.log",
+    "*.tmp",
+    "*.cache",
+    ".git/",
+    "vendor/",
+    "node_modules/",
+    "target/debug/",
+]
+use_gitignore = true
+
+# Detailed priority configuration
+[[priorities]]
+pattern = "src/main.rs"
+weight = 150  # Entry point gets highest priority
+
+[[priorities]]
+pattern = "src/lib.rs"
+weight = 140
+
+[[priorities]]
+pattern = "src/api/**/*.rs"
+weight = 120  # API definitions are important
+
+[[priorities]]
+pattern = "src/core/**/*.rs"
+weight = 110
+
+[[priorities]]
+pattern = "src/**/*.rs"
+weight = 100  # Other source files
+
+[[priorities]]
+pattern = "Cargo.toml"
+weight = 90
+
+[[priorities]]
+pattern = "**/*.md"
+weight = 70
+
+[[priorities]]
+pattern = "tests/**/*.rs"
+weight = 50  # Tests are lower priority
+
+[[priorities]]
+pattern = "benches/**/*.rs"
+weight = 40
+
+[[priorities]]
+pattern = "examples/**/*"
+weight = 30  # Examples are lowest priority
+
+[output]
+include_tree = true
+syntax_highlighting = true
+max_line_length = 120  # Wrap long lines
+file_header_template = """
+================================================================================
+## File: {path}
+================================================================================
+"""
+
+[performance]
+threads = 8  # Use 8 threads
+max_file_size = 5242880  # 5MB limit per file
+chunk_size = 131072  # 128KB chunks
+
+[tokenizer]
+model = "cl100k_base"  # GPT-3.5/4 tokenizer
+cache_enabled = true
+
+[logging]
+level = "debug"  # trace, debug, info, warn, error
+file = "code-digest.log"
+stderr = true
