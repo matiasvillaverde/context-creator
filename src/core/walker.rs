@@ -71,6 +71,39 @@ pub struct FileInfo {
     pub priority: f32,
 }
 
+impl FileInfo {
+    /// Get a display string for the file type
+    pub fn file_type_display(&self) -> &'static str {
+        use crate::utils::file_ext::FileType;
+        match self.file_type {
+            FileType::Rust => "Rust",
+            FileType::Python => "Python", 
+            FileType::JavaScript => "JavaScript",
+            FileType::TypeScript => "TypeScript",
+            FileType::Go => "Go",
+            FileType::Java => "Java",
+            FileType::Cpp => "C++",
+            FileType::C => "C",
+            FileType::CSharp => "C#",
+            FileType::Ruby => "Ruby",
+            FileType::Php => "PHP",
+            FileType::Swift => "Swift",
+            FileType::Kotlin => "Kotlin",
+            FileType::Scala => "Scala",
+            FileType::Haskell => "Haskell",
+            FileType::Markdown => "Markdown",
+            FileType::Json => "JSON",
+            FileType::Yaml => "YAML",
+            FileType::Toml => "TOML",
+            FileType::Xml => "XML",
+            FileType::Html => "HTML",
+            FileType::Css => "CSS",
+            FileType::Text => "Text",
+            FileType::Other => "Other",
+        }
+    }
+}
+
 /// Walk a directory and collect file information
 pub fn walk_directory(root: &Path, options: WalkOptions) -> Result<Vec<FileInfo>> {
     if !root.exists() {

@@ -17,13 +17,35 @@ pub use utils::error::CodeDigestError;
 
 /// Main entry point for the code digest library
 pub fn run(config: Config) -> Result<()> {
+    // Setup logging based on verbosity
+    if config.verbose {
+        eprintln!("🔧 Starting code-digest with configuration:");
+        eprintln!("  Directory: {}", config.directory.display());
+        eprintln!("  Max tokens: {:?}", config.max_tokens);
+        eprintln!("  LLM tool: {}", config.llm_tool.command());
+        eprintln!("  Progress: {}", config.progress);
+        eprintln!("  Quiet: {}", config.quiet);
+        if let Some(output) = &config.output_file {
+            eprintln!("  Output file: {}", output.display());
+        }
+        if let Some(prompt) = &config.prompt {
+            eprintln!("  Prompt: {}", prompt);
+        }
+    }
+    
     // Validate configuration
     config.validate()?;
 
     // Create walker with options
+    if config.verbose {
+        eprintln!("🚶 Creating directory walker with options...");
+    }
     let walk_options = WalkOptions::from_config(&config)?;
 
     // Create digest options
+    if config.verbose {
+        eprintln!("📄 Creating markdown digest options...");
+    }
     let digest_options = DigestOptions::from_config(&config)?;
 
     // Process the directory
@@ -75,6 +97,13 @@ fn process_directory(
     
     if config.progress && !config.quiet {
         eprintln!("📁 Found {} files", files.len());
+    }
+    
+    if config.verbose {
+        eprintln!("📋 File list:");
+        for file in &files {
+            eprintln!("  {} ({})", file.relative_path.display(), file.file_type_display());
+        }
     }
 
     // Prioritize files if needed
