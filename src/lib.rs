@@ -27,7 +27,7 @@ pub fn run(config: Config) -> Result<()> {
     let digest_options = DigestOptions::from_config(&config)?;
 
     // Process the directory
-    let output = process_directory(&config.directory, walk_options, digest_options)?;
+    let output = process_directory(&config.directory, walk_options, digest_options, &config)?;
 
     // Handle output based on configuration
     match (config.output_file.as_ref(), config.prompt.as_ref()) {
@@ -40,6 +40,9 @@ pub fn run(config: Config) -> Result<()> {
         }
         (None, Some(prompt)) => {
             // Send to LLM CLI with prompt
+            if config.progress && !config.quiet {
+                eprintln!("🤖 Sending context to {}...", config.llm_tool.command());
+            }
             execute_with_llm(prompt, &output, &config)?;
         }
         (None, None) => {
@@ -62,19 +65,38 @@ fn process_directory(
     path: &Path,
     walk_options: WalkOptions,
     digest_options: DigestOptions,
+    config: &Config,
 ) -> Result<String> {
     // Walk the directory
+    if config.progress && !config.quiet {
+        eprintln!("🔍 Scanning directory: {}", path.display());
+    }
     let files = core::walker::walk_directory(path, walk_options)?;
+    
+    if config.progress && !config.quiet {
+        eprintln!("📁 Found {} files", files.len());
+    }
 
     // Prioritize files if needed
     let prioritized_files = if digest_options.max_tokens.is_some() {
+        if config.progress && !config.quiet {
+            eprintln!("🎯 Prioritizing files for token limit...");
+        }
         core::prioritizer::prioritize_files(files, &digest_options)?
     } else {
         files
     };
 
+    if config.progress && !config.quiet {
+        eprintln!("📝 Generating markdown from {} files...", prioritized_files.len());
+    }
+
     // Generate markdown
     let markdown = core::digest::generate_markdown(prioritized_files, digest_options)?;
+    
+    if config.progress && !config.quiet {
+        eprintln!("✅ Markdown generation complete");
+    }
 
     Ok(markdown)
 }
