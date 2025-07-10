@@ -428,4 +428,121 @@ mod tests {
         assert!(stats.contains("Rust: 1"));
         assert!(stats.contains("Python: 1"));
     }
+
+    #[test]
+    fn test_generate_statistics_empty() {
+        let files = vec![];
+        let stats = generate_statistics(&files);
+        assert!(stats.contains("Total files: 0"));
+        assert!(stats.contains("Total size: 0 B"));
+    }
+
+    #[test]
+    fn test_generate_statistics_large_files() {
+        let files = vec![
+            FileInfo {
+                path: PathBuf::from("large.rs"),
+                relative_path: PathBuf::from("large.rs"),
+                size: 2_000_000, // 2MB
+                file_type: FileType::Rust,
+                priority: 1.0,
+            },
+            FileInfo {
+                path: PathBuf::from("huge.py"),
+                relative_path: PathBuf::from("huge.py"),
+                size: 50_000_000, // 50MB
+                file_type: FileType::Python,
+                priority: 0.9,
+            }
+        ];
+        
+        let stats = generate_statistics(&files);
+        assert!(stats.contains("Total files: 2"));
+        assert!(stats.contains("MB bytes")); // Just check that it's in MB
+        assert!(stats.contains("Python: 1"));
+        assert!(stats.contains("Rust: 1"));
+    }
+
+    #[test]
+    fn test_generate_file_tree_with_grouping() {
+        let files = vec![
+            FileInfo {
+                path: PathBuf::from("src/main.rs"),
+                relative_path: PathBuf::from("src/main.rs"),
+                size: 1000,
+                file_type: FileType::Rust,
+                priority: 1.5,
+            },
+            FileInfo {
+                path: PathBuf::from("src/lib.rs"),
+                relative_path: PathBuf::from("src/lib.rs"),
+                size: 2000,
+                file_type: FileType::Rust,
+                priority: 1.2,
+            },
+            FileInfo {
+                path: PathBuf::from("tests/test.rs"),
+                relative_path: PathBuf::from("tests/test.rs"),
+                size: 500,
+                file_type: FileType::Rust,
+                priority: 0.8,
+            }
+        ];
+        
+        let tree = generate_file_tree(&files);
+        assert!(tree.contains("src/"));
+        assert!(tree.contains("tests/"));
+        assert!(tree.contains("main.rs"));
+        assert!(tree.contains("lib.rs"));
+        assert!(tree.contains("test.rs"));
+    }
+
+    #[test]
+    fn test_digest_options_from_config() {
+        use crate::cli::Config;
+        use tempfile::TempDir;
+        
+        let temp_dir = TempDir::new().unwrap();
+        let config = Config {
+            prompt: None,
+            directory: temp_dir.path().to_path_buf(),
+            output_file: None,
+            max_tokens: Some(100000),
+            llm_tool: crate::cli::LlmTool::default(),
+            quiet: false,
+            verbose: false,
+            config: None,
+            progress: false,
+        };
+        
+        let options = DigestOptions::from_config(&config).unwrap();
+        assert_eq!(options.max_tokens, Some(100000));
+        assert!(options.include_tree);
+        assert!(options.include_stats);
+        assert!(!options.group_by_type); // Default is false according to implementation
+    }
+
+    #[test]
+    fn test_generate_markdown_structure_headers() {
+        let files = vec![];
+        
+        let options = DigestOptions {
+            max_tokens: None,
+            include_tree: true,
+            include_stats: true,
+            group_by_type: true,
+            sort_by_priority: true,
+            file_header_template: "## {path}".to_string(),
+            doc_header_template: "# Code Digest".to_string(),
+            include_toc: true,
+        };
+        
+        let markdown = generate_markdown(files, options).unwrap();
+        
+        // Check that main structure is present even with no files
+        assert!(markdown.contains("# Code Digest"));
+        assert!(markdown.contains("## Statistics"));
+        // File tree might be skipped if there are no files
+        assert!(markdown.contains("## Files"));
+    }
 }

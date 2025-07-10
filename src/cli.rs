@@ -79,6 +79,135 @@ pub struct Config {
     pub progress: bool,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+    use std::fs;
+
+    #[test]
+    fn test_config_validation_valid_directory() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = Config {
+            prompt: None,
+            directory: temp_dir.path().to_path_buf(),
+            output_file: None,
+            max_tokens: None,
+            llm_tool: LlmTool::default(),
+            quiet: false,
+            verbose: false,
+            config: None,
+            progress: false,
+        };
+        
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_config_validation_invalid_directory() {
+        let config = Config {
+            prompt: None,
+            directory: PathBuf::from("/nonexistent/directory"),
+            output_file: None,
+            max_tokens: None,
+            llm_tool: LlmTool::default(),
+            quiet: false,
+            verbose: false,
+            config: None,
+            progress: false,
+        };
+        
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_config_validation_file_as_directory() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("file.txt");
+        fs::write(&file_path, "test").unwrap();
+        
+        let config = Config {
+            prompt: None,
+            directory: file_path,
+            output_file: None,
+            max_tokens: None,
+            llm_tool: LlmTool::default(),
+            quiet: false,
+            verbose: false,
+            config: None,
+            progress: false,
+        };
+        
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_config_validation_invalid_output_directory() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = Config {
+            prompt: None,
+            directory: temp_dir.path().to_path_buf(),
+            output_file: Some(PathBuf::from("/nonexistent/directory/output.md")),
+            max_tokens: None,
+            llm_tool: LlmTool::default(),
+            quiet: false,
+            verbose: false,
+            config: None,
+            progress: false,
+        };
+        
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_config_validation_mutually_exclusive_options() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = Config {
+            prompt: Some("test prompt".to_string()),
+            directory: temp_dir.path().to_path_buf(),
+            output_file: Some(temp_dir.path().join("output.md")),
+            max_tokens: None,
+            llm_tool: LlmTool::default(),
+            quiet: false,
+            verbose: false,
+            config: None,
+            progress: false,
+        };
+        
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_llm_tool_enum_values() {
+        assert_eq!(LlmTool::GeminiCli.command(), "gemini-cli");
+        assert_eq!(LlmTool::Codex.command(), "codex");
+        
+        assert!(LlmTool::GeminiCli.install_instructions().contains("pip install"));
+        assert!(LlmTool::Codex.install_instructions().contains("github.com"));
+        
+        assert_eq!(LlmTool::default(), LlmTool::GeminiCli);
+    }
+
+    #[test]
+    fn test_config_load_from_file_no_config() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut config = Config {
+            prompt: None,
+            directory: temp_dir.path().to_path_buf(),
+            output_file: None,
+            max_tokens: None,
+            llm_tool: LlmTool::default(),
+            quiet: false,
+            verbose: false,
+            config: None,
+            progress: false,
+        };
+        
+        // Should not error when no config file is found
+        assert!(config.load_from_file().is_ok());
+    }
+}
+
 impl Config {
     /// Validate the configuration
     pub fn validate(&self) -> Result<(), crate::utils::error::CodeDigestError> {
