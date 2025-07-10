@@ -22,6 +22,9 @@ pub enum CodeDigestError {
     #[error("Failed to parse configuration: {0}")]
     ConfigParseError(String),
 
+    #[error("Configuration file error: {0}")]
+    ConfigError(String),
+
     /// Processing errors
     #[error("Token counting error: {0}")]
     TokenCountError(String),

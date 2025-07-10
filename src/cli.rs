@@ -123,8 +123,28 @@ impl Config {
 
     /// Load configuration from file if specified
     pub fn load_from_file(&mut self) -> Result<(), crate::utils::error::CodeDigestError> {
-        // TODO: Implement config file loading
-        // This would load from .code-digest.toml or the specified config file
+        use crate::config::ConfigFile;
+
+        let config_file = if let Some(ref config_path) = self.config {
+            // Load from specified config file
+            Some(ConfigFile::load_from_file(config_path)?)
+        } else {
+            // Try to load from default locations
+            ConfigFile::load_default()?
+        };
+
+        if let Some(config_file) = config_file {
+            config_file.apply_to_cli_config(self);
+            
+            if self.verbose {
+                if let Some(ref config_path) = self.config {
+                    eprintln!("📄 Loaded configuration from: {}", config_path.display());
+                } else {
+                    eprintln!("📄 Loaded configuration from default location");
+                }
+            }
+        }
+
         Ok(())
     }
 }

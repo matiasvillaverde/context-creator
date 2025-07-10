@@ -5,6 +5,7 @@
 //! large language model consumption.
 
 pub mod cli;
+pub mod config;
 pub mod core;
 pub mod utils;
 
