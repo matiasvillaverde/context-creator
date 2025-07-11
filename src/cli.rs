@@ -293,4 +293,19 @@ mod tests {
         // Should not error when no config file is found
         assert!(config.load_from_file().is_ok());
     }
+
+    #[test]
+    fn test_parse_multiple_directories() {
+        use clap::Parser;
+
+        // Test single directory (backward compatibility)
+        let args = vec!["code-digest", "-d", "/path/one"];
+        let config = Config::parse_from(args);
+        // For now, this test expects a single directory
+        assert_eq!(config.directory, PathBuf::from("/path/one"));
+
+        // TODO: Once we update to Vec<PathBuf>, this test should be:
+        // assert_eq!(config.directories.len(), 1);
+        // assert_eq!(config.directories[0], PathBuf::from("/path/one"));
+    }
 }
