@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use tempfile::TempDir;
 
-#[cfg(any(unix, test))]
+#[cfg(unix)]
 use std::fs;
 
 /// Check if gh CLI is available
@@ -227,11 +227,13 @@ mod tests {
 
     #[test]
     fn test_get_repo_path() {
+        use std::fs;
+
         let temp_dir = TempDir::new().unwrap();
         let repo_url = "https://github.com/owner/repo";
 
         // Create the expected directory
-        std::fs::create_dir_all(temp_dir.path().join("repo")).unwrap();
+        fs::create_dir_all(temp_dir.path().join("repo")).unwrap();
 
         let path = get_repo_path(&temp_dir, repo_url).unwrap();
         assert_eq!(path, temp_dir.path().join("repo"));
