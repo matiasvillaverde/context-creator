@@ -12,11 +12,11 @@ fn test_github_repo_parsing_with_gh() {
     fs::create_dir(&mock_bin_dir).unwrap();
 
     // Create the mock gh script
-    let mock_gh_path = mock_bin_dir.join("gh");
     let _mock_repo_path = temp_dir.path().join("repo");
 
     #[cfg(unix)]
     {
+        let mock_gh_path = mock_bin_dir.join("gh");
         let script = r#"#!/bin/sh
 # Mock gh command
 if [ "$1" = "repo" ] && [ "$2" = "clone" ]; then
