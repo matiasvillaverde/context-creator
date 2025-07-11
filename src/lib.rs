@@ -22,7 +22,7 @@ pub fn run(mut config: Config) -> Result<()> {
     // Handle remote repository if specified
     let _temp_dir = if let Some(repo_url) = &config.repo {
         if config.verbose {
-            eprintln!("🔧 Starting code-digest with remote repository: {}", repo_url);
+            eprintln!("🔧 Starting code-digest with remote repository: {repo_url}");
         }
 
         // Fetch the repository

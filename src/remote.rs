@@ -155,12 +155,12 @@ fn clone_with_git(
     cmd.arg("clone").arg("--depth").arg("1").arg(repo_url).arg(target_dir.join(repo_name));
 
     if verbose {
-        eprintln!("🔄 Running: git clone --depth 1 {}", repo_url);
+        eprintln!("🔄 Running: git clone --depth 1 {repo_url}");
     }
 
     let output = cmd
         .output()
-        .map_err(|e| CodeDigestError::RemoteFetchError(format!("Failed to run git: {}", e)))?;
+        .map_err(|e| CodeDigestError::RemoteFetchError(format!("Failed to run git: {e}")))?;
 
     Ok(output.status.success())
 }
