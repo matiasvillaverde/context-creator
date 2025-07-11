@@ -392,6 +392,7 @@ mod tests {
             verbose: false,
             config: None,
             progress: false,
+            repo: None,
         };
 
         let options = WalkOptions::from_config(&config).unwrap();

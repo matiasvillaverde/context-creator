@@ -7,6 +7,7 @@
 pub mod cli;
 pub mod config;
 pub mod core;
+pub mod remote;
 pub mod utils;
 
 use anyhow::Result;
@@ -17,7 +18,25 @@ pub use core::{digest::DigestOptions, walker::WalkOptions};
 pub use utils::error::CodeDigestError;
 
 /// Main entry point for the code digest library
-pub fn run(config: Config) -> Result<()> {
+pub fn run(mut config: Config) -> Result<()> {
+    // Handle remote repository if specified
+    let _temp_dir = if let Some(repo_url) = &config.repo {
+        if config.verbose {
+            eprintln!("🔧 Starting code-digest with remote repository: {}", repo_url);
+        }
+
+        // Fetch the repository
+        let temp_dir = crate::remote::fetch_repository(repo_url, config.verbose)?;
+        let repo_path = crate::remote::get_repo_path(&temp_dir, repo_url)?;
+
+        // Update config to use the cloned repository
+        config.directories = vec![repo_path];
+
+        Some(temp_dir) // Keep temp_dir alive until end of function
+    } else {
+        None
+    };
+
     // Setup logging based on verbosity
     if config.verbose {
         eprintln!("🔧 Starting code-digest with configuration:");
