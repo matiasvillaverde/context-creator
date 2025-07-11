@@ -308,4 +308,107 @@ mod tests {
         // assert_eq!(config.directories.len(), 1);
         // assert_eq!(config.directories[0], PathBuf::from("/path/one"));
     }
+
+    #[test]
+    #[ignore = "Feature not yet implemented"]
+    fn test_parse_multiple_directories_new_api() {
+        // TODO: Enable this test once directories field is added
+        /*
+        use clap::Parser;
+
+        // Test single directory (backward compatibility)
+        let args = vec!["code-digest", "-d", "/path/one"];
+        let config = Config::parse_from(args);
+        assert_eq!(config.directories.len(), 1);
+        assert_eq!(config.directories[0], PathBuf::from("/path/one"));
+
+        // Test multiple directories
+        let args = vec!["code-digest", "-d", "/path/one", "/path/two", "/path/three"];
+        let config = Config::parse_from(args);
+        assert_eq!(config.directories.len(), 3);
+        assert_eq!(config.directories[0], PathBuf::from("/path/one"));
+        assert_eq!(config.directories[1], PathBuf::from("/path/two"));
+        assert_eq!(config.directories[2], PathBuf::from("/path/three"));
+
+        // Test with prompt after directories
+        let args = vec![
+            "code-digest",
+            "-d",
+            "/src/module1",
+            "/src/module2",
+            "Find duplicated patterns",
+        ];
+        let config = Config::parse_from(args);
+        assert_eq!(config.directories.len(), 2);
+        assert_eq!(config.prompt, Some("Find duplicated patterns".to_string()));
+        */
+    }
+
+    #[test]
+    #[ignore = "Feature not yet implemented"]
+    fn test_validate_multiple_directories() {
+        // TODO: Enable this test once directories field is added
+        /*
+        let temp_dir = TempDir::new().unwrap();
+        let dir1 = temp_dir.path().join("dir1");
+        let dir2 = temp_dir.path().join("dir2");
+        fs::create_dir(&dir1).unwrap();
+        fs::create_dir(&dir2).unwrap();
+
+        // All directories exist - should succeed
+        let config = Config {
+            prompt: None,
+            directories: vec![dir1.clone(), dir2.clone()],
+            output_file: None,
+            max_tokens: None,
+            llm_tool: LlmTool::default(),
+            quiet: false,
+            verbose: false,
+            config: None,
+            progress: false,
+        };
+        assert!(config.validate().is_ok());
+
+        // One directory doesn't exist - should fail
+        let config = Config {
+            prompt: None,
+            directories: vec![dir1, PathBuf::from("/nonexistent/dir")],
+            output_file: None,
+            max_tokens: None,
+            llm_tool: LlmTool::default(),
+            quiet: false,
+            verbose: false,
+            config: None,
+            progress: false,
+        };
+        assert!(config.validate().is_err());
+        */
+    }
+
+    #[test]
+    #[ignore = "Feature not yet implemented"]
+    fn test_validate_files_as_directories() {
+        // TODO: Enable this test once directories field is added
+        /*
+        let temp_dir = TempDir::new().unwrap();
+        let dir1 = temp_dir.path().join("dir1");
+        let file1 = temp_dir.path().join("file.txt");
+        fs::create_dir(&dir1).unwrap();
+        fs::write(&file1, "test content").unwrap();
+
+        // Mix of directory and file - should fail
+        let config = Config {
+            prompt: None,
+            directories: vec![dir1, file1],
+            output_file: None,
+            max_tokens: None,
+            llm_tool: LlmTool::default(),
+            quiet: false,
+            verbose: false,
+            config: None,
+            progress: false,
+        };
+        assert!(config.validate().is_err());
+        */
+    }
 }
