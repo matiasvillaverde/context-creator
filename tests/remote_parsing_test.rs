@@ -44,23 +44,28 @@ exit 1
 
     #[cfg(windows)]
     {
-        let script = r#"@echo off
-if "%1" == "repo" if "%2" == "clone" (
-    rem The 4th argument is the target directory
-    set target_dir=%4
-    mkdir "%target_dir%\src" 2>nul
-    echo fn main() {} > "%target_dir%\src\main.rs"
-    echo # Mock Repo > "%target_dir%\README.md"
-    echo name = "mock-repo" > "%target_dir%\Cargo.toml"
-    echo Cloned successfully
-    exit /b 0
+        // On Windows, create a simple batch script that handles the clone command
+        let script = format!(
+            r#"@echo off
+if "%1" == "repo" (
+    if "%2" == "clone" (
+        rem Create the target directory structure
+        set "target_dir=%~4"
+        mkdir "%target_dir%\src" 2>nul
+        echo fn main() {{}} > "%target_dir%\src\main.rs"
+        echo # Mock Repo > "%target_dir%\README.md"
+        echo name = "mock-repo" > "%target_dir%\Cargo.toml"
+        echo Cloned successfully
+        exit /b 0
+    )
 )
 if "%1" == "--version" (
     echo gh version 2.40.0
     exit /b 0
 )
 exit /b 1
-"#;
+"#
+        );
         fs::write(mock_gh_path.with_extension("bat"), script).unwrap();
     }
 
@@ -68,6 +73,9 @@ exit /b 1
 
     // Prepend the mock bin directory to the PATH
     let original_path = std::env::var("PATH").unwrap_or_default();
+    #[cfg(windows)]
+    let new_path = format!("{};{}", mock_bin_dir.display(), original_path);
+    #[cfg(not(windows))]
     let new_path = format!("{}:{}", mock_bin_dir.display(), original_path);
 
     cmd.env("PATH", new_path);
@@ -120,14 +128,14 @@ exit 1
 
     #[cfg(windows)]
     {
-        let script = r#"@echo off
+        let script = format!(
+            r#"@echo off
 if "%1" == "clone" (
-    rem For git clone, we need to find the last argument
-    rem In batch, we'll use a simple approach - hardcode for our test case
-    rem The last arg should be the target directory
-    for %%a in (%*) do set target_dir=%%a
+    rem For git clone, the last argument is the target directory
+    rem Get the last argument using a simple approach
+    for %%a in (%*) do set "target_dir=%%a"
     mkdir "%target_dir%\src" 2>nul
-    echo fn main() {} > "%target_dir%\src\main.rs"
+    echo fn main() {{}} > "%target_dir%\src\main.rs"
     echo # Mock Repo > "%target_dir%\README.md"
     echo Cloned successfully
     exit /b 0
@@ -137,7 +145,8 @@ if "%1" == "--version" (
     exit /b 0
 )
 exit /b 1
-"#;
+"#
+        );
         fs::write(mock_git_path.with_extension("bat"), script).unwrap();
     }
 
