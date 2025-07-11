@@ -105,7 +105,7 @@ pub fn generate_markdown(files: Vec<FileInfo>, options: DigestOptions) -> Result
                 anchor = anchor
             ));
         }
-        output.push_str("\n");
+        output.push('\n');
     }
     
     // Group files if requested
@@ -353,10 +353,7 @@ fn file_type_priority(file_type: &FileType) -> u8 {
 fn path_to_anchor(path: &Path) -> String {
     path.display()
         .to_string()
-        .replace('/', "-")
-        .replace('\\', "-")
-        .replace('.', "-")
-        .replace(' ', "-")
+        .replace(['/', '\\', '.', ' '], "-")
         .to_lowercase()
 }
 

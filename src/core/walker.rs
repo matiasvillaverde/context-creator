@@ -375,8 +375,10 @@ mod tests {
         // Create a small file
         File::create(root.join("small.txt")).unwrap();
         
-        let mut options = WalkOptions::default();
-        options.max_file_size = Some(512 * 1024); // 512KB limit
+        let options = WalkOptions {
+            max_file_size: Some(512 * 1024), // 512KB limit
+            ..Default::default()
+        };
         
         let files = walk_directory(root, options).unwrap();
         
@@ -432,8 +434,10 @@ mod tests {
         File::create(root.join("test.rs")).unwrap();
         File::create(root.join("readme.md")).unwrap();
         
-        let mut options = WalkOptions::default();
-        options.ignore_patterns = vec!["*.md".to_string()];
+        let options = WalkOptions {
+            ignore_patterns: vec!["*.md".to_string()],
+            ..Default::default()
+        };
         
         let files = walk_directory(root, options).unwrap();
         
@@ -453,8 +457,10 @@ mod tests {
         File::create(root.join("lib.rs")).unwrap();
         File::create(root.join("README.md")).unwrap();
         
-        let mut options = WalkOptions::default();
-        options.include_patterns = vec!["*.rs".to_string()];
+        let options = WalkOptions {
+            include_patterns: vec!["*.rs".to_string()],
+            ..Default::default()
+        };
         
         let files = walk_directory(root, options).unwrap();
         

@@ -4,10 +4,11 @@ use clap::{Parser, ValueEnum};
 use std::path::PathBuf;
 
 /// Supported LLM CLI tools
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Default)]
 pub enum LlmTool {
     /// Use gemini-cli (default)
     #[value(name = "gemini-cli")]
+    #[default]
     GeminiCli,
     /// Use codex CLI
     #[value(name = "codex")]
@@ -32,11 +33,6 @@ impl LlmTool {
     }
 }
 
-impl Default for LlmTool {
-    fn default() -> Self {
-        LlmTool::GeminiCli
-    }
-}
 
 /// High-performance CLI tool to convert codebases to Markdown for LLM context
 #[derive(Parser, Debug, Clone)]
@@ -77,6 +73,76 @@ pub struct Config {
     /// Show progress indicators during processing
     #[arg(long)]
     pub progress: bool,
+}
+
+impl Config {
+    /// Validate the configuration
+    pub fn validate(&self) -> Result<(), crate::utils::error::CodeDigestError> {
+        use crate::utils::error::CodeDigestError;
+
+        // Validate directory exists
+        if !self.directory.exists() {
+            return Err(CodeDigestError::InvalidPath(format!(
+                "Directory does not exist: {}",
+                self.directory.display()
+            )));
+        }
+
+        if !self.directory.is_dir() {
+            return Err(CodeDigestError::InvalidPath(format!(
+                "Path is not a directory: {}",
+                self.directory.display()
+            )));
+        }
+
+        // Validate output file parent directory exists if specified
+        if let Some(output) = &self.output_file {
+            if let Some(parent) = output.parent() {
+                if !parent.exists() {
+                    return Err(CodeDigestError::InvalidPath(format!(
+                        "Output directory does not exist: {}",
+                        parent.display()
+                    )));
+                }
+            }
+        }
+
+        // Validate mutually exclusive options
+        if self.output_file.is_some() && self.prompt.is_some() {
+            return Err(CodeDigestError::InvalidConfiguration(
+                "Cannot specify both --output and a prompt".to_string(),
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Load configuration from file if specified
+    pub fn load_from_file(&mut self) -> Result<(), crate::utils::error::CodeDigestError> {
+        use crate::config::ConfigFile;
+
+        let config_file = if let Some(ref config_path) = self.config {
+            // Load from specified config file
+            Some(ConfigFile::load_from_file(config_path)?)
+        } else {
+            // Try to load from default locations
+            ConfigFile::load_default()?
+        };
+
+        if let Some(config_file) = config_file {
+            config_file.apply_to_cli_config(self);
+            
+            if self.verbose {
+                if let Some(ref config_path) = self.config {
+                    eprintln!("📄 Loaded configuration from: {}", config_path.display());
+                } else {
+                    eprintln!("📄 Loaded configuration from default location");
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -205,75 +271,5 @@ mod tests {
         
         // Should not error when no config file is found
         assert!(config.load_from_file().is_ok());
-    }
-}
-
-impl Config {
-    /// Validate the configuration
-    pub fn validate(&self) -> Result<(), crate::utils::error::CodeDigestError> {
-        use crate::utils::error::CodeDigestError;
-
-        // Validate directory exists
-        if !self.directory.exists() {
-            return Err(CodeDigestError::InvalidPath(format!(
-                "Directory does not exist: {}",
-                self.directory.display()
-            )));
-        }
-
-        if !self.directory.is_dir() {
-            return Err(CodeDigestError::InvalidPath(format!(
-                "Path is not a directory: {}",
-                self.directory.display()
-            )));
-        }
-
-        // Validate output file parent directory exists if specified
-        if let Some(output) = &self.output_file {
-            if let Some(parent) = output.parent() {
-                if !parent.exists() {
-                    return Err(CodeDigestError::InvalidPath(format!(
-                        "Output directory does not exist: {}",
-                        parent.display()
-                    )));
-                }
-            }
-        }
-
-        // Validate mutually exclusive options
-        if self.output_file.is_some() && self.prompt.is_some() {
-            return Err(CodeDigestError::InvalidConfiguration(
-                "Cannot specify both --output and a prompt".to_string(),
-            ));
-        }
-
-        Ok(())
-    }
-
-    /// Load configuration from file if specified
-    pub fn load_from_file(&mut self) -> Result<(), crate::utils::error::CodeDigestError> {
-        use crate::config::ConfigFile;
-
-        let config_file = if let Some(ref config_path) = self.config {
-            // Load from specified config file
-            Some(ConfigFile::load_from_file(config_path)?)
-        } else {
-            // Try to load from default locations
-            ConfigFile::load_default()?
-        };
-
-        if let Some(config_file) = config_file {
-            config_file.apply_to_cli_config(self);
-            
-            if self.verbose {
-                if let Some(ref config_path) = self.config {
-                    eprintln!("📄 Loaded configuration from: {}", config_path.display());
-                } else {
-                    eprintln!("📄 Loaded configuration from default location");
-                }
-            }
-        }
-
-        Ok(())
     }
 }

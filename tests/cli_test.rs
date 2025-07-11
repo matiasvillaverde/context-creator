@@ -3,25 +3,25 @@ use clap::Parser;
 
 #[test]
 fn test_llm_tool_default() {
-    let config = Config::parse_from(&["code-digest"]);
+    let config = Config::parse_from(["code-digest"]);
     assert_eq!(config.llm_tool, LlmTool::GeminiCli);
 }
 
 #[test]
 fn test_llm_tool_gemini() {
-    let config = Config::parse_from(&["code-digest", "--tool", "gemini-cli"]);
+    let config = Config::parse_from(["code-digest", "--tool", "gemini-cli"]);
     assert_eq!(config.llm_tool, LlmTool::GeminiCli);
 }
 
 #[test]
 fn test_llm_tool_codex() {
-    let config = Config::parse_from(&["code-digest", "--tool", "codex"]);
+    let config = Config::parse_from(["code-digest", "--tool", "codex"]);
     assert_eq!(config.llm_tool, LlmTool::Codex);
 }
 
 #[test]
 fn test_llm_tool_short_flag() {
-    let config = Config::parse_from(&["code-digest", "-t", "codex"]);
+    let config = Config::parse_from(["code-digest", "-t", "codex"]);
     assert_eq!(config.llm_tool, LlmTool::Codex);
 }
 

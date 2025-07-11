@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 /// Configuration file structure
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ConfigFile {
     /// Default settings
     #[serde(default)]
@@ -30,7 +30,7 @@ pub struct ConfigFile {
 }
 
 /// Default configuration settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Defaults {
     /// Default maximum tokens
     pub max_tokens: Option<usize>,
@@ -58,19 +58,6 @@ pub struct Defaults {
     pub output_file: Option<PathBuf>,
 }
 
-impl Default for Defaults {
-    fn default() -> Self {
-        Defaults {
-            max_tokens: None,
-            llm_tool: None,
-            progress: false,
-            verbose: false,
-            quiet: false,
-            directory: None,
-            output_file: None,
-        }
-    }
-}
 
 /// File priority configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -81,16 +68,6 @@ pub struct Priority {
     pub weight: f32,
 }
 
-impl Default for ConfigFile {
-    fn default() -> Self {
-        ConfigFile {
-            defaults: Defaults::default(),
-            priorities: vec![],
-            ignore: vec![],
-            include: vec![],
-        }
-    }
-}
 
 impl ConfigFile {
     /// Load configuration from a file

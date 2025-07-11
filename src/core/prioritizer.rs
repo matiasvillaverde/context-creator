@@ -283,7 +283,7 @@ mod tests {
 
     #[test]
     fn test_priority_ordering() {
-        let mut files = vec![
+        let mut files = [
             FileInfo {
                 path: PathBuf::from("test.rs"),
                 relative_path: PathBuf::from("test.rs"),
@@ -355,7 +355,7 @@ mod tests {
         
         // Check that files are correctly grouped by directory
         let has_root_or_main = grouped.iter().any(|(dir, files)| {
-            (dir == "." || dir == "") && files.iter().any(|f| f.relative_path == PathBuf::from("main.rs"))
+            (dir == "." || dir.is_empty()) && files.iter().any(|f| f.relative_path == PathBuf::from("main.rs"))
         });
         assert!(has_root_or_main);
         
