@@ -252,10 +252,10 @@ fn test_llm_tool_options() {
         .arg("-o")
         .arg(&output_file)
         .arg("--tool")
-        .arg("gemini-cli")
+        .arg("gemini")
         .arg("--verbose");
 
-    cmd.assert().success().stderr(predicate::str::contains("LLM tool: gemini-cli"));
+    cmd.assert().success().stderr(predicate::str::contains("LLM tool: gemini"));
 
     // Test with codex option
     let mut cmd = Command::cargo_bin("code-digest").unwrap();

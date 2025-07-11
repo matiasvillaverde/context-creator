@@ -132,7 +132,7 @@ impl ConfigFile {
             // Only apply if CLI used default
             if cli_config.llm_tool == LlmTool::default() {
                 match tool_str.as_str() {
-                    "gemini-cli" => cli_config.llm_tool = LlmTool::GeminiCli,
+                    "gemini" => cli_config.llm_tool = LlmTool::Gemini,
                     "codex" => cli_config.llm_tool = LlmTool::Codex,
                     _ => {} // Ignore invalid tool names
                 }
@@ -169,7 +169,7 @@ pub fn create_example_config() -> String {
     let example = ConfigFile {
         defaults: Defaults {
             max_tokens: Some(150000),
-            llm_tool: Some("gemini-cli".to_string()),
+            llm_tool: Some("gemini".to_string()),
             progress: true,
             verbose: false,
             quiet: false,
@@ -217,7 +217,7 @@ include = [
 
 [defaults]
 max_tokens = 100000
-llm_tool = "gemini-cli"
+llm_tool = "gemini"
 progress = true
 
 [[priorities]]
@@ -232,7 +232,7 @@ weight = 50.0
         let config: ConfigFile = toml::from_str(config_content).unwrap();
 
         assert_eq!(config.defaults.max_tokens, Some(100000));
-        assert_eq!(config.defaults.llm_tool, Some("gemini-cli".to_string()));
+        assert_eq!(config.defaults.llm_tool, Some("gemini".to_string()));
         assert!(config.defaults.progress);
         assert_eq!(config.priorities.len(), 2);
         assert_eq!(config.priorities[0].pattern, "src/**/*.rs");

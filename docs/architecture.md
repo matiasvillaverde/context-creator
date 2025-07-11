@@ -165,7 +165,7 @@ pub enum CodeDigestError {
     MarkdownGenerationError(String),
     
     // External tool errors
-    GeminiCliNotFound,
+    GeminiNotFound,
     SubprocessError(String),
 }
 ```
@@ -234,7 +234,7 @@ syntax_highlighting = true
 - Timeout long operations
 
 ### External Commands
-- Validate gemini-cli presence
+- Validate gemini presence
 - Sanitize inputs to subprocesses
 - Handle subprocess failures gracefully
 

@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Markdown generation from source code
 - Token counting with tiktoken-rs
 - File prioritization system
-- Integration with gemini-cli
+- Integration with gemini
 - Support for .gitignore and .digestignore
 - Configuration file support
 - CLI interface with comprehensive options

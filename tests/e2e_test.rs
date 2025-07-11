@@ -1254,17 +1254,17 @@ fn test_e2e_llm_tool_selection() {
     let project_dir = create_realistic_rust_project(temp_dir.path());
     let output_file = temp_dir.path().join("tool_output.md");
 
-    // Test with gemini-cli
+    // Test with gemini
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
     cmd.arg("-d")
         .arg(&project_dir)
         .arg("-o")
         .arg(&output_file)
         .arg("--tool")
-        .arg("gemini-cli")
+        .arg("gemini")
         .arg("--verbose");
 
-    cmd.assert().success().stderr(predicate::str::contains("LLM tool: gemini-cli"));
+    cmd.assert().success().stderr(predicate::str::contains("LLM tool: gemini"));
 
     // Test with codex
     let mut cmd = Command::cargo_bin("code-digest").unwrap();

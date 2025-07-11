@@ -50,23 +50,23 @@ source ~/.bashrc
 
 ### LLM Tools Not Found
 
-**Problem**: `gemini-cli: command not found` or similar.
+**Problem**: `gemini: command not found` or similar.
 
 **Solutions**:
 
 ```bash
-# Install gemini-cli
-pip install gemini-cli
+# Install gemini
+pip install gemini
 
 # Install codex CLI
 npm install -g @openai/codex-cli
 
 # Check PATH
 echo $PATH
-which gemini-cli
+which gemini
 
 # Use full path
-code-digest -d project --tool /full/path/to/gemini-cli "prompt"
+code-digest -d project --tool /full/path/to/gemini "prompt"
 ```
 
 ## Runtime Issues
@@ -307,7 +307,7 @@ export ANTHROPIC_API_KEY="your-key"
 echo $OPENAI_API_KEY | cut -c1-10
 
 # Test tool directly
-gemini-cli --help
+gemini --help
 codex --version
 
 # Check tool configuration
@@ -328,7 +328,7 @@ code-digest -d project --llm-timeout 120 "prompt"
 code-digest -d project --max-tokens 10000 "prompt"
 
 # Test tool directly
-echo "test prompt" | gemini-cli
+echo "test prompt" | gemini
 
 # Use alternative tool
 code-digest -d project --tool codex "prompt"
@@ -337,7 +337,7 @@ code-digest -d project --tool codex "prompt"
 **Configuration**:
 
 ```toml
-[tools.gemini-cli]
+[tools.gemini]
 timeout = 120
 max_retries = 3
 

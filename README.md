@@ -12,7 +12,7 @@ A high-performance CLI tool that transforms your codebase into a single, well-fo
 - **🎯 Smart Prioritization**: Intelligently prioritizes files when token limits are reached
 - **🔍 Git-Aware**: Respects `.gitignore` and custom `.digestignore` patterns
 - **📊 Token Counting**: Accurate token counting using tiktoken for optimal LLM usage
-- **🔗 Direct Integration**: Seamlessly pipes output to `gemini-cli` or saves to file
+- **🔗 Direct Integration**: Seamlessly pipes output to `gemini` or saves to file
 - **⚙️ Highly Configurable**: Flexible configuration via CLI args or config files
 
 ## 📦 Installation
@@ -238,9 +238,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### Common Issues
 
-**gemini-cli not found**
-- Ensure `gemini-cli` is installed and in your PATH
-- Install with: `pip install gemini-cli`
+**gemini not found**
+- Ensure `gemini` is installed and in your PATH
+- Install with: `pip install gemini`
 
 **Token count exceeded**
 - Use `--max-tokens` to set a limit

@@ -20,7 +20,7 @@ Code Digest is a Rust-based CLI tool that:
 - **Prioritizes** files based on importance and token limits
 - **Optimizes** output for LLM context windows
 - **Supports** 20+ programming languages
-- **Integrates** with LLM CLI tools (gemini-cli, codex)
+- **Integrates** with LLM CLI tools (gemini, codex)
 - **Processes** projects in parallel for maximum performance
 
 ## Key Features
@@ -44,7 +44,7 @@ Code Digest is a Rust-based CLI tool that:
 - Environment variable integration
 
 ### 🔧 **LLM Integration**
-- Direct integration with gemini-cli and codex
+- Direct integration with gemini and codex
 - Optimized token usage for context windows
 - Structured output with table of contents
 - File tree visualization

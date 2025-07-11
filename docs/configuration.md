@@ -59,7 +59,7 @@ max_tokens = 50000
 progress = true
 verbose = false
 quiet = false
-tool = "gemini-cli"
+tool = "gemini"
 include_tree = true
 include_stats = true
 include_toc = true
@@ -226,8 +226,8 @@ weight = 20.0
 description = "Documentation files"
 
 # LLM tool configurations
-[tools.gemini-cli]
-command = "gemini-cli"
+[tools.gemini]
+command = "gemini"
 args = ["--format", "markdown"]
 timeout = 60
 max_retries = 3
@@ -283,7 +283,7 @@ verbose = false
 quiet = false
 
 # Default LLM tool
-tool = "gemini-cli"
+tool = "gemini"
 
 # Include file tree in output
 include_tree = true
@@ -418,8 +418,8 @@ condition = "include_tests"  # Only apply if condition is true
 LLM tool configurations:
 
 ```toml
-[tools.gemini-cli]
-command = "gemini-cli"           # Command to execute
+[tools.gemini]
+command = "gemini"           # Command to execute
 args = ["--format", "markdown"]  # Default arguments
 timeout = 60                     # Timeout in seconds
 max_retries = 3                  # Retry attempts
@@ -456,7 +456,7 @@ All configuration options can be set via environment variables using the prefix 
 export CODE_DIGEST_MAX_TOKENS=50000
 export CODE_DIGEST_PROGRESS=true
 export CODE_DIGEST_VERBOSE=false
-export CODE_DIGEST_TOOL=gemini-cli
+export CODE_DIGEST_TOOL=gemini
 
 # Paths
 export CODE_DIGEST_CONFIG=/path/to/config.toml
@@ -534,7 +534,7 @@ code-digest --dry-run -d project
         "max_tokens": { "type": "integer", "minimum": 0 },
         "progress": { "type": "boolean" },
         "verbose": { "type": "boolean" },
-        "tool": { "type": "string", "enum": ["gemini-cli", "codex", "claude"] }
+        "tool": { "type": "string", "enum": ["gemini", "codex", "claude"] }
       }
     }
   }
@@ -609,7 +609,7 @@ ignore = [
     "*.secret"
 ]
 
-[tools.gemini-cli]
+[tools.gemini]
 # Don't log sensitive data
 args = ["--no-log", "--secure"]
 ```

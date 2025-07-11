@@ -6,10 +6,10 @@ use std::path::PathBuf;
 /// Supported LLM CLI tools
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Default)]
 pub enum LlmTool {
-    /// Use gemini-cli (default)
-    #[value(name = "gemini-cli")]
+    /// Use gemini (default)
+    #[value(name = "gemini")]
     #[default]
-    GeminiCli,
+    Gemini,
     /// Use codex CLI
     #[value(name = "codex")]
     Codex,
@@ -19,7 +19,7 @@ impl LlmTool {
     /// Get the command name for the tool
     pub fn command(&self) -> &'static str {
         match self {
-            LlmTool::GeminiCli => "gemini-cli",
+            LlmTool::Gemini => "gemini",
             LlmTool::Codex => "codex",
         }
     }
@@ -27,7 +27,7 @@ impl LlmTool {
     /// Get the installation instructions for the tool
     pub fn install_instructions(&self) -> &'static str {
         match self {
-            LlmTool::GeminiCli => "Please install gemini-cli with: pip install gemini-cli",
+            LlmTool::Gemini => "Please install gemini with: pip install gemini",
             LlmTool::Codex => {
                 "Please install codex CLI from: https://github.com/microsoft/codex-cli"
             }
@@ -56,7 +56,7 @@ pub struct Config {
     pub max_tokens: Option<usize>,
 
     /// LLM CLI tool to use for processing
-    #[arg(short = 't', long = "tool", default_value = "gemini-cli")]
+    #[arg(short = 't', long = "tool", default_value = "gemini")]
     pub llm_tool: LlmTool,
 
     /// Suppress all output except for errors and the final LLM response
@@ -246,13 +246,13 @@ mod tests {
 
     #[test]
     fn test_llm_tool_enum_values() {
-        assert_eq!(LlmTool::GeminiCli.command(), "gemini-cli");
+        assert_eq!(LlmTool::Gemini.command(), "gemini");
         assert_eq!(LlmTool::Codex.command(), "codex");
 
-        assert!(LlmTool::GeminiCli.install_instructions().contains("pip install"));
+        assert!(LlmTool::Gemini.install_instructions().contains("pip install"));
         assert!(LlmTool::Codex.install_instructions().contains("github.com"));
 
-        assert_eq!(LlmTool::default(), LlmTool::GeminiCli);
+        assert_eq!(LlmTool::default(), LlmTool::Gemini);
     }
 
     #[test]

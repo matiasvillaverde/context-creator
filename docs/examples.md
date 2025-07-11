@@ -606,7 +606,7 @@ progress = true
 # Project-specific configurations
 [projects."/workspace/frontend"]
 max_tokens = 40000
-tool = "gemini-cli"
+tool = "gemini"
 ignore = ["node_modules/", "dist/"]
 
 [projects."/workspace/backend"]

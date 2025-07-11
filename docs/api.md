@@ -19,7 +19,7 @@ fn main() -> anyhow::Result<()> {
         progress: true,
         verbose: false,
         quiet: false,
-        llm_tool: code_digest::cli::LlmTool::GeminiCli,
+        llm_tool: code_digest::cli::LlmTool::Gemini,
         config: None,
         prompt: None,
     };
@@ -140,8 +140,8 @@ Enumeration of supported LLM CLI tools.
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LlmTool {
-    /// Use gemini-cli (default)
-    GeminiCli,
+    /// Use gemini (default)
+    Gemini,
     /// Use codex CLI
     Codex,
 }
@@ -600,7 +600,7 @@ fn main() -> anyhow::Result<()> {
                 progress: true,
                 verbose: false,
                 quiet: false,
-                llm_tool: code_digest::cli::LlmTool::GeminiCli,
+                llm_tool: code_digest::cli::LlmTool::Gemini,
                 config: None,
                 prompt: None,
             };
@@ -641,7 +641,7 @@ async fn analyze_endpoint(Query(params): Query<AnalyzeRequest>) -> Json<AnalyzeR
         progress: false,
         verbose: false,
         quiet: true,
-        llm_tool: code_digest::cli::LlmTool::GeminiCli,
+        llm_tool: code_digest::cli::LlmTool::Gemini,
         config: None,
         prompt: None,
     };
@@ -687,7 +687,7 @@ async fn async_analysis(directory: PathBuf) -> anyhow::Result<String> {
         progress: false,
         verbose: false,
         quiet: true,
-        llm_tool: code_digest::cli::LlmTool::GeminiCli,
+        llm_tool: code_digest::cli::LlmTool::Gemini,
         config: None,
         prompt: None,
     };
@@ -762,7 +762,7 @@ mod tests {
             progress: false,
             verbose: false,
             quiet: true,
-            llm_tool: code_digest::cli::LlmTool::GeminiCli,
+            llm_tool: code_digest::cli::LlmTool::Gemini,
             config: None,
             prompt: None,
         };
@@ -794,7 +794,7 @@ fn benchmark_analysis(c: &mut Criterion) {
         progress: false,
         verbose: false,
         quiet: true,
-        llm_tool: code_digest::cli::LlmTool::GeminiCli,
+        llm_tool: code_digest::cli::LlmTool::Gemini,
         config: None,
         prompt: None,
     };

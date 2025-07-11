@@ -4,13 +4,13 @@ use code_digest::cli::{Config, LlmTool};
 #[test]
 fn test_llm_tool_default() {
     let config = Config::parse_from(["code-digest"]);
-    assert_eq!(config.llm_tool, LlmTool::GeminiCli);
+    assert_eq!(config.llm_tool, LlmTool::Gemini);
 }
 
 #[test]
 fn test_llm_tool_gemini() {
-    let config = Config::parse_from(["code-digest", "--tool", "gemini-cli"]);
-    assert_eq!(config.llm_tool, LlmTool::GeminiCli);
+    let config = Config::parse_from(["code-digest", "--tool", "gemini"]);
+    assert_eq!(config.llm_tool, LlmTool::Gemini);
 }
 
 #[test]
@@ -27,12 +27,12 @@ fn test_llm_tool_short_flag() {
 
 #[test]
 fn test_llm_tool_command_names() {
-    assert_eq!(LlmTool::GeminiCli.command(), "gemini-cli");
+    assert_eq!(LlmTool::Gemini.command(), "gemini");
     assert_eq!(LlmTool::Codex.command(), "codex");
 }
 
 #[test]
 fn test_llm_tool_install_instructions() {
-    assert!(LlmTool::GeminiCli.install_instructions().contains("pip install"));
+    assert!(LlmTool::Gemini.install_instructions().contains("pip install"));
     assert!(LlmTool::Codex.install_instructions().contains("github.com"));
 }

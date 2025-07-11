@@ -193,10 +193,10 @@ For direct LLM integration, install one or more LLM CLI tools:
 
 ```bash
 # Python/pip installation
-pip install gemini-cli
+pip install gemini
 
 # Verify
-gemini-cli --version
+gemini --version
 ```
 
 ### OpenAI Codex CLI

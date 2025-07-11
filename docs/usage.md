@@ -23,11 +23,11 @@ code-digest -d /path/to/project -o project.md --progress
 ### LLM Integration
 
 ```bash
-# Direct LLM interaction (requires gemini-cli or codex)
+# Direct LLM interaction (requires gemini or codex)
 code-digest -d /path/to/project "Explain the architecture"
 
 # With specific LLM tool
-code-digest -d /path/to/project --tool gemini-cli "Review this code"
+code-digest -d /path/to/project --tool gemini "Review this code"
 code-digest -d /path/to/project --tool codex "Find potential bugs"
 
 # Analyze specific aspects
@@ -53,7 +53,7 @@ code-digest --max-tokens 50000
 code-digest --max-tokens 100000
 
 # LLM tool selection
-code-digest -t gemini-cli
+code-digest -t gemini
 code-digest --tool codex
 
 # Configuration file
@@ -183,7 +183,7 @@ include = [
 max_tokens = 50000
 progress = true
 verbose = false
-tool = "gemini-cli"
+tool = "gemini"
 
 ignore = [
     "node_modules/",
@@ -435,9 +435,9 @@ code-digest -d /path/to/project
 code-digest -d project --max-tokens 10000
 
 # LLM tool not found
-which gemini-cli  # Check if installed
+which gemini  # Check if installed
 export PATH="$PATH:/path/to/llm/tools"
-code-digest -d project --tool gemini-cli "prompt"
+code-digest -d project --tool gemini "prompt"
 
 # Configuration error
 code-digest --config-schema > schema.json
