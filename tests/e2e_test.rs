@@ -10,6 +10,13 @@ use std::path::Path;
 use std::process::Command;
 use tempfile::TempDir;
 
+/// Helper function to check if content contains a path, handling both Unix and Windows separators
+fn contains_path(content: &str, path: &str) -> bool {
+    let unix_path = path.replace('\\', "/");
+    let windows_path = path.replace('/', "\\");
+    content.contains(&unix_path) || content.contains(&windows_path)
+}
+
 /// Create a realistic Rust project structure for testing
 fn create_realistic_rust_project(temp_dir: &Path) -> std::path::PathBuf {
     let project_dir = temp_dir.join("rust_project");
@@ -907,9 +914,9 @@ fn test_e2e_basic_markdown_generation() {
 
     // Should contain specific files from our realistic project
     assert!(content.contains("Cargo.toml"));
-    assert!(content.contains("src/main.rs"));
-    assert!(content.contains("src/lib.rs"));
-    assert!(content.contains("src/handlers/auth.rs"));
+    assert!(contains_path(&content, "src/main.rs"));
+    assert!(contains_path(&content, "src/lib.rs"));
+    assert!(contains_path(&content, "src/handlers/auth.rs"));
     assert!(content.contains("README.md"));
 
     // Should contain actual code content
@@ -955,7 +962,7 @@ fn test_e2e_with_token_limits() {
     assert!(content.contains("## Statistics"));
 
     // Should prioritize important files (main.rs, lib.rs, Cargo.toml)
-    assert!(content.contains("src/main.rs") || content.contains("Cargo.toml"));
+    assert!(contains_path(&content, "src/main.rs") || content.contains("Cargo.toml"));
 }
 
 /// Test end-to-end with configuration file
@@ -996,7 +1003,7 @@ weight = 150.0
     let content = fs::read_to_string(&output_file).unwrap();
 
     // Should contain prioritized files
-    assert!(content.contains("src/main.rs"));
+    assert!(contains_path(&content, "src/main.rs"));
     assert!(content.contains("Cargo.toml"));
 
     // Should exclude ignored test files (if token limit allows, they should be deprioritized)
@@ -1094,14 +1101,14 @@ fn test_e2e_large_project_performance() {
     for i in 0..50 {
         let content = format!(
             r#"
-// Module {}
+// Module {i}
 use std::collections::HashMap;
 
-pub struct Module{} {{
+pub struct Module{i} {{
     data: HashMap<String, String>,
 }}
 
-impl Module{} {{
+impl Module{i} {{
     pub fn new() -> Self {{
         Self {{
             data: HashMap::new(),
@@ -1118,16 +1125,15 @@ mod tests {{
     use super::*;
     
     #[test]
-    fn test_module{}() {{
-        let module = Module{}::new();
+    fn test_module{i}() {{
+        let module = Module{i}::new();
         assert_eq!(module.process("test"), "Processed: test");
     }}
 }}
-"#,
-            i, i, i, i, i
+"#
         );
 
-        fs::write(large_project.join(format!("src/module_{}.rs", i)), content).unwrap();
+        fs::write(large_project.join(format!("src/module_{i}.rs")), content).unwrap();
     }
 
     // Create a Cargo.toml for the large project
@@ -1215,13 +1221,13 @@ src/handlers/
     let content = fs::read_to_string(&output_file).unwrap();
 
     // Should contain main files
-    assert!(content.contains("src/main.rs"));
-    assert!(content.contains("src/lib.rs"));
+    assert!(contains_path(&content, "src/main.rs"));
+    assert!(contains_path(&content, "src/lib.rs"));
     assert!(content.contains("Cargo.toml"));
 
     // Should NOT contain ignored files/directories
-    assert!(!content.contains("tests/integration_test.rs"));
-    assert!(!content.contains("src/handlers/auth.rs"));
+    assert!(!contains_path(&content, "tests/integration_test.rs"));
+    assert!(!contains_path(&content, "src/handlers/auth.rs"));
 }
 
 /// Test end-to-end verbose output for debugging

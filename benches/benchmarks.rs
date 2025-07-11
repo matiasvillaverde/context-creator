@@ -58,7 +58,7 @@ fn create_test_project(
         let file_path = if i < file_templates.len() {
             project_dir.join(base_path)
         } else {
-            project_dir.join(format!("src/generated_{}.rs", i))
+            project_dir.join(format!("src/generated_{i}.rs"))
         };
 
         // Scale content to target size
@@ -261,7 +261,7 @@ fn bench_memory_efficiency(c: &mut Criterion) {
         group.throughput(Throughput::Bytes(total_bytes as u64));
 
         group.bench_with_input(
-            BenchmarkId::new("memory_usage", format!("{}files_{}bytes", file_count, avg_size)),
+            BenchmarkId::new("memory_usage", format!("{file_count}files_{avg_size}bytes")),
             &project_dir,
             |b, path| {
                 b.iter(|| {
@@ -341,7 +341,7 @@ fn bench_file_type_processing(c: &mut Criterion) {
         fs::write(&file_path, content).unwrap();
 
         group.bench_with_input(
-            BenchmarkId::new("token_counting", format!("{:?}", file_type)),
+            BenchmarkId::new("token_counting", format!("{file_type:?}")),
             &(file_path, content),
             |b, (_path, content)| {
                 b.iter(|| {
