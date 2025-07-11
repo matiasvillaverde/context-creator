@@ -99,7 +99,8 @@ impl Config {
         // Validate output file parent directory exists if specified
         if let Some(output) = &self.output_file {
             if let Some(parent) = output.parent() {
-                if !parent.exists() {
+                // Handle empty parent (current directory) and check if parent exists
+                if !parent.as_os_str().is_empty() && !parent.exists() {
                     return Err(CodeDigestError::InvalidPath(format!(
                         "Output directory does not exist: {}",
                         parent.display()
@@ -253,6 +254,25 @@ mod tests {
         assert!(LlmTool::Codex.install_instructions().contains("github.com"));
 
         assert_eq!(LlmTool::default(), LlmTool::Gemini);
+    }
+
+    #[test]
+    fn test_config_validation_output_file_in_current_dir() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = Config {
+            prompt: None,
+            directory: temp_dir.path().to_path_buf(),
+            output_file: Some(PathBuf::from("output.md")),
+            max_tokens: None,
+            llm_tool: LlmTool::default(),
+            quiet: false,
+            verbose: false,
+            config: None,
+            progress: false,
+        };
+
+        // Should not error for files in current directory
+        assert!(config.validate().is_ok());
     }
 
     #[test]
