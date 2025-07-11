@@ -58,7 +58,7 @@ pub fn parse_github_url(url: &str) -> Result<(String, String), CodeDigestError> 
 pub fn fetch_repository(repo_url: &str, verbose: bool) -> Result<TempDir, CodeDigestError> {
     let (owner, repo) = parse_github_url(repo_url)?;
     let temp_dir = TempDir::new().map_err(|e| {
-        CodeDigestError::RemoteFetchError(format!("Failed to create temp directory: {}", e))
+        CodeDigestError::RemoteFetchError(format!("Failed to create temp directory: {e}"))
     })?;
 
     // Set secure permissions on temp directory (0700)
@@ -66,23 +66,19 @@ pub fn fetch_repository(repo_url: &str, verbose: bool) -> Result<TempDir, CodeDi
     {
         use std::os::unix::fs::PermissionsExt;
         let metadata = fs::metadata(temp_dir.path()).map_err(|e| {
-            CodeDigestError::RemoteFetchError(format!(
-                "Failed to get temp directory metadata: {}",
-                e
-            ))
+            CodeDigestError::RemoteFetchError(format!("Failed to get temp directory metadata: {e}"))
         })?;
         let mut perms = metadata.permissions();
         perms.set_mode(0o700);
         fs::set_permissions(temp_dir.path(), perms).map_err(|e| {
             CodeDigestError::RemoteFetchError(format!(
-                "Failed to set temp directory permissions: {}",
-                e
+                "Failed to set temp directory permissions: {e}"
             ))
         })?;
     }
 
     if verbose {
-        eprintln!("📥 Fetching repository: {}/{}", owner, repo);
+        eprintln!("📥 Fetching repository: {owner}/{repo}");
     }
 
     // Try gh first, then fall back to git
@@ -120,7 +116,7 @@ fn clone_with_gh(
     target_dir: &std::path::Path,
     verbose: bool,
 ) -> Result<bool, CodeDigestError> {
-    let repo_spec = format!("{}/{}", owner, repo);
+    let repo_spec = format!("{owner}/{repo}");
     let mut cmd = Command::new("gh");
     cmd.arg("repo")
         .arg("clone")
@@ -131,12 +127,12 @@ fn clone_with_gh(
         .arg("1");
 
     if verbose {
-        eprintln!("🔄 Running: gh repo clone {} --depth 1", repo_spec);
+        eprintln!("🔄 Running: gh repo clone {repo_spec} --depth 1");
     }
 
     let output = cmd
         .output()
-        .map_err(|e| CodeDigestError::RemoteFetchError(format!("Failed to run gh: {}", e)))?;
+        .map_err(|e| CodeDigestError::RemoteFetchError(format!("Failed to run gh: {e}")))?;
 
     Ok(output.status.success())
 }
