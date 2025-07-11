@@ -1285,3 +1285,41 @@ fn test_e2e_llm_tool_selection() {
 
     cmd.assert().success().stderr(predicate::str::contains("LLM tool: codex"));
 }
+
+/// Test end-to-end with multiple directories
+#[test]
+fn test_e2e_multiple_directories() {
+    let temp_dir = TempDir::new().unwrap();
+
+    // Create separate Rust and Python projects
+    let rust_dir = create_realistic_rust_project(temp_dir.path());
+    let python_dir = create_python_project(temp_dir.path());
+
+    let output_file = temp_dir.path().join("multiple_dirs_output.md");
+
+    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    cmd.arg("-d").arg(&rust_dir).arg(&python_dir).arg("-o").arg(&output_file).arg("--progress");
+
+    cmd.assert()
+        .success()
+        .stderr(predicate::str::contains("Processing directory 1 of 2"))
+        .stderr(predicate::str::contains("Processing directory 2 of 2"));
+
+    assert!(output_file.exists());
+    let content = fs::read_to_string(&output_file).unwrap();
+
+    // Should contain header indicating multiple directories
+    assert!(content.contains("# Code Digest - Multiple Directories"));
+
+    // Should contain separate sections for each directory
+    assert!(content.contains(&format!("## Directory: {}", rust_dir.display())));
+    assert!(content.contains(&format!("## Directory: {}", python_dir.display())));
+
+    // Should contain content from both projects
+    assert!(content.contains("Cargo.toml"));
+    assert!(content.contains("setup.py"));
+    assert!(content.contains("```rust"));
+    assert!(content.contains("```python"));
+    assert!(content.contains("tokio::main"));
+    assert!(content.contains("def process_data"));
+}
