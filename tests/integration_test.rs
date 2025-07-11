@@ -326,8 +326,8 @@ fn test_large_project_handling() {
     // Create multiple files
     for i in 0..10 {
         fs::write(
-            project_dir.join(format!("src/module_{}.rs", i)),
-            format!("// Module {}\npub fn function_{}() {{}}", i, i),
+            project_dir.join(format!("src/module_{i}.rs")),
+            format!("// Module {i}\npub fn function_{i}() {{}}"),
         )
         .unwrap();
     }

@@ -233,7 +233,7 @@ fn generate_file_tree(files: &[FileInfo]) -> String {
             let connector = if is_last_dir { "└── " } else { "├── " };
             let extension = if is_last_dir { "    " } else { "│   " };
 
-            output.push_str(&format!("{}{}{}/\n", prefix, connector, name));
+            output.push_str(&format!("{prefix}{connector}{name}/\n"));
             output.push_str(&render_tree(child, &format!("{prefix}{extension}"), is_last_dir));
         }
 
