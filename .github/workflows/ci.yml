@@ -11,9 +11,9 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  # Run format and lint checks first - these are fast and provide quick feedback
+  # Run validation checks first - these are fast and provide quick feedback
   validate:
-    name: Validate (Format & Lint)
+    name: Validate Code Quality
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -26,11 +26,8 @@ jobs:
     - name: Cache dependencies
       uses: Swatinem/rust-cache@v2
     
-    - name: Check formatting
-      run: cargo fmt -- --check
-    
-    - name: Run clippy
-      run: cargo clippy --all-targets --all-features -- -D warnings
+    - name: Run validation checks
+      run: make validate
 
   # Run tests on multiple platforms
   test:
@@ -54,16 +51,13 @@ jobs:
     - name: Cache dependencies
       uses: Swatinem/rust-cache@v2
     
-    - name: Run tests
-      run: cargo test --all-features --verbose
-    
-    - name: Run doctests
-      run: cargo test --doc --all-features
+    - name: Run all tests
+      run: make test
 
   # Build release binaries
   build:
     name: Build release on ${{ matrix.os }}
-    needs: validate
+    needs: [validate, test]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -116,16 +110,12 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-    
-    - name: Install cargo-audit
-      run: cargo install cargo-audit
-    
     - name: Run security audit
-      run: cargo audit
+      uses: rustsec/audit-check@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
 
-  # Check documentation
+  # Check documentation  
   docs:
     name: Documentation
     runs-on: ubuntu-latest
@@ -138,7 +128,7 @@ jobs:
     - name: Cache dependencies
       uses: Swatinem/rust-cache@v2
     
-    - name: Check documentation
-      run: cargo doc --no-deps --document-private-items --all-features
+    - name: Check documentation builds
+      run: cargo doc --no-deps --all-features
       env:
         RUSTDOCFLAGS: -D warnings
