@@ -43,9 +43,9 @@ pub struct Config {
     #[arg(value_name = "PROMPT")]
     pub prompt: Option<String>,
 
-    /// The path to the directory to process
-    #[arg(short = 'd', long, default_value = ".")]
-    pub directory: PathBuf,
+    /// The paths to the directories to process
+    #[arg(short = 'd', long, default_value = ".", num_args = 1..)]
+    pub directories: Vec<PathBuf>,
 
     /// The path to the output Markdown file. If used, won't call the LLM CLI
     #[arg(short = 'o', long)]
@@ -81,19 +81,21 @@ impl Config {
     pub fn validate(&self) -> Result<(), crate::utils::error::CodeDigestError> {
         use crate::utils::error::CodeDigestError;
 
-        // Validate directory exists
-        if !self.directory.exists() {
-            return Err(CodeDigestError::InvalidPath(format!(
-                "Directory does not exist: {}",
-                self.directory.display()
-            )));
-        }
+        // Validate all directories exist and are directories
+        for directory in &self.directories {
+            if !directory.exists() {
+                return Err(CodeDigestError::InvalidPath(format!(
+                    "Directory does not exist: {}",
+                    directory.display()
+                )));
+            }
 
-        if !self.directory.is_dir() {
-            return Err(CodeDigestError::InvalidPath(format!(
-                "Path is not a directory: {}",
-                self.directory.display()
-            )));
+            if !directory.is_dir() {
+                return Err(CodeDigestError::InvalidPath(format!(
+                    "Path is not a directory: {}",
+                    directory.display()
+                )));
+            }
         }
 
         // Validate output file parent directory exists if specified
@@ -158,7 +160,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let config = Config {
             prompt: None,
-            directory: temp_dir.path().to_path_buf(),
+            directories: vec![temp_dir.path().to_path_buf()],
             output_file: None,
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -175,7 +177,7 @@ mod tests {
     fn test_config_validation_invalid_directory() {
         let config = Config {
             prompt: None,
-            directory: PathBuf::from("/nonexistent/directory"),
+            directories: vec![PathBuf::from("/nonexistent/directory")],
             output_file: None,
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -196,7 +198,7 @@ mod tests {
 
         let config = Config {
             prompt: None,
-            directory: file_path,
+            directories: vec![file_path],
             output_file: None,
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -214,7 +216,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let config = Config {
             prompt: None,
-            directory: temp_dir.path().to_path_buf(),
+            directories: vec![temp_dir.path().to_path_buf()],
             output_file: Some(PathBuf::from("/nonexistent/directory/output.md")),
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -232,7 +234,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let config = Config {
             prompt: Some("test prompt".to_string()),
-            directory: temp_dir.path().to_path_buf(),
+            directories: vec![temp_dir.path().to_path_buf()],
             output_file: Some(temp_dir.path().join("output.md")),
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -261,7 +263,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let config = Config {
             prompt: None,
-            directory: temp_dir.path().to_path_buf(),
+            directories: vec![temp_dir.path().to_path_buf()],
             output_file: Some(PathBuf::from("output.md")),
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -280,7 +282,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let mut config = Config {
             prompt: None,
-            directory: temp_dir.path().to_path_buf(),
+            directories: vec![temp_dir.path().to_path_buf()],
             output_file: None,
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -301,12 +303,8 @@ mod tests {
         // Test single directory (backward compatibility)
         let args = vec!["code-digest", "-d", "/path/one"];
         let config = Config::parse_from(args);
-        // For now, this test expects a single directory
-        assert_eq!(config.directory, PathBuf::from("/path/one"));
-
-        // TODO: Once we update to Vec<PathBuf>, this test should be:
-        // assert_eq!(config.directories.len(), 1);
-        // assert_eq!(config.directories[0], PathBuf::from("/path/one"));
+        assert_eq!(config.directories.len(), 1);
+        assert_eq!(config.directories[0], PathBuf::from("/path/one"));
     }
 
     #[test]

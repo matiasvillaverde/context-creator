@@ -21,7 +21,7 @@ pub fn run(config: Config) -> Result<()> {
     // Setup logging based on verbosity
     if config.verbose {
         eprintln!("🔧 Starting code-digest with configuration:");
-        eprintln!("  Directory: {}", config.directory.display());
+        eprintln!("  Directories: {:?}", config.directories);
         eprintln!("  Max tokens: {:?}", config.max_tokens);
         eprintln!("  LLM tool: {}", config.llm_tool.command());
         eprintln!("  Progress: {}", config.progress);
@@ -49,8 +49,12 @@ pub fn run(config: Config) -> Result<()> {
     }
     let digest_options = DigestOptions::from_config(&config)?;
 
-    // Process the directory
-    let output = process_directory(&config.directory, walk_options, digest_options, &config)?;
+    // Process the directories (for now, just process the first one)
+    // TODO: Process multiple directories
+    let first_directory = config.directories.first().ok_or_else(|| {
+        CodeDigestError::InvalidConfiguration("No directories specified".to_string())
+    })?;
+    let output = process_directory(first_directory, walk_options, digest_options, &config)?;
 
     // Handle output based on configuration
     match (config.output_file.as_ref(), config.prompt.as_ref()) {

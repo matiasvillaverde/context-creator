@@ -18,7 +18,7 @@ fn test_cli_help() {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("High-performance CLI tool"))
-        .stdout(predicate::str::contains("--directory"))
+        .stdout(predicate::str::contains("--directories"))
         .stdout(predicate::str::contains("--output"))
         .stdout(predicate::str::contains("--max-tokens"));
 }
@@ -188,7 +188,7 @@ fn test_verbose_mode() {
     cmd.assert()
         .success()
         .stderr(predicate::str::contains("Starting code-digest"))
-        .stderr(predicate::str::contains("Directory:"))
+        .stderr(predicate::str::contains("Directories:"))
         .stderr(predicate::str::contains("Creating directory walker"))
         .stderr(predicate::str::contains("Creating markdown digest"))
         .stderr(predicate::str::contains("File list:"))

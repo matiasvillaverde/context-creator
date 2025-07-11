@@ -1244,7 +1244,7 @@ fn test_e2e_verbose_debugging() {
     cmd.assert()
         .success()
         .stderr(predicate::str::contains("Starting code-digest"))
-        .stderr(predicate::str::contains("Directory:"))
+        .stderr(predicate::str::contains("Directories:"))
         .stderr(predicate::str::contains("Creating directory walker"))
         .stderr(predicate::str::contains("Creating markdown digest"))
         .stderr(predicate::str::contains("File list:"))
