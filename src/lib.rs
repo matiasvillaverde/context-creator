@@ -68,12 +68,41 @@ pub fn run(mut config: Config) -> Result<()> {
     }
     let digest_options = DigestOptions::from_config(&config)?;
 
-    // Process the directories (for now, just process the first one)
-    // TODO: Process multiple directories
-    let first_directory = config.directories.first().ok_or_else(|| {
-        CodeDigestError::InvalidConfiguration("No directories specified".to_string())
-    })?;
-    let output = process_directory(first_directory, walk_options, digest_options, &config)?;
+    // Process all directories
+    let mut all_outputs = Vec::new();
+
+    for (index, directory) in config.directories.iter().enumerate() {
+        if config.progress && !config.quiet && config.directories.len() > 1 {
+            eprintln!(
+                "📂 Processing directory {} of {}: {}",
+                index + 1,
+                config.directories.len(),
+                directory.display()
+            );
+        }
+
+        let output =
+            process_directory(directory, walk_options.clone(), digest_options.clone(), &config)?;
+        all_outputs.push((directory.clone(), output));
+    }
+
+    // Combine outputs from all directories
+    let output = if all_outputs.len() == 1 {
+        // Single directory - return output as-is
+        all_outputs.into_iter().next().unwrap().1
+    } else {
+        // Multiple directories - combine with headers
+        let mut combined = String::new();
+        combined.push_str("# Code Digest - Multiple Directories\n\n");
+
+        for (path, content) in all_outputs {
+            combined.push_str(&format!("## Directory: {}\n\n", path.display()));
+            combined.push_str(&content);
+            combined.push_str("\n\n");
+        }
+
+        combined
+    };
 
     // Handle output based on configuration
     match (config.output_file.as_ref(), config.prompt.as_ref()) {
