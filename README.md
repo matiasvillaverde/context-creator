@@ -4,79 +4,81 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-%23000000.svg?style=flat&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 
-A high-performance CLI tool that transforms your codebase into a single, well-formatted Markdown file optimized for Large Language Model (LLM) context windows.
+Transform your entire codebase into a single, well-formatted Markdown file optimized for LLM context windows. Similar to [gitingest](https://gitingest.com/), but faster and with built-in Gemini CLI integration.
 
-## 🎯 Features
+## Why code-digest?
 
-- **🚄 Blazing Fast**: Built in Rust with parallel processing for maximum performance
-- **🎯 Smart Prioritization**: Intelligently prioritizes files when token limits are reached
+**Leverage Gemini's massive context window** to understand your entire codebase at once. This tool gives AI assistants like Claude Code superpowers by enabling them to:
+
+- 🏗️ Plan architectural changes with full visibility of your codebase
+- 🔍 Answer complex questions about how different parts interact
+- 📊 Analyze patterns and suggest improvements across your entire project
+- 🚀 Make informed decisions when they need the big picture
+
+Simply put: feed your entire repo to Gemini and have intelligent conversations about your code architecture.
+
+## 🎯 Key Features
+
+- **🚄 Blazing Fast**: Built in Rust with parallel processing
+- **🤖 Gemini Integration**: Direct piping to [Gemini CLI](https://github.com/reugn/gemini-cli) for instant AI analysis
+- **📊 Smart Token Management**: Accurate token counting using tiktoken
+- **🎯 Intelligent Prioritization**: Automatically prioritizes important files when hitting token limits
 - **🔍 Git-Aware**: Respects `.gitignore` and custom `.digestignore` patterns
-- **📊 Token Counting**: Accurate token counting using tiktoken for optimal LLM usage
-- **🔗 Direct Integration**: Seamlessly pipes output to `gemini` or saves to file
-- **⚙️ Highly Configurable**: Flexible configuration via CLI args or config files
 
 ## 📦 Installation
 
-### From Source
+### Prerequisites
 
+Install Gemini CLI first:
 ```bash
-# Clone the repository
-git clone https://github.com/matiasvillaverde/code-digest.git
-cd code-digest
-
-# Install with cargo
-cargo install --path .
+pip install gemini-cli
 ```
 
-### Using Cargo
+### Install code-digest
 
 ```bash
+# Using Cargo
 cargo install code-digest
+
+# Or from source
+git clone https://github.com/matiasvillaverde/code-digest.git
+cd code-digest
+cargo install --path .
 ```
 
 ## 🚀 Quick Start
 
-### Basic Usage
+### Ask Questions About Your Codebase
 
-Generate a markdown file from your codebase:
+```bash
+# Analyze architecture
+code-digest "What are the main architectural patterns used in this codebase?"
+
+# Understand dependencies
+code-digest "How does the authentication system interact with the database?"
+
+# Find improvement opportunities
+code-digest "What parts of this codebase could benefit from refactoring?"
+```
+
+### Generate Context Files
 
 ```bash
 # Process current directory
 code-digest
 
-# Process specific directory
-code-digest -d /path/to/your/project
+# Save to file for later use
+code-digest -o context.md
 
-# Save to file
-code-digest -o output.md
-```
-
-### With Gemini Integration
-
-Ask questions about your codebase directly:
-
-```bash
-code-digest "How does the authentication system work in this codebase?"
-```
-
-### Advanced Usage
-
-```bash
-# Limit token count
-code-digest --max-tokens 100000 -o context.md
-
-# Use custom configuration
-code-digest -c my-config.toml
-
-# Enable progress indicators
-code-digest --progress -d ./src
+# Process specific directory with token limit
+code-digest -d /path/to/project --max-tokens 100000
 ```
 
 ## 📋 Configuration
 
 ### .digestignore
 
-Create a `.digestignore` file in your project root to exclude files:
+Exclude files from processing:
 
 ```gitignore
 # Dependencies
@@ -96,22 +98,19 @@ secrets/
 
 ### .digestkeep
 
-Prioritize important files with `.digestkeep`:
+Prioritize important files:
 
 ```gitignore
 # Core functionality
 src/main.*
 src/core/**/*.rs
-src/api/**
 
 # Important configs
 Cargo.toml
 package.json
 ```
 
-### Configuration File
-
-Create `.code-digest.toml` for project-specific settings:
+### Configuration File (.code-digest.toml)
 
 ```toml
 [defaults]
@@ -125,62 +124,7 @@ weight = 100
 [[priorities]]
 pattern = "tests/**/*.rs"
 weight = 50
-
-[[priorities]]
-pattern = "docs/**/*.md"
-weight = 30
 ```
-
-## 🏗️ Architecture
-
-```
-code-digest/
-├── src/
-│   ├── main.rs       # CLI entry point
-│   ├── lib.rs        # Public API
-│   ├── cli.rs        # CLI argument parsing
-│   ├── core/         # Core functionality
-│   │   ├── walker.rs     # Directory traversal
-│   │   ├── digest.rs     # Markdown generation
-│   │   ├── token.rs      # Token counting
-│   │   └── prioritizer.rs # File prioritization
-│   └── utils/        # Utilities
-│       ├── error.rs      # Error types
-│       └── file_ext.rs   # File extension mapping
-```
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
-
-### Development Setup
-
-```bash
-# Clone the repo
-git clone https://github.com/matiasvillaverde/code-digest.git
-cd code-digest
-
-# Run tests
-make test
-
-# Run lints
-make lint
-
-# Format code
-make fmt
-
-# Run all checks
-make validate
-```
-
-## 📊 Performance
-
-`code-digest` is designed for performance:
-
-- Parallel file processing using Rayon
-- Efficient memory usage with streaming
-- Smart caching of token counts
-- Optimized release builds with LTO
 
 ## 🔧 CLI Reference
 
@@ -202,63 +146,58 @@ Options:
   -V, --version               Print version
 ```
 
-## 🧪 Examples
+## 🧪 Common Use Cases
 
-### Analyze a Rust Project
-
+### Architecture Review
 ```bash
-code-digest -d ~/my-rust-project "What are the main architectural patterns used?"
+code-digest "Create a high-level architecture diagram of this codebase"
 ```
 
-### Create Context for Code Review
-
+### Security Audit
 ```bash
-code-digest --max-tokens 50000 -o review-context.md
+code-digest "Identify potential security vulnerabilities in this codebase"
 ```
 
-### Process Multiple Repositories
-
+### Documentation Generation
 ```bash
-for repo in repo1 repo2 repo3; do
-  code-digest -d $repo -o $repo-context.md
-done
+code-digest "Generate comprehensive API documentation for all public functions"
 ```
 
-## 📝 License
+### Code Quality Analysis
+```bash
+code-digest "What code smells or anti-patterns exist in this project?"
+```
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## 🤝 Contributing
 
-## 🙏 Acknowledgments
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
 
-- Built with [Rust](https://www.rust-lang.org/)
-- Uses [tiktoken-rs](https://github.com/zurawiki/tiktoken-rs) for token counting
-- Inspired by the need for better LLM context generation
+### Development
+
+```bash
+# Run tests
+make test
+
+# Run all checks
+make validate
+```
 
 ## 🐛 Troubleshooting
 
-### Common Issues
-
 **gemini not found**
-- Ensure `gemini` is installed and in your PATH
-- Install with: `pip install gemini`
+- Ensure Gemini CLI is installed: `pip install gemini-cli`
+- Verify it's in your PATH: `which gemini`
 
 **Token count exceeded**
 - Use `--max-tokens` to set a limit
 - Configure file priorities in `.digestkeep`
 - Exclude unnecessary files in `.digestignore`
 
-**Performance issues**
-- Use `--verbose` to identify bottlenecks
-- Consider using `.digestignore` to skip large directories
-- Ensure you're using a release build
-
 ## 🚧 Roadmap
 
 - [ ] Support for more tokenizers (GPT-4, Claude, etc.)
 - [ ] Custom output templates
 - [ ] Integration with more LLM CLIs
-- [ ] Web UI for configuration
-- [ ] Plugin system for custom processors
 
 ---
 
