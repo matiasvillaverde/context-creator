@@ -56,6 +56,9 @@ pub fn run(mut config: Config) -> Result<()> {
         }
     }
 
+    // Update config with resolved directories
+    config.directories = config.get_directories();
+
     // Validate configuration
     config.validate()?;
 

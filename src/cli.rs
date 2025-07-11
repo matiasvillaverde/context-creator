@@ -247,7 +247,6 @@ impl Config {
             dirs
         }
     }
-
     /// Check if we should read from stdin
     pub fn should_read_stdin(&self) -> bool {
         use std::io::IsTerminal;
