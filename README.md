@@ -15,7 +15,22 @@ Transform your entire codebase into a single, well-formatted Markdown file optim
 - 📊 Analyze patterns and suggest improvements across your entire project
 - 🚀 Make informed decisions when they need the big picture
 
-Simply put: feed your entire repo to Gemini and have intelligent conversations about your code architecture.
+Simply put: feed your entire repo to Gemini and let Claude Code have intelligent conversations about your code architecture.
+
+## 🚀 Quick Start
+
+### Ask Questions About Your Codebase
+
+```bash
+# Analyze architecture
+code-digest "What are the main architectural patterns used in this codebase?"
+
+# Understand dependencies
+code-digest "How does the authentication system interact with the database?"
+
+# Find improvement opportunities
+code-digest "How can I implement the new feature X?"
+```
 
 ## 🎯 Key Features
 
@@ -44,21 +59,6 @@ cargo install --path .
 Install Gemini CLI (optional):
 ```bash
 npm install -g @google/gemini-cli
-```
-
-## 🚀 Quick Start
-
-### Ask Questions About Your Codebase
-
-```bash
-# Analyze architecture
-code-digest "What are the main architectural patterns used in this codebase?"
-
-# Understand dependencies
-code-digest "How does the authentication system interact with the database?"
-
-# Find improvement opportunities
-code-digest "What parts of this codebase could benefit from refactoring?"
 ```
 
 ### Generate Context Files
