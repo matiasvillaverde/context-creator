@@ -515,6 +515,7 @@ mod tests {
             verbose: false,
             config: None,
             progress: false,
+            repo: None,
         };
 
         let options = DigestOptions::from_config(&config).unwrap();

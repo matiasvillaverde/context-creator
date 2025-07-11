@@ -22,8 +22,11 @@ Simply put: feed your entire repo to Gemini and let Claude Code have intelligent
 ### Ask Questions About Your Codebase
 
 ```bash
-# Analyze architecture
+# Analyze local architecture
 code-digest "What are the main architectural patterns used in this codebase?"
+
+# Analyze remote GitHub repository
+code-digest --repo https://github.com/owner/repo "How is this project structured?"
 
 # Understand dependencies
 code-digest "How does the authentication system interact with the database?"
@@ -36,6 +39,7 @@ code-digest "How can I implement the new feature X?"
 
 - **🚄 Blazing Fast**: Built in Rust with parallel processing
 - **🤖 Gemini Integration**: Direct piping to [Gemini CLI](https://github.com/reugn/gemini-cli) for instant AI analysis
+- **🔗 Remote Repository Support**: Analyze any GitHub repository directly without cloning
 - **📊 Smart Token Management**: Accurate token counting using tiktoken
 - **🎯 Intelligent Prioritization**: Automatically prioritizes important files when hitting token limits
 - **🔍 Git-Aware**: Respects `.gitignore` and custom `.digestignore` patterns
@@ -136,6 +140,7 @@ Arguments:
 
 Options:
   -d, --directory <PATH>      Directory to process [default: .]
+      --repo <URL>            GitHub repository URL (e.g., https://github.com/owner/repo)
   -o, --output <FILE>         Output to file instead of stdout
       --max-tokens <N>        Maximum tokens for output
   -q, --quiet                 Suppress output except errors
@@ -156,6 +161,15 @@ code-digest "Create a high-level architecture diagram of this codebase"
 ### Security Audit
 ```bash
 code-digest "Identify potential security vulnerabilities in this codebase"
+```
+
+### Analyze Remote Projects
+```bash
+# Analyze any public GitHub repository
+code-digest --repo https://github.com/rust-lang/rust "How is the compiler structured?"
+
+# Compare architectures
+code-digest --repo https://github.com/owner/project "Compare this architecture to best practices"
 ```
 
 ### Documentation Generation

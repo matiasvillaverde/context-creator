@@ -53,6 +53,10 @@ pub enum CodeDigestError {
     #[error("Invalid glob pattern: {0}")]
     InvalidGlobPattern(String),
 
+    /// Remote repository errors
+    #[error("Remote fetch error: {0}")]
+    RemoteFetchError(String),
+
     /// General I/O errors
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
