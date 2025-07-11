@@ -1,0 +1,15 @@
+#!/bin/sh
+# Pre-commit hook to ensure code quality before committing
+
+echo "🔍 Running pre-commit validation..."
+
+# Run validation checks (format and lint)
+make validate
+
+if [ $? -ne 0 ]; then
+    echo "❌ Pre-commit validation failed. Please fix the issues before committing."
+    exit 1
+fi
+
+echo "✅ Pre-commit validation passed!"
+exit 0
