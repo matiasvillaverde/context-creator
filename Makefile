@@ -13,13 +13,13 @@ CARGO := cargo
 # Main Targets
 # ====================================================================================
 
-build: ## Build the project in debug mode.
+build: lint ## Build the project in debug mode (runs lint first).
 	$(CARGO) build
 
-release: ## Build the project in release mode for production.
+release: lint ## Build the project in release mode for production (runs lint first).
 	$(CARGO) build --release
 
-test: ## Run all tests.
+test: lint ## Run all tests (runs lint first).
 	$(CARGO) test --all-targets
 
 run-example: ## Run the tool with example usage.
@@ -44,8 +44,9 @@ fmt: ## Format the code using rustfmt.
 fmt-check: ## Check if the code is correctly formatted.
 	$(CARGO) fmt -- --check
 
-lint: ## Lint the code with clippy for style and correctness issues.
-	$(CARGO) clippy --all-targets -- -D warnings
+lint: fmt-check ## Lint the code with clippy and check formatting.
+	$(CARGO) fmt -- --check
+	$(CARGO) clippy --all-targets --all-features -- -D warnings
 
 validate: fmt-check lint test ## Run all validation checks (format, lint, test). Ideal for CI.
 	@echo "✅ Validation successful."
