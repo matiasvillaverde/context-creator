@@ -1,22 +1,24 @@
 //! End-to-End tests for code-digest
-//! 
+//!
 //! These tests verify complete user workflows from CLI invocation to final output,
 //! testing real-world scenarios and edge cases that users might encounter.
 
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
-use std::process::Command;
-use tempfile::TempDir;
 use std::fs;
 use std::path::Path;
+use std::process::Command;
+use tempfile::TempDir;
 
 /// Create a realistic Rust project structure for testing
 fn create_realistic_rust_project(temp_dir: &Path) -> std::path::PathBuf {
     let project_dir = temp_dir.join("rust_project");
     fs::create_dir_all(&project_dir).unwrap();
-    
+
     // Create Cargo.toml
-    fs::write(project_dir.join("Cargo.toml"), r#"
+    fs::write(
+        project_dir.join("Cargo.toml"),
+        r#"
 [package]
 name = "example-project"
 version = "0.1.0"
@@ -29,11 +31,15 @@ anyhow = "1.0"
 
 [dev-dependencies]
 tempfile = "3.0"
-"#).unwrap();
-    
+"#,
+    )
+    .unwrap();
+
     // Create main application structure
     fs::create_dir_all(project_dir.join("src")).unwrap();
-    fs::write(project_dir.join("src/main.rs"), r#"
+    fs::write(
+        project_dir.join("src/main.rs"),
+        r#"
 //! Example application main entry point
 
 use anyhow::Result;
@@ -97,9 +103,13 @@ mod tests {
         assert_eq!(config.workers, 4);
     }
 }
-"#).unwrap();
-    
-    fs::write(project_dir.join("src/lib.rs"), r#"
+"#,
+    )
+    .unwrap();
+
+    fs::write(
+        project_dir.join("src/lib.rs"),
+        r#"
 //! Library module for example project
 
 pub mod handlers;
@@ -155,11 +165,15 @@ mod tests {
         assert_eq!(db.connections.len(), 1);
     }
 }
-"#).unwrap();
-    
+"#,
+    )
+    .unwrap();
+
     // Create subdirectories and modules
     fs::create_dir_all(project_dir.join("src/handlers")).unwrap();
-    fs::write(project_dir.join("src/handlers/mod.rs"), r#"
+    fs::write(
+        project_dir.join("src/handlers/mod.rs"),
+        r#"
 //! HTTP request handlers
 
 pub mod auth;
@@ -191,9 +205,13 @@ impl<T> Response<T> {
         }
     }
 }
-"#).unwrap();
-    
-    fs::write(project_dir.join("src/handlers/auth.rs"), r#"
+"#,
+    )
+    .unwrap();
+
+    fs::write(
+        project_dir.join("src/handlers/auth.rs"),
+        r#"
 //! Authentication handlers
 
 use super::Response;
@@ -255,9 +273,13 @@ mod tests {
         assert!(response.error.is_some());
     }
 }
-"#).unwrap();
-    
-    fs::write(project_dir.join("src/handlers/api.rs"), r#"
+"#,
+    )
+    .unwrap();
+
+    fs::write(
+        project_dir.join("src/handlers/api.rs"),
+        r#"
 //! API handlers
 
 use super::Response;
@@ -307,10 +329,14 @@ mod tests {
         assert_eq!(products[0].id, 6); // Second page, first item
     }
 }
-"#).unwrap();
-    
+"#,
+    )
+    .unwrap();
+
     fs::create_dir_all(project_dir.join("src/models")).unwrap();
-    fs::write(project_dir.join("src/models/mod.rs"), r#"
+    fs::write(
+        project_dir.join("src/models/mod.rs"),
+        r#"
 //! Data models
 
 use serde::{Deserialize, Serialize};
@@ -355,10 +381,14 @@ mod tests {
         assert_eq!(product.formatted_price(), "$19.99");
     }
 }
-"#).unwrap();
-    
+"#,
+    )
+    .unwrap();
+
     fs::create_dir_all(project_dir.join("src/utils")).unwrap();
-    fs::write(project_dir.join("src/utils/mod.rs"), r#"
+    fs::write(
+        project_dir.join("src/utils/mod.rs"),
+        r#"
 //! Utility functions
 
 use std::collections::HashMap;
@@ -407,11 +437,15 @@ mod tests {
         assert_eq!(params.get("age"), Some(&"30".to_string()));
     }
 }
-"#).unwrap();
-    
+"#,
+    )
+    .unwrap();
+
     // Create tests directory
     fs::create_dir_all(project_dir.join("tests")).unwrap();
-    fs::write(project_dir.join("tests/integration_test.rs"), r#"
+    fs::write(
+        project_dir.join("tests/integration_test.rs"),
+        r#"
 //! Integration tests
 
 use example_project::Database;
@@ -424,10 +458,14 @@ fn test_database_integration() {
     let results = db.execute_query("SELECT * FROM users").unwrap();
     assert!(!results.is_empty());
 }
-"#).unwrap();
-    
+"#,
+    )
+    .unwrap();
+
     // Create README and other files
-    fs::write(project_dir.join("README.md"), r#"
+    fs::write(
+        project_dir.join("README.md"),
+        r#"
 # Example Project
 
 This is an example Rust project for testing code-digest functionality.
@@ -457,18 +495,26 @@ cargo test
 ```bash
 cargo build --release
 ```
-"#).unwrap();
-    
-    fs::write(project_dir.join(".gitignore"), r#"
+"#,
+    )
+    .unwrap();
+
+    fs::write(
+        project_dir.join(".gitignore"),
+        r#"
 /target/
 **/*.rs.bk
 *.pdb
 .DS_Store
 *.log
-"#).unwrap();
-    
+"#,
+    )
+    .unwrap();
+
     // Create a config file
-    fs::write(project_dir.join("config.toml"), r#"
+    fs::write(
+        project_dir.join("config.toml"),
+        r#"
 [database]
 url = "postgresql://localhost/example"
 max_connections = 10
@@ -481,8 +527,10 @@ workers = 4
 [logging]
 level = "info"
 file = "app.log"
-"#).unwrap();
-    
+"#,
+    )
+    .unwrap();
+
     project_dir
 }
 
@@ -490,9 +538,11 @@ file = "app.log"
 fn create_python_project(temp_dir: &Path) -> std::path::PathBuf {
     let project_dir = temp_dir.join("python_project");
     fs::create_dir_all(&project_dir).unwrap();
-    
+
     // Create setup.py
-    fs::write(project_dir.join("setup.py"), r#"
+    fs::write(
+        project_dir.join("setup.py"),
+        r#"
 from setuptools import setup, find_packages
 
 setup(
@@ -510,11 +560,15 @@ setup(
         ],
     },
 )
-"#).unwrap();
-    
+"#,
+    )
+    .unwrap();
+
     // Create package structure
     fs::create_dir_all(project_dir.join("example")).unwrap();
-    fs::write(project_dir.join("example/__init__.py"), r#"
+    fs::write(
+        project_dir.join("example/__init__.py"),
+        r#"
 """Example Python package for testing code-digest."""
 
 __version__ = "0.1.0"
@@ -524,9 +578,13 @@ from .core import process_data, DataProcessor
 from .utils import slugify, parse_config
 
 __all__ = ["process_data", "DataProcessor", "slugify", "parse_config"]
-"#).unwrap();
-    
-    fs::write(project_dir.join("example/core.py"), r#"
+"#,
+    )
+    .unwrap();
+
+    fs::write(
+        project_dir.join("example/core.py"),
+        r#"
 """Core functionality for the example package."""
 
 import json
@@ -598,9 +656,13 @@ def load_config(config_path: str) -> Dict:
             return json.load(f)
     except FileNotFoundError:
         return {}
-"#).unwrap();
-    
-    fs::write(project_dir.join("example/utils.py"), r#"
+"#,
+    )
+    .unwrap();
+
+    fs::write(
+        project_dir.join("example/utils.py"),
+        r#"
 """Utility functions for the example package."""
 
 import re
@@ -644,9 +706,13 @@ def format_response(data: Any, status: str = "success") -> Dict:
         "data": data,
         "timestamp": __import__("time").time()
     }
-"#).unwrap();
-    
-    fs::write(project_dir.join("example/cli.py"), r#"
+"#,
+    )
+    .unwrap();
+
+    fs::write(
+        project_dir.join("example/cli.py"),
+        r#"
 """Command-line interface for the example package."""
 
 import click
@@ -687,11 +753,15 @@ def slug(text):
 
 if __name__ == '__main__':
     main()
-"#).unwrap();
-    
+"#,
+    )
+    .unwrap();
+
     // Create tests
     fs::create_dir_all(project_dir.join("tests")).unwrap();
-    fs::write(project_dir.join("tests/test_core.py"), r#"
+    fs::write(
+        project_dir.join("tests/test_core.py"),
+        r#"
 """Tests for core functionality."""
 
 import pytest
@@ -727,9 +797,13 @@ def test_validation():
     
     assert processor._validate_item(valid_item) is True
     assert processor._validate_item(invalid_item) is False
-"#).unwrap();
-    
-    fs::write(project_dir.join("tests/test_utils.py"), r#"
+"#,
+    )
+    .unwrap();
+
+    fs::write(
+        project_dir.join("tests/test_utils.py"),
+        r#"
 """Tests for utility functions."""
 
 import pytest
@@ -764,9 +838,13 @@ def test_format_response():
     assert response["status"] == "success"
     assert response["data"]["key"] == "value"
     assert "timestamp" in response
-"#).unwrap();
-    
-    fs::write(project_dir.join("README.md"), r#"
+"#,
+    )
+    .unwrap();
+
+    fs::write(
+        project_dir.join("README.md"),
+        r#"
 # Example Python Project
 
 A Python package for testing code-digest functionality.
@@ -793,8 +871,10 @@ print(processed)
 example process data.json
 example slug "Hello World"
 ```
-"#).unwrap();
-    
+"#,
+    )
+    .unwrap();
+
     project_dir
 }
 
@@ -804,43 +884,41 @@ fn test_e2e_basic_markdown_generation() {
     let temp_dir = TempDir::new().unwrap();
     let project_dir = create_realistic_rust_project(temp_dir.path());
     let output_file = temp_dir.path().join("output.md");
-    
+
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg("-d")
-        .arg(&project_dir)
-        .arg("-o")
-        .arg(&output_file)
-        .arg("--progress");
-    
+    cmd.arg("-d").arg(&project_dir).arg("-o").arg(&output_file).arg("--progress");
+
     cmd.assert()
         .success()
         .stderr(predicate::str::contains("Scanning directory"))
         .stderr(predicate::str::contains("Found"))
         .stderr(predicate::str::contains("files"))
         .stdout(predicate::str::contains("Written to"));
-    
+
     // Verify output file was created and has expected structure
     assert!(output_file.exists());
     let content = fs::read_to_string(&output_file).unwrap();
-    
+
     // Should contain basic structure
     assert!(content.contains("# Code Digest"));
     assert!(content.contains("## Statistics"));
     assert!(content.contains("## File Structure"));
     assert!(content.contains("## Table of Contents"));
-    
+
     // Should contain specific files from our realistic project
     assert!(content.contains("Cargo.toml"));
     assert!(content.contains("src/main.rs"));
     assert!(content.contains("src/lib.rs"));
     assert!(content.contains("src/handlers/auth.rs"));
     assert!(content.contains("README.md"));
-    
+
     // Should contain actual code content
     assert!(content.contains("tokio::main"));
-    assert!(content.contains("Database") || content.contains("Config") || content.contains("serde"));
+    assert!(
+        content.contains("Database") || content.contains("Config") || content.contains("serde")
+    );
     assert!(content.contains("Deserialize") || content.contains("Serialize"));
-    
+
     // Check that it's properly formatted markdown
     assert!(content.contains("```rust"));
     assert!(content.contains("```toml"));
@@ -853,7 +931,7 @@ fn test_e2e_with_token_limits() {
     let temp_dir = TempDir::new().unwrap();
     let project_dir = create_realistic_rust_project(temp_dir.path());
     let output_file = temp_dir.path().join("limited_output.md");
-    
+
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
     cmd.arg("-d")
         .arg(&project_dir)
@@ -862,20 +940,20 @@ fn test_e2e_with_token_limits() {
         .arg("--max-tokens")
         .arg("5000")  // Small limit to force prioritization
         .arg("--verbose");
-    
+
     cmd.assert()
         .success()
         .stderr(predicate::str::contains("Token limit"))
         .stderr(predicate::str::contains("Selected"))
         .stderr(predicate::str::contains("Structure overhead"));
-    
+
     assert!(output_file.exists());
     let content = fs::read_to_string(&output_file).unwrap();
-    
+
     // Should still have basic structure but fewer files
     assert!(content.contains("# Code Digest"));
     assert!(content.contains("## Statistics"));
-    
+
     // Should prioritize important files (main.rs, lib.rs, Cargo.toml)
     assert!(content.contains("src/main.rs") || content.contains("Cargo.toml"));
 }
@@ -885,7 +963,7 @@ fn test_e2e_with_token_limits() {
 fn test_e2e_with_config_file() {
     let temp_dir = TempDir::new().unwrap();
     let project_dir = create_realistic_rust_project(temp_dir.path());
-    
+
     // Create a configuration file
     let config_content = r#"
 ignore = ["tests/*.rs", "*.log"]
@@ -903,31 +981,24 @@ weight = 200.0
 pattern = "*.toml"
 weight = 150.0
 "#;
-    
+
     let config_file = temp_dir.path().join("digest-config.toml");
     fs::write(&config_file, config_content).unwrap();
-    
+
     let output_file = temp_dir.path().join("config_output.md");
-    
+
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg("-d")
-        .arg(&project_dir)
-        .arg("-o")
-        .arg(&output_file)
-        .arg("-c")
-        .arg(&config_file);
-    
-    cmd.assert()
-        .success()
-        .stderr(predicate::str::contains("Loaded configuration"));
-    
+    cmd.arg("-d").arg(&project_dir).arg("-o").arg(&output_file).arg("-c").arg(&config_file);
+
+    cmd.assert().success().stderr(predicate::str::contains("Loaded configuration"));
+
     assert!(output_file.exists());
     let content = fs::read_to_string(&output_file).unwrap();
-    
+
     // Should contain prioritized files
     assert!(content.contains("src/main.rs"));
     assert!(content.contains("Cargo.toml"));
-    
+
     // Should exclude ignored test files (if token limit allows, they should be deprioritized)
     // Note: This is harder to test directly since it depends on token limits and file sizes
 }
@@ -938,11 +1009,11 @@ fn test_e2e_multi_language_project() {
     let temp_dir = TempDir::new().unwrap();
     let rust_dir = create_realistic_rust_project(temp_dir.path());
     let python_dir = create_python_project(temp_dir.path());
-    
+
     // Create a mixed project by copying Python files into Rust project
     let mixed_dir = temp_dir.path().join("mixed_project");
     fs::create_dir_all(&mixed_dir).unwrap();
-    
+
     // Helper function to copy directories recursively
     fn copy_dir(src: &Path, dst: &Path) {
         if src.is_dir() {
@@ -960,35 +1031,31 @@ fn test_e2e_multi_language_project() {
             fs::copy(src, dst).unwrap();
         }
     }
-    
+
     copy_dir(&rust_dir, &mixed_dir);
-    
+
     // Add Python files
     let python_target = mixed_dir.join("python");
     copy_dir(&python_dir, &python_target);
-    
+
     let output_file = temp_dir.path().join("mixed_output.md");
-    
+
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg("-d")
-        .arg(&mixed_dir)
-        .arg("-o")
-        .arg(&output_file)
-        .arg("--progress");
-    
+    cmd.arg("-d").arg(&mixed_dir).arg("-o").arg(&output_file).arg("--progress");
+
     cmd.assert()
         .success()
         .stderr(predicate::str::contains("Scanning directory"))
         .stderr(predicate::str::contains("Found"));
-    
+
     assert!(output_file.exists());
     let content = fs::read_to_string(&output_file).unwrap();
-    
+
     // Should contain both languages
     assert!(content.contains("```rust"));
     assert!(content.contains("```python"));
     assert!(content.contains("```toml"));
-    
+
     // Should contain files from both projects
     assert!(content.contains("Cargo.toml"));
     assert!(content.contains("setup.py"));
@@ -1001,26 +1068,18 @@ fn test_e2e_multi_language_project() {
 fn test_e2e_error_handling() {
     // Test with non-existent directory
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg("-d")
-        .arg("/nonexistent/directory/path");
-    
-    cmd.assert()
-        .failure()
-        .stderr(predicate::str::contains("Directory does not exist"));
-    
+    cmd.arg("-d").arg("/nonexistent/directory/path");
+
+    cmd.assert().failure().stderr(predicate::str::contains("Directory does not exist"));
+
     // Test with invalid output directory
     let temp_dir = TempDir::new().unwrap();
     let project_dir = create_realistic_rust_project(temp_dir.path());
-    
+
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg("-d")
-        .arg(&project_dir)
-        .arg("-o")
-        .arg("/nonexistent/path/output.md");
-    
-    cmd.assert()
-        .failure()
-        .stderr(predicate::str::contains("Output directory does not exist"));
+    cmd.arg("-d").arg(&project_dir).arg("-o").arg("/nonexistent/path/output.md");
+
+    cmd.assert().failure().stderr(predicate::str::contains("Output directory does not exist"));
 }
 
 /// Test end-to-end with large project (performance test)
@@ -1029,11 +1088,12 @@ fn test_e2e_large_project_performance() {
     let temp_dir = TempDir::new().unwrap();
     let large_project = temp_dir.path().join("large_project");
     fs::create_dir_all(&large_project).unwrap();
-    
+
     // Create many files to test performance
     fs::create_dir_all(large_project.join("src")).unwrap();
     for i in 0..50 {
-        let content = format!(r#"
+        let content = format!(
+            r#"
 // Module {}
 use std::collections::HashMap;
 
@@ -1063,21 +1123,27 @@ mod tests {{
         assert_eq!(module.process("test"), "Processed: test");
     }}
 }}
-"#, i, i, i, i, i);
-        
+"#,
+            i, i, i, i, i
+        );
+
         fs::write(large_project.join(format!("src/module_{}.rs", i)), content).unwrap();
     }
-    
+
     // Create a Cargo.toml for the large project
-    fs::write(large_project.join("Cargo.toml"), r#"
+    fs::write(
+        large_project.join("Cargo.toml"),
+        r#"
 [package]
 name = "large-project"
 version = "0.1.0"
 edition = "2021"
-"#).unwrap();
-    
+"#,
+    )
+    .unwrap();
+
     let output_file = temp_dir.path().join("large_output.md");
-    
+
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
     cmd.arg("-d")
         .arg(&large_project)
@@ -1086,19 +1152,19 @@ edition = "2021"
         .arg("--max-tokens")
         .arg("100000")
         .arg("--progress");
-    
+
     cmd.assert()
         .success()
         .stderr(predicate::str::contains("Scanning directory"))
         .stderr(predicate::str::contains("Found"));
-    
+
     assert!(output_file.exists());
     let content = fs::read_to_string(&output_file).unwrap();
-    
+
     // Should have processed the large project efficiently
     assert!(content.contains("# Code Digest"));
     assert!(content.contains("## Statistics"));
-    
+
     // Should contain some of the generated modules
     assert!(content.contains("module_") || content.contains("Module"));
 }
@@ -1108,14 +1174,10 @@ edition = "2021"
 fn test_e2e_stdout_output() {
     let temp_dir = TempDir::new().unwrap();
     let project_dir = create_realistic_rust_project(temp_dir.path());
-    
+
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg("-d")
-        .arg(&project_dir)
-        .arg("--max-tokens")
-        .arg("10000")
-        .arg("--quiet");  // Suppress progress output to avoid contaminating stdout
-    
+    cmd.arg("-d").arg(&project_dir).arg("--max-tokens").arg("10000").arg("--quiet"); // Suppress progress output to avoid contaminating stdout
+
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("# Code Digest"))
@@ -1128,36 +1190,35 @@ fn test_e2e_stdout_output() {
 fn test_e2e_with_digestignore() {
     let temp_dir = TempDir::new().unwrap();
     let project_dir = create_realistic_rust_project(temp_dir.path());
-    
+
     // Create .digestignore file
-    fs::write(project_dir.join(".digestignore"), r#"
+    fs::write(
+        project_dir.join(".digestignore"),
+        r#"
 tests/
 *.log
 target/
 .git/
 src/handlers/
-"#).unwrap();
-    
+"#,
+    )
+    .unwrap();
+
     let output_file = temp_dir.path().join("ignored_output.md");
-    
+
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg("-d")
-        .arg(&project_dir)
-        .arg("-o")
-        .arg(&output_file)
-        .arg("--verbose");
-    
-    cmd.assert()
-        .success();
-    
+    cmd.arg("-d").arg(&project_dir).arg("-o").arg(&output_file).arg("--verbose");
+
+    cmd.assert().success();
+
     assert!(output_file.exists());
     let content = fs::read_to_string(&output_file).unwrap();
-    
+
     // Should contain main files
     assert!(content.contains("src/main.rs"));
     assert!(content.contains("src/lib.rs"));
     assert!(content.contains("Cargo.toml"));
-    
+
     // Should NOT contain ignored files/directories
     assert!(!content.contains("tests/integration_test.rs"));
     assert!(!content.contains("src/handlers/auth.rs"));
@@ -1169,15 +1230,10 @@ fn test_e2e_verbose_debugging() {
     let temp_dir = TempDir::new().unwrap();
     let project_dir = create_realistic_rust_project(temp_dir.path());
     let output_file = temp_dir.path().join("verbose_output.md");
-    
+
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg("-d")
-        .arg(&project_dir)
-        .arg("-o")
-        .arg(&output_file)
-        .arg("--verbose")
-        .arg("--progress");
-    
+    cmd.arg("-d").arg(&project_dir).arg("-o").arg(&output_file).arg("--verbose").arg("--progress");
+
     cmd.assert()
         .success()
         .stderr(predicate::str::contains("Starting code-digest"))
@@ -1187,7 +1243,7 @@ fn test_e2e_verbose_debugging() {
         .stderr(predicate::str::contains("File list:"))
         .stderr(predicate::str::contains("Scanning directory"))
         .stderr(predicate::str::contains("Generating markdown"));
-    
+
     assert!(output_file.exists());
 }
 
@@ -1197,7 +1253,7 @@ fn test_e2e_llm_tool_selection() {
     let temp_dir = TempDir::new().unwrap();
     let project_dir = create_realistic_rust_project(temp_dir.path());
     let output_file = temp_dir.path().join("tool_output.md");
-    
+
     // Test with gemini-cli
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
     cmd.arg("-d")
@@ -1207,11 +1263,9 @@ fn test_e2e_llm_tool_selection() {
         .arg("--tool")
         .arg("gemini-cli")
         .arg("--verbose");
-    
-    cmd.assert()
-        .success()
-        .stderr(predicate::str::contains("LLM tool: gemini-cli"));
-    
+
+    cmd.assert().success().stderr(predicate::str::contains("LLM tool: gemini-cli"));
+
     // Test with codex
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
     cmd.arg("-d")
@@ -1221,8 +1275,6 @@ fn test_e2e_llm_tool_selection() {
         .arg("--tool")
         .arg("codex")
         .arg("--verbose");
-    
-    cmd.assert()
-        .success()
-        .stderr(predicate::str::contains("LLM tool: codex"));
+
+    cmd.assert().success().stderr(predicate::str::contains("LLM tool: codex"));
 }

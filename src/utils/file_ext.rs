@@ -21,7 +21,7 @@ pub enum FileType {
     Kotlin,
     Scala,
     Haskell,
-    
+
     // Data formats
     Markdown,
     Json,
@@ -30,7 +30,7 @@ pub enum FileType {
     Xml,
     Html,
     Css,
-    
+
     // Other
     Text,
     Other,
@@ -39,11 +39,8 @@ pub enum FileType {
 impl FileType {
     /// Determine file type from path
     pub fn from_path(path: &Path) -> Self {
-        let extension = path.extension()
-            .and_then(|ext| ext.to_str())
-            .unwrap_or("")
-            .to_lowercase();
-            
+        let extension = path.extension().and_then(|ext| ext.to_str()).unwrap_or("").to_lowercase();
+
         match extension.as_str() {
             "rs" => FileType::Rust,
             "py" => FileType::Python,
@@ -70,12 +67,12 @@ impl FileType {
             "txt" | "text" => FileType::Text,
             _ => {
                 // Check if it's a text file by name
-                let filename = path.file_name()
-                    .and_then(|name| name.to_str())
-                    .unwrap_or("");
-                    
+                let filename = path.file_name().and_then(|name| name.to_str()).unwrap_or("");
+
                 match filename {
-                    "README" | "LICENSE" | "CHANGELOG" | "AUTHORS" | "CONTRIBUTORS" => FileType::Text,
+                    "README" | "LICENSE" | "CHANGELOG" | "AUTHORS" | "CONTRIBUTORS" => {
+                        FileType::Text
+                    }
                     "Makefile" | "Dockerfile" | "Vagrantfile" | "Jenkinsfile" => FileType::Text,
                     _ if !is_binary_extension(path) => FileType::Text,
                     _ => FileType::Other,

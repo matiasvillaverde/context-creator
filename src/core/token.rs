@@ -18,54 +18,48 @@ impl TokenCounter {
     /// Create a new token counter with cl100k_base encoding (GPT-4)
     pub fn new() -> Result<Self> {
         let encoder = cl100k_base()?;
-        Ok(TokenCounter {
-            encoder: Arc::new(encoder),
-            cache: Arc::new(Mutex::new(HashMap::new())),
-        })
+        Ok(TokenCounter { encoder: Arc::new(encoder), cache: Arc::new(Mutex::new(HashMap::new())) })
     }
 
     /// Count tokens in a single text
     pub fn count_tokens(&self, text: &str) -> Result<usize> {
         // Calculate hash for caching
         let hash = calculate_hash(text);
-        
+
         // Check cache first
         if let Ok(cache) = self.cache.lock() {
             if let Some(&count) = cache.get(&hash) {
                 return Ok(count);
             }
         }
-        
+
         // Count tokens
         let tokens = self.encoder.encode_with_special_tokens(text);
         let count = tokens.len();
-        
+
         // Store in cache
         if let Ok(mut cache) = self.cache.lock() {
             cache.insert(hash, count);
         }
-        
+
         Ok(count)
     }
 
     /// Count tokens in multiple texts in parallel
     pub fn count_tokens_parallel(&self, texts: &[String]) -> Result<Vec<usize>> {
-        texts
-            .par_iter()
-            .map(|text| self.count_tokens(text))
-            .collect()
+        texts.par_iter().map(|text| self.count_tokens(text)).collect()
     }
 
     /// Count tokens for a file's content with metadata
     pub fn count_file_tokens(&self, content: &str, path: &str) -> Result<FileTokenCount> {
         let content_tokens = self.count_tokens(content)?;
-        
+
         // Count tokens in the file path/header that will be included in markdown
         let header = format!("## {}\n\n```\n", path);
         let footer = "\n```\n\n";
         let header_tokens = self.count_tokens(&header)?;
         let footer_tokens = self.count_tokens(footer)?;
-        
+
         Ok(FileTokenCount {
             content_tokens,
             overhead_tokens: header_tokens + footer_tokens,
@@ -78,14 +72,14 @@ impl TokenCounter {
         let mut total_content = 0;
         let mut total_overhead = 0;
         let mut file_counts = Vec::new();
-        
+
         for (path, content) in files {
             let count = self.count_file_tokens(content, path)?;
             total_content += count.content_tokens;
             total_overhead += count.overhead_tokens;
             file_counts.push((path.clone(), count));
         }
-        
+
         Ok(TotalTokenEstimate {
             total_tokens: total_content + total_overhead,
             content_tokens: total_content,
@@ -129,18 +123,14 @@ pub struct TotalTokenEstimate {
 fn calculate_hash(text: &str) -> u64 {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
-    
+
     let mut hasher = DefaultHasher::new();
     text.hash(&mut hasher);
     hasher.finish()
 }
 
 /// Check if adding a file would exceed token limit
-pub fn would_exceed_limit(
-    current_tokens: usize,
-    file_tokens: usize,
-    max_tokens: usize,
-) -> bool {
+pub fn would_exceed_limit(current_tokens: usize, file_tokens: usize, max_tokens: usize) -> bool {
     current_tokens + file_tokens > max_tokens
 }
 
@@ -156,15 +146,15 @@ mod tests {
     #[test]
     fn test_token_counting() {
         let counter = TokenCounter::new().unwrap();
-        
+
         // Test simple text
         let count = counter.count_tokens("Hello, world!").unwrap();
         assert!(count > 0);
-        
+
         // Test empty text
         let count = counter.count_tokens("").unwrap();
         assert_eq!(count, 0);
-        
+
         // Test caching
         let text = "This is a test text for caching";
         let count1 = counter.count_tokens(text).unwrap();
@@ -175,10 +165,10 @@ mod tests {
     #[test]
     fn test_file_token_counting() {
         let counter = TokenCounter::new().unwrap();
-        
+
         let content = "fn main() {\n    println!(\"Hello, world!\");\n}";
         let path = "src/main.rs";
-        
+
         let count = counter.count_file_tokens(content, path).unwrap();
         assert!(count.content_tokens > 0);
         assert!(count.overhead_tokens > 0);
@@ -188,13 +178,10 @@ mod tests {
     #[test]
     fn test_parallel_counting() {
         let counter = TokenCounter::new().unwrap();
-        
-        let texts = vec![
-            "First text".to_string(),
-            "Second text".to_string(),
-            "Third text".to_string(),
-        ];
-        
+
+        let texts =
+            vec!["First text".to_string(), "Second text".to_string(), "Third text".to_string()];
+
         let counts = counter.count_tokens_parallel(&texts).unwrap();
         assert_eq!(counts.len(), 3);
         assert!(counts.iter().all(|&c| c > 0));
@@ -204,7 +191,7 @@ mod tests {
     fn test_token_limit_checks() {
         assert!(would_exceed_limit(900, 200, 1000));
         assert!(!would_exceed_limit(800, 200, 1000));
-        
+
         assert_eq!(remaining_tokens(300, 1000), 700);
         assert_eq!(remaining_tokens(1100, 1000), 0);
     }
@@ -212,12 +199,12 @@ mod tests {
     #[test]
     fn test_total_estimation() {
         let counter = TokenCounter::new().unwrap();
-        
+
         let files = vec![
             ("file1.rs".to_string(), "content1".to_string()),
             ("file2.rs".to_string(), "content2".to_string()),
         ];
-        
+
         let estimate = counter.estimate_total_tokens(&files).unwrap();
         assert!(estimate.total_tokens > 0);
         assert_eq!(estimate.file_counts.len(), 2);

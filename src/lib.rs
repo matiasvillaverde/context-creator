@@ -33,7 +33,7 @@ pub fn run(config: Config) -> Result<()> {
             eprintln!("  Prompt: {}", prompt);
         }
     }
-    
+
     // Validate configuration
     config.validate()?;
 
@@ -95,11 +95,11 @@ fn process_directory(
         eprintln!("🔍 Scanning directory: {}", path.display());
     }
     let files = core::walker::walk_directory(path, walk_options)?;
-    
+
     if config.progress && !config.quiet {
         eprintln!("📁 Found {} files", files.len());
     }
-    
+
     if config.verbose {
         eprintln!("📋 File list:");
         for file in &files {
@@ -123,7 +123,7 @@ fn process_directory(
 
     // Generate markdown
     let markdown = core::digest::generate_markdown(prioritized_files, digest_options)?;
-    
+
     if config.progress && !config.quiet {
         eprintln!("✅ Markdown generation complete");
     }

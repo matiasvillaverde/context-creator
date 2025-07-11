@@ -1,5 +1,5 @@
-use code_digest::cli::{Config, LlmTool};
 use clap::Parser;
+use code_digest::cli::{Config, LlmTool};
 
 #[test]
 fn test_llm_tool_default() {

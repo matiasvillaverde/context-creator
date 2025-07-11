@@ -28,11 +28,12 @@ impl LlmTool {
     pub fn install_instructions(&self) -> &'static str {
         match self {
             LlmTool::GeminiCli => "Please install gemini-cli with: pip install gemini-cli",
-            LlmTool::Codex => "Please install codex CLI from: https://github.com/microsoft/codex-cli",
+            LlmTool::Codex => {
+                "Please install codex CLI from: https://github.com/microsoft/codex-cli"
+            }
         }
     }
 }
-
 
 /// High-performance CLI tool to convert codebases to Markdown for LLM context
 #[derive(Parser, Debug, Clone)]
@@ -131,7 +132,7 @@ impl Config {
 
         if let Some(config_file) = config_file {
             config_file.apply_to_cli_config(self);
-            
+
             if self.verbose {
                 if let Some(ref config_path) = self.config {
                     eprintln!("📄 Loaded configuration from: {}", config_path.display());
@@ -148,8 +149,8 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use std::fs;
+    use tempfile::TempDir;
 
     #[test]
     fn test_config_validation_valid_directory() {
@@ -165,7 +166,7 @@ mod tests {
             config: None,
             progress: false,
         };
-        
+
         assert!(config.validate().is_ok());
     }
 
@@ -182,7 +183,7 @@ mod tests {
             config: None,
             progress: false,
         };
-        
+
         assert!(config.validate().is_err());
     }
 
@@ -191,7 +192,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("file.txt");
         fs::write(&file_path, "test").unwrap();
-        
+
         let config = Config {
             prompt: None,
             directory: file_path,
@@ -203,7 +204,7 @@ mod tests {
             config: None,
             progress: false,
         };
-        
+
         assert!(config.validate().is_err());
     }
 
@@ -221,7 +222,7 @@ mod tests {
             config: None,
             progress: false,
         };
-        
+
         assert!(config.validate().is_err());
     }
 
@@ -239,7 +240,7 @@ mod tests {
             config: None,
             progress: false,
         };
-        
+
         assert!(config.validate().is_err());
     }
 
@@ -247,10 +248,10 @@ mod tests {
     fn test_llm_tool_enum_values() {
         assert_eq!(LlmTool::GeminiCli.command(), "gemini-cli");
         assert_eq!(LlmTool::Codex.command(), "codex");
-        
+
         assert!(LlmTool::GeminiCli.install_instructions().contains("pip install"));
         assert!(LlmTool::Codex.install_instructions().contains("github.com"));
-        
+
         assert_eq!(LlmTool::default(), LlmTool::GeminiCli);
     }
 
@@ -268,7 +269,7 @@ mod tests {
             config: None,
             progress: false,
         };
-        
+
         // Should not error when no config file is found
         assert!(config.load_from_file().is_ok());
     }

@@ -62,21 +62,21 @@ impl Default for DigestOptions {
 /// Generate markdown from a list of files
 pub fn generate_markdown(files: Vec<FileInfo>, options: DigestOptions) -> Result<String> {
     let mut output = String::new();
-    
+
     // Add document header
     if !options.doc_header_template.is_empty() {
         let header = options.doc_header_template.replace("{directory}", ".");
         output.push_str(&header);
         output.push_str("\n\n");
     }
-    
+
     // Add statistics if requested
     if options.include_stats {
         let stats = generate_statistics(&files);
         output.push_str(&stats);
         output.push_str("\n\n");
     }
-    
+
     // Add file tree if requested
     if options.include_tree {
         let tree = generate_file_tree(&files);
@@ -85,29 +85,32 @@ pub fn generate_markdown(files: Vec<FileInfo>, options: DigestOptions) -> Result
         output.push_str(&tree);
         output.push_str("```\n\n");
     }
-    
+
     // Sort files if requested
     let mut files = files;
     if options.sort_by_priority {
         files.sort_by(|a, b| {
-            b.priority.partial_cmp(&a.priority).unwrap_or(std::cmp::Ordering::Equal)
+            b.priority
+                .partial_cmp(&a.priority)
+                .unwrap_or(std::cmp::Ordering::Equal)
                 .then_with(|| a.relative_path.cmp(&b.relative_path))
         });
     }
-    
+
     // Add table of contents if requested
     if options.include_toc {
         output.push_str("## Table of Contents\n\n");
         for file in &files {
             let anchor = path_to_anchor(&file.relative_path);
-            output.push_str(&format!("- [{path}](#{anchor})\n", 
+            output.push_str(&format!(
+                "- [{path}](#{anchor})\n",
                 path = file.relative_path.display(),
                 anchor = anchor
             ));
         }
         output.push('\n');
     }
-    
+
     // Group files if requested
     if options.group_by_type {
         let grouped = group_files_by_type(files);
@@ -123,12 +126,16 @@ pub fn generate_markdown(files: Vec<FileInfo>, options: DigestOptions) -> Result
             append_file_content(&mut output, &file, &options)?;
         }
     }
-    
+
     Ok(output)
 }
 
 /// Append a single file's content to the output
-fn append_file_content(output: &mut String, file: &FileInfo, options: &DigestOptions) -> Result<()> {
+fn append_file_content(
+    output: &mut String,
+    file: &FileInfo,
+    options: &DigestOptions,
+) -> Result<()> {
     // Read file content
     let content = match fs::read_to_string(&file.path) {
         Ok(content) => content,
@@ -137,13 +144,13 @@ fn append_file_content(output: &mut String, file: &FileInfo, options: &DigestOpt
             return Ok(());
         }
     };
-    
+
     // Add file header
-    let header = options.file_header_template
-        .replace("{path}", &file.relative_path.display().to_string());
+    let header =
+        options.file_header_template.replace("{path}", &file.relative_path.display().to_string());
     output.push_str(&header);
     output.push_str("\n\n");
-    
+
     // Add language hint for syntax highlighting
     let language = get_language_hint(&file.file_type);
     output.push_str(&format!("```{}\n", language));
@@ -152,7 +159,7 @@ fn append_file_content(output: &mut String, file: &FileInfo, options: &DigestOpt
         output.push('\n');
     }
     output.push_str("```\n\n");
-    
+
     Ok(())
 }
 
@@ -160,48 +167,49 @@ fn append_file_content(output: &mut String, file: &FileInfo, options: &DigestOpt
 fn generate_statistics(files: &[FileInfo]) -> String {
     let total_files = files.len();
     let total_size: u64 = files.iter().map(|f| f.size).sum();
-    
+
     // Count by file type
     let mut type_counts: HashMap<FileType, usize> = HashMap::new();
     for file in files {
         *type_counts.entry(file.file_type.clone()).or_insert(0) += 1;
     }
-    
+
     let mut stats = String::new();
     stats.push_str("## Statistics\n\n");
     stats.push_str(&format!("- Total files: {}\n", total_files));
     stats.push_str(&format!("- Total size: {} bytes\n", format_size(total_size)));
     stats.push_str("\n### Files by type:\n");
-    
+
     let mut types: Vec<_> = type_counts.into_iter().collect();
     types.sort_by_key(|(_, count)| std::cmp::Reverse(*count));
-    
+
     for (file_type, count) in types {
         stats.push_str(&format!("- {}: {}\n", file_type_display(&file_type), count));
     }
-    
+
     stats
 }
 
 /// Generate a file tree representation
 fn generate_file_tree(files: &[FileInfo]) -> String {
     use std::collections::BTreeMap;
-    
+
     #[derive(Default)]
     struct TreeNode {
         files: Vec<String>,
         dirs: BTreeMap<String, TreeNode>,
     }
-    
+
     let mut root = TreeNode::default();
-    
+
     // Build tree structure
     for file in files {
-        let parts: Vec<_> = file.relative_path
+        let parts: Vec<_> = file
+            .relative_path
             .components()
             .map(|c| c.as_os_str().to_string_lossy().to_string())
             .collect();
-        
+
         let mut current = &mut root;
         for (i, part) in parts.iter().enumerate() {
             if i == parts.len() - 1 {
@@ -213,22 +221,22 @@ fn generate_file_tree(files: &[FileInfo]) -> String {
             }
         }
     }
-    
+
     // Render tree
     fn render_tree(node: &TreeNode, prefix: &str, _is_last: bool) -> String {
         let mut output = String::new();
-        
+
         // Render directories
         let dir_count = node.dirs.len();
         for (i, (name, child)) in node.dirs.iter().enumerate() {
             let is_last_dir = i == dir_count - 1 && node.files.is_empty();
             let connector = if is_last_dir { "└── " } else { "├── " };
             let extension = if is_last_dir { "    " } else { "│   " };
-            
+
             output.push_str(&format!("{}{}{}/\n", prefix, connector, name));
             output.push_str(&render_tree(child, &format!("{}{}", prefix, extension), is_last_dir));
         }
-        
+
         // Render files
         let file_count = node.files.len();
         for (i, name) in node.files.iter().enumerate() {
@@ -236,10 +244,10 @@ fn generate_file_tree(files: &[FileInfo]) -> String {
             let connector = if is_last_file { "└── " } else { "├── " };
             output.push_str(&format!("{}{}{}\n", prefix, connector, name));
         }
-        
+
         output
     }
-    
+
     let mut output = String::new();
     output.push_str(".\n");
     output.push_str(&render_tree(&root, "", true));
@@ -249,11 +257,11 @@ fn generate_file_tree(files: &[FileInfo]) -> String {
 /// Group files by their type
 fn group_files_by_type(files: Vec<FileInfo>) -> Vec<(FileType, Vec<FileInfo>)> {
     let mut groups: HashMap<FileType, Vec<FileInfo>> = HashMap::new();
-    
+
     for file in files {
         groups.entry(file.file_type.clone()).or_default().push(file);
     }
-    
+
     let mut result: Vec<_> = groups.into_iter().collect();
     result.sort_by_key(|(file_type, _)| file_type_priority(file_type));
     result
@@ -351,10 +359,7 @@ fn file_type_priority(file_type: &FileType) -> u8 {
 
 /// Convert path to anchor-friendly string
 fn path_to_anchor(path: &Path) -> String {
-    path.display()
-        .to_string()
-        .replace(['/', '\\', '.', ' '], "-")
-        .to_lowercase()
+    path.display().to_string().replace(['/', '\\', '.', ' '], "-").to_lowercase()
 }
 
 /// Format file size in human-readable format
@@ -362,12 +367,12 @@ fn format_size(size: u64) -> String {
     const UNITS: &[&str] = &["B", "KB", "MB", "GB"];
     let mut size = size as f64;
     let mut unit_index = 0;
-    
+
     while size >= 1024.0 && unit_index < UNITS.len() - 1 {
         size /= 1024.0;
         unit_index += 1;
     }
-    
+
     if unit_index == 0 {
         format!("{} {}", size as u64, UNITS[unit_index])
     } else {
@@ -418,7 +423,7 @@ mod tests {
                 priority: 0.9,
             },
         ];
-        
+
         let stats = generate_statistics(&files);
         assert!(stats.contains("Total files: 2"));
         assert!(stats.contains("Total size: 300 B"));
@@ -450,9 +455,9 @@ mod tests {
                 size: 50_000_000, // 50MB
                 file_type: FileType::Python,
                 priority: 0.9,
-            }
+            },
         ];
-        
+
         let stats = generate_statistics(&files);
         assert!(stats.contains("Total files: 2"));
         assert!(stats.contains("MB bytes")); // Just check that it's in MB
@@ -483,9 +488,9 @@ mod tests {
                 size: 500,
                 file_type: FileType::Rust,
                 priority: 0.8,
-            }
+            },
         ];
-        
+
         let tree = generate_file_tree(&files);
         assert!(tree.contains("src/"));
         assert!(tree.contains("tests/"));
@@ -498,7 +503,7 @@ mod tests {
     fn test_digest_options_from_config() {
         use crate::cli::Config;
         use tempfile::TempDir;
-        
+
         let temp_dir = TempDir::new().unwrap();
         let config = Config {
             prompt: None,
@@ -511,7 +516,7 @@ mod tests {
             config: None,
             progress: false,
         };
-        
+
         let options = DigestOptions::from_config(&config).unwrap();
         assert_eq!(options.max_tokens, Some(100000));
         assert!(options.include_tree);
@@ -522,7 +527,7 @@ mod tests {
     #[test]
     fn test_generate_markdown_structure_headers() {
         let files = vec![];
-        
+
         let options = DigestOptions {
             max_tokens: None,
             include_tree: true,
@@ -533,9 +538,9 @@ mod tests {
             doc_header_template: "# Code Digest".to_string(),
             include_toc: true,
         };
-        
+
         let markdown = generate_markdown(files, options).unwrap();
-        
+
         // Check that main structure is present even with no files
         assert!(markdown.contains("# Code Digest"));
         assert!(markdown.contains("## Statistics"));

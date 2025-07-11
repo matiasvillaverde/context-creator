@@ -37,10 +37,7 @@ pub enum CodeDigestError {
 
     /// External tool errors
     #[error("{tool} not found. {install_instructions}")]
-    LlmToolNotFound {
-        tool: String,
-        install_instructions: String,
-    },
+    LlmToolNotFound { tool: String, install_instructions: String },
 
     #[error("Subprocess error: {0}")]
     SubprocessError(String),

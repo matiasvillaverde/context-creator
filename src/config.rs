@@ -15,15 +15,15 @@ pub struct ConfigFile {
     /// Default settings
     #[serde(default)]
     pub defaults: Defaults,
-    
+
     /// File priority configurations
     #[serde(default)]
     pub priorities: Vec<Priority>,
-    
+
     /// Ignore patterns beyond .gitignore and .digestignore
     #[serde(default)]
     pub ignore: Vec<String>,
-    
+
     /// Include patterns to force inclusion
     #[serde(default)]
     pub include: Vec<String>,
@@ -34,30 +34,29 @@ pub struct ConfigFile {
 pub struct Defaults {
     /// Default maximum tokens
     pub max_tokens: Option<usize>,
-    
+
     /// Default LLM tool
     #[serde(default)]
     pub llm_tool: Option<String>,
-    
+
     /// Default to show progress
     #[serde(default)]
     pub progress: bool,
-    
+
     /// Default verbosity
     #[serde(default)]
     pub verbose: bool,
-    
+
     /// Default quiet mode
     #[serde(default)]
     pub quiet: bool,
-    
+
     /// Default directory
     pub directory: Option<PathBuf>,
-    
+
     /// Default output file
     pub output_file: Option<PathBuf>,
 }
-
 
 /// File priority configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,7 +66,6 @@ pub struct Priority {
     /// Priority weight (higher = more important)
     pub weight: f32,
 }
-
 
 impl ConfigFile {
     /// Load configuration from a file
@@ -79,19 +77,21 @@ impl ConfigFile {
             )));
         }
 
-        let content = std::fs::read_to_string(path)
-            .map_err(|e| CodeDigestError::ConfigError(format!(
+        let content = std::fs::read_to_string(path).map_err(|e| {
+            CodeDigestError::ConfigError(format!(
                 "Failed to read config file {}: {}",
                 path.display(),
                 e
-            )))?;
+            ))
+        })?;
 
-        let config: ConfigFile = toml::from_str(&content)
-            .map_err(|e| CodeDigestError::ConfigError(format!(
+        let config: ConfigFile = toml::from_str(&content).map_err(|e| {
+            CodeDigestError::ConfigError(format!(
                 "Failed to parse config file {}: {}",
                 path.display(),
                 e
-            )))?;
+            ))
+        })?;
 
         Ok(config)
     }
@@ -177,30 +177,12 @@ pub fn create_example_config() -> String {
             output_file: None,
         },
         priorities: vec![
-            Priority {
-                pattern: "src/**/*.rs".to_string(),
-                weight: 100.0,
-            },
-            Priority {
-                pattern: "src/main.rs".to_string(),
-                weight: 150.0,
-            },
-            Priority {
-                pattern: "tests/**/*.rs".to_string(),
-                weight: 50.0,
-            },
-            Priority {
-                pattern: "docs/**/*.md".to_string(),
-                weight: 30.0,
-            },
-            Priority {
-                pattern: "*.toml".to_string(),
-                weight: 80.0,
-            },
-            Priority {
-                pattern: "*.json".to_string(),
-                weight: 60.0,
-            },
+            Priority { pattern: "src/**/*.rs".to_string(), weight: 100.0 },
+            Priority { pattern: "src/main.rs".to_string(), weight: 150.0 },
+            Priority { pattern: "tests/**/*.rs".to_string(), weight: 50.0 },
+            Priority { pattern: "docs/**/*.md".to_string(), weight: 30.0 },
+            Priority { pattern: "*.toml".to_string(), weight: 80.0 },
+            Priority { pattern: "*.json".to_string(), weight: 60.0 },
         ],
         ignore: vec![
             "target/**".to_string(),
@@ -208,19 +190,18 @@ pub fn create_example_config() -> String {
             "*.pyc".to_string(),
             ".env".to_string(),
         ],
-        include: vec![
-            "!important/**".to_string(),
-        ],
+        include: vec!["!important/**".to_string()],
     };
 
-    toml::to_string_pretty(&example).unwrap_or_else(|_| "# Failed to generate example config".to_string())
+    toml::to_string_pretty(&example)
+        .unwrap_or_else(|_| "# Failed to generate example config".to_string())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use std::fs;
+    use tempfile::TempDir;
 
     #[test]
     fn test_config_file_parsing() {
@@ -249,7 +230,7 @@ weight = 50.0
 "#;
 
         let config: ConfigFile = toml::from_str(config_content).unwrap();
-        
+
         assert_eq!(config.defaults.max_tokens, Some(100000));
         assert_eq!(config.defaults.llm_tool, Some("gemini-cli".to_string()));
         assert!(config.defaults.progress);
@@ -264,15 +245,15 @@ weight = 50.0
     fn test_config_file_loading() {
         let temp_dir = TempDir::new().unwrap();
         let config_path = temp_dir.path().join("config.toml");
-        
+
         let config_content = r#"
 [defaults]
 max_tokens = 50000
 progress = true
 "#;
-        
+
         fs::write(&config_path, config_content).unwrap();
-        
+
         let config = ConfigFile::load_from_file(&config_path).unwrap();
         assert_eq!(config.defaults.max_tokens, Some(50000));
         assert!(config.defaults.progress);
