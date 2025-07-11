@@ -1184,11 +1184,12 @@ fn test_e2e_stdout_output() {
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
     cmd.arg("-d").arg(&project_dir).arg("--max-tokens").arg("10000").arg("--quiet"); // Suppress progress output to avoid contaminating stdout
 
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains("# Code Digest"))
-        .stdout(predicate::str::contains("src/main.rs"))
-        .stdout(predicate::str::contains("```rust"));
+    let output = cmd.assert().success().get_output().stdout.clone();
+    let output_str = String::from_utf8(output).unwrap();
+
+    assert!(output_str.contains("# Code Digest"));
+    assert!(contains_path(&output_str, "src/main.rs"));
+    assert!(output_str.contains("```rust"));
 }
 
 /// Test end-to-end with digestignore file
