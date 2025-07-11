@@ -308,10 +308,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Feature not yet implemented"]
     fn test_parse_multiple_directories_new_api() {
-        // TODO: Enable this test once directories field is added
-        /*
         use clap::Parser;
 
         // Test single directory (backward compatibility)
@@ -328,25 +325,22 @@ mod tests {
         assert_eq!(config.directories[1], PathBuf::from("/path/two"));
         assert_eq!(config.directories[2], PathBuf::from("/path/three"));
 
-        // Test with prompt after directories
+        // Test with prompt after directories using -- separator
         let args = vec![
             "code-digest",
             "-d",
             "/src/module1",
             "/src/module2",
+            "--",
             "Find duplicated patterns",
         ];
         let config = Config::parse_from(args);
         assert_eq!(config.directories.len(), 2);
         assert_eq!(config.prompt, Some("Find duplicated patterns".to_string()));
-        */
     }
 
     #[test]
-    #[ignore = "Feature not yet implemented"]
     fn test_validate_multiple_directories() {
-        // TODO: Enable this test once directories field is added
-        /*
         let temp_dir = TempDir::new().unwrap();
         let dir1 = temp_dir.path().join("dir1");
         let dir2 = temp_dir.path().join("dir2");
@@ -380,14 +374,10 @@ mod tests {
             progress: false,
         };
         assert!(config.validate().is_err());
-        */
     }
 
     #[test]
-    #[ignore = "Feature not yet implemented"]
     fn test_validate_files_as_directories() {
-        // TODO: Enable this test once directories field is added
-        /*
         let temp_dir = TempDir::new().unwrap();
         let dir1 = temp_dir.path().join("dir1");
         let file1 = temp_dir.path().join("file.txt");
@@ -407,6 +397,5 @@ mod tests {
             progress: false,
         };
         assert!(config.validate().is_err());
-        */
     }
 }
