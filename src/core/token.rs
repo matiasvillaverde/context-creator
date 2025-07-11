@@ -55,7 +55,7 @@ impl TokenCounter {
         let content_tokens = self.count_tokens(content)?;
 
         // Count tokens in the file path/header that will be included in markdown
-        let header = format!("## {}\n\n```\n", path);
+        let header = format!("## {path}\n\n```\n");
         let footer = "\n```\n\n";
         let header_tokens = self.count_tokens(&header)?;
         let footer_tokens = self.count_tokens(footer)?;

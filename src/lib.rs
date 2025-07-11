@@ -30,7 +30,7 @@ pub fn run(config: Config) -> Result<()> {
             eprintln!("  Output file: {}", output.display());
         }
         if let Some(prompt) = &config.prompt {
-            eprintln!("  Prompt: {}", prompt);
+            eprintln!("  Prompt: {prompt}");
         }
     }
 
@@ -70,7 +70,7 @@ pub fn run(config: Config) -> Result<()> {
         }
         (None, None) => {
             // Print to stdout
-            print!("{}", output);
+            print!("{output}");
         }
         (Some(_), Some(_)) => {
             return Err(CodeDigestError::InvalidConfiguration(
@@ -136,7 +136,7 @@ fn execute_with_llm(prompt: &str, context: &str, config: &Config) -> Result<()> 
     use std::io::Write;
     use std::process::{Command, Stdio};
 
-    let full_input = format!("{}\n\n{}", prompt, context);
+    let full_input = format!("{prompt}\n\n{context}");
     let tool_command = config.llm_tool.command();
 
     let mut child = Command::new(tool_command)
@@ -163,14 +163,13 @@ fn execute_with_llm(prompt: &str, context: &str, config: &Config) -> Result<()> 
     let status = child.wait()?;
     if !status.success() {
         return Err(CodeDigestError::SubprocessError(format!(
-            "{} exited with status: {}",
-            tool_command, status
+            "{tool_command} exited with status: {status}"
         ))
         .into());
     }
 
     if !config.quiet {
-        eprintln!("\n✓ {} completed successfully", tool_command);
+        eprintln!("\n✓ {tool_command} completed successfully");
     }
 
     Ok(())

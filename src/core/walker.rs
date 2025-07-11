@@ -154,7 +154,7 @@ fn build_walker(root: &Path, options: &WalkOptions) -> Walk {
 
     // Add include patterns (as negative ignore patterns)
     for pattern in &options.include_patterns {
-        let _ = builder.add_ignore(format!("!{}", pattern));
+        let _ = builder.add_ignore(format!("!{pattern}"));
     }
 
     builder.build()

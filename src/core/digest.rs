@@ -153,7 +153,7 @@ fn append_file_content(
 
     // Add language hint for syntax highlighting
     let language = get_language_hint(&file.file_type);
-    output.push_str(&format!("```{}\n", language));
+    output.push_str(&format!("```{language}\n"));
     output.push_str(&content);
     if !content.ends_with('\n') {
         output.push('\n');
@@ -176,7 +176,7 @@ fn generate_statistics(files: &[FileInfo]) -> String {
 
     let mut stats = String::new();
     stats.push_str("## Statistics\n\n");
-    stats.push_str(&format!("- Total files: {}\n", total_files));
+    stats.push_str(&format!("- Total files: {total_files}\n"));
     stats.push_str(&format!("- Total size: {} bytes\n", format_size(total_size)));
     stats.push_str("\n### Files by type:\n");
 
@@ -234,7 +234,7 @@ fn generate_file_tree(files: &[FileInfo]) -> String {
             let extension = if is_last_dir { "    " } else { "│   " };
 
             output.push_str(&format!("{}{}{}/\n", prefix, connector, name));
-            output.push_str(&render_tree(child, &format!("{}{}", prefix, extension), is_last_dir));
+            output.push_str(&render_tree(child, &format!("{prefix}{extension}"), is_last_dir));
         }
 
         // Render files
@@ -242,7 +242,7 @@ fn generate_file_tree(files: &[FileInfo]) -> String {
         for (i, name) in node.files.iter().enumerate() {
             let is_last_file = i == file_count - 1;
             let connector = if is_last_file { "└── " } else { "├── " };
-            output.push_str(&format!("{}{}{}\n", prefix, connector, name));
+            output.push_str(&format!("{prefix}{connector}{name}\n"));
         }
 
         output
