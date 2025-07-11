@@ -45,14 +45,13 @@ exit 1
     #[cfg(windows)]
     {
         // On Windows, create a simple batch script that handles the clone command
-        let script = format!(
-            r#"@echo off
+        let script = r#"@echo off
 if "%1" == "repo" (
     if "%2" == "clone" (
         rem Create the target directory structure
         set "target_dir=%~4"
         mkdir "%target_dir%\src" 2>nul
-        echo fn main() {{}} > "%target_dir%\src\main.rs"
+        echo fn main() {} > "%target_dir%\src\main.rs"
         echo # Mock Repo > "%target_dir%\README.md"
         echo name = "mock-repo" > "%target_dir%\Cargo.toml"
         echo Cloned successfully
@@ -64,8 +63,7 @@ if "%1" == "--version" (
     exit /b 0
 )
 exit /b 1
-"#
-        );
+"#;
         fs::write(mock_gh_path.with_extension("bat"), script).unwrap();
     }
 
@@ -128,14 +126,13 @@ exit 1
 
     #[cfg(windows)]
     {
-        let script = format!(
-            r#"@echo off
+        let script = r#"@echo off
 if "%1" == "clone" (
     rem For git clone, the last argument is the target directory
     rem Get the last argument using a simple approach
     for %%a in (%*) do set "target_dir=%%a"
     mkdir "%target_dir%\src" 2>nul
-    echo fn main() {{}} > "%target_dir%\src\main.rs"
+    echo fn main() {} > "%target_dir%\src\main.rs"
     echo # Mock Repo > "%target_dir%\README.md"
     echo Cloned successfully
     exit /b 0
@@ -145,8 +142,7 @@ if "%1" == "--version" (
     exit /b 0
 )
 exit /b 1
-"#
-        );
+"#;
         fs::write(mock_git_path.with_extension("bat"), script).unwrap();
     }
 
