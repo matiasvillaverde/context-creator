@@ -44,8 +44,12 @@ pub struct Config {
     pub prompt: Option<String>,
 
     /// The paths to the directories to process
-    #[arg(short = 'd', long, default_value = ".", num_args = 1..)]
+    #[arg(short = 'd', long, default_value = ".", num_args = 1.., conflicts_with = "repo")]
     pub directories: Vec<PathBuf>,
+
+    /// GitHub repository URL to analyze (e.g., https://github.com/owner/repo)
+    #[arg(long, conflicts_with = "directories")]
+    pub repo: Option<String>,
 
     /// The path to the output Markdown file. If used, won't call the LLM CLI
     #[arg(short = 'o', long)]
@@ -81,20 +85,32 @@ impl Config {
     pub fn validate(&self) -> Result<(), crate::utils::error::CodeDigestError> {
         use crate::utils::error::CodeDigestError;
 
-        // Validate all directories exist and are directories
-        for directory in &self.directories {
-            if !directory.exists() {
-                return Err(CodeDigestError::InvalidPath(format!(
-                    "Directory does not exist: {}",
-                    directory.display()
-                )));
+        // Validate repo URL if provided
+        if let Some(repo_url) = &self.repo {
+            if !repo_url.starts_with("https://github.com/")
+                && !repo_url.starts_with("http://github.com/")
+            {
+                return Err(CodeDigestError::InvalidConfiguration(
+                    "Repository URL must be a GitHub URL (https://github.com/owner/repo)"
+                        .to_string(),
+                ));
             }
+        } else {
+            // Only validate directories if repo is not provided
+            for directory in &self.directories {
+                if !directory.exists() {
+                    return Err(CodeDigestError::InvalidPath(format!(
+                        "Directory does not exist: {}",
+                        directory.display()
+                    )));
+                }
 
-            if !directory.is_dir() {
-                return Err(CodeDigestError::InvalidPath(format!(
-                    "Path is not a directory: {}",
-                    directory.display()
-                )));
+                if !directory.is_dir() {
+                    return Err(CodeDigestError::InvalidPath(format!(
+                        "Path is not a directory: {}",
+                        directory.display()
+                    )));
+                }
             }
         }
 
@@ -161,6 +177,7 @@ mod tests {
         let config = Config {
             prompt: None,
             directories: vec![temp_dir.path().to_path_buf()],
+            repo: None,
             output_file: None,
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -178,6 +195,7 @@ mod tests {
         let config = Config {
             prompt: None,
             directories: vec![PathBuf::from("/nonexistent/directory")],
+            repo: None,
             output_file: None,
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -199,6 +217,7 @@ mod tests {
         let config = Config {
             prompt: None,
             directories: vec![file_path],
+            repo: None,
             output_file: None,
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -217,6 +236,7 @@ mod tests {
         let config = Config {
             prompt: None,
             directories: vec![temp_dir.path().to_path_buf()],
+            repo: None,
             output_file: Some(PathBuf::from("/nonexistent/directory/output.md")),
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -235,6 +255,7 @@ mod tests {
         let config = Config {
             prompt: Some("test prompt".to_string()),
             directories: vec![temp_dir.path().to_path_buf()],
+            repo: None,
             output_file: Some(temp_dir.path().join("output.md")),
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -264,6 +285,7 @@ mod tests {
         let config = Config {
             prompt: None,
             directories: vec![temp_dir.path().to_path_buf()],
+            repo: None,
             output_file: Some(PathBuf::from("output.md")),
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -283,6 +305,7 @@ mod tests {
         let mut config = Config {
             prompt: None,
             directories: vec![temp_dir.path().to_path_buf()],
+            repo: None,
             output_file: None,
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -351,6 +374,7 @@ mod tests {
         let config = Config {
             prompt: None,
             directories: vec![dir1.clone(), dir2.clone()],
+            repo: None,
             output_file: None,
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -365,6 +389,7 @@ mod tests {
         let config = Config {
             prompt: None,
             directories: vec![dir1, PathBuf::from("/nonexistent/dir")],
+            repo: None,
             output_file: None,
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -388,6 +413,7 @@ mod tests {
         let config = Config {
             prompt: None,
             directories: vec![dir1, file1],
+            repo: None,
             output_file: None,
             max_tokens: None,
             llm_tool: LlmTool::default(),

@@ -17,6 +17,7 @@ dirs = "5.0"
 ignore = "0.4"
 rayon = "1.10"
 serde = { version = "1.0", features = ["derive"] }
+tempfile = "3.10"
 thiserror = "1.0"
 tiktoken-rs = "0.5"
 toml = "0.8"
