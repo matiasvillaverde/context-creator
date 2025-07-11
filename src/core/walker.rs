@@ -384,7 +384,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let config = Config {
             prompt: None,
-            directory: temp_dir.path().to_path_buf(),
+            directories: vec![temp_dir.path().to_path_buf()],
             output_file: None,
             max_tokens: None,
             llm_tool: crate::cli::LlmTool::default(),

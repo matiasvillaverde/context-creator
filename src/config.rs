@@ -153,8 +153,11 @@ impl ConfigFile {
         }
 
         // Apply directory default if CLI used default (".")
-        if cli_config.directory == PathBuf::from(".") && self.defaults.directory.is_some() {
-            cli_config.directory = self.defaults.directory.clone().unwrap();
+        if cli_config.directories.len() == 1
+            && cli_config.directories[0] == PathBuf::from(".")
+            && self.defaults.directory.is_some()
+        {
+            cli_config.directories = vec![self.defaults.directory.clone().unwrap()];
         }
 
         // Apply output file default if not specified
@@ -278,7 +281,7 @@ progress = true
 
         let mut cli_config = CliConfig {
             prompt: None,
-            directory: PathBuf::from("."),
+            directories: vec![PathBuf::from(".")],
             output_file: None,
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -294,7 +297,7 @@ progress = true
         assert_eq!(cli_config.llm_tool, LlmTool::Codex);
         assert!(cli_config.progress);
         assert!(cli_config.verbose);
-        assert_eq!(cli_config.directory, PathBuf::from("/tmp"));
+        assert_eq!(cli_config.directories, vec![PathBuf::from("/tmp")]);
         assert_eq!(cli_config.output_file, Some(PathBuf::from("output.md")));
     }
 
