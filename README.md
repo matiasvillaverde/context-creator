@@ -29,11 +29,6 @@ Simply put: feed your entire repo to Gemini and have intelligent conversations a
 
 ### Prerequisites
 
-Install Gemini CLI first:
-```bash
-pip install gemini-cli
-```
-
 ### Install code-digest
 
 ```bash
@@ -44,6 +39,11 @@ cargo install code-digest
 git clone https://github.com/matiasvillaverde/code-digest.git
 cd code-digest
 cargo install --path .
+```
+
+Install Gemini CLI (optional):
+```bash
+npm install -g @google/gemini-cli
 ```
 
 ## 🚀 Quick Start
