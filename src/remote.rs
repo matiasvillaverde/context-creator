@@ -1,6 +1,7 @@
 //! Remote repository fetching functionality
 
 use crate::utils::error::CodeDigestError;
+use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 use tempfile::TempDir;
@@ -59,6 +60,26 @@ pub fn fetch_repository(repo_url: &str, verbose: bool) -> Result<TempDir, CodeDi
     let temp_dir = TempDir::new().map_err(|e| {
         CodeDigestError::RemoteFetchError(format!("Failed to create temp directory: {}", e))
     })?;
+
+    // Set secure permissions on temp directory (0700)
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let metadata = fs::metadata(temp_dir.path()).map_err(|e| {
+            CodeDigestError::RemoteFetchError(format!(
+                "Failed to get temp directory metadata: {}",
+                e
+            ))
+        })?;
+        let mut perms = metadata.permissions();
+        perms.set_mode(0o700);
+        fs::set_permissions(temp_dir.path(), perms).map_err(|e| {
+            CodeDigestError::RemoteFetchError(format!(
+                "Failed to set temp directory permissions: {}",
+                e
+            ))
+        })?;
+    }
 
     if verbose {
         eprintln!("📥 Fetching repository: {}/{}", owner, repo);
