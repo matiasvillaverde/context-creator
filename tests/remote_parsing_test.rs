@@ -190,8 +190,9 @@ fn test_no_git_or_gh_available() {
 }
 
 #[test]
+#[ignore = "Real repository test - requires network and git/gh CLI"]
 fn test_parse_own_repository() {
-    // This test requires gh or git to be available
+    // This test requires gh or git to be available and network access
     // Use our own repository as the test case
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
     cmd.arg("--repo").arg("https://github.com/matiasvillaverde/code-digest");
