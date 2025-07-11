@@ -70,8 +70,8 @@ pub fn prioritize_files(
 
     // Log statistics
     if options.include_stats {
-        eprintln!("Token limit: {}", max_tokens);
-        eprintln!("Structure overhead: {} tokens", structure_overhead);
+        eprintln!("Token limit: {max_tokens}");
+        eprintln!("Structure overhead: {structure_overhead} tokens");
         eprintln!(
             "Selected {} files with approximately {} tokens",
             selected_files.len(),
@@ -90,7 +90,7 @@ fn calculate_structure_overhead(options: &DigestOptions, files: &[FileInfo]) -> 
     // Document header
     if !options.doc_header_template.is_empty() {
         let header = options.doc_header_template.replace("{directory}", ".");
-        overhead += counter.count_tokens(&format!("{}\n\n", header))?;
+        overhead += counter.count_tokens(&format!("{header}\n\n"))?;
     }
 
     // Statistics section
