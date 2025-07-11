@@ -47,7 +47,7 @@ pub struct Config {
     #[arg(short = 'd', long, default_value = ".", num_args = 1.., conflicts_with = "repo")]
     pub directories: Vec<PathBuf>,
 
-    /// GitHub repository URL to analyze (e.g., https://github.com/owner/repo)
+    /// GitHub repository URL to analyze (e.g., <https://github.com/owner/repo>)
     #[arg(long, conflicts_with = "directories")]
     pub repo: Option<String>,
 
