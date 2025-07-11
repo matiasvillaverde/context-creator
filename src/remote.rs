@@ -1,10 +1,12 @@
 //! Remote repository fetching functionality
 
 use crate::utils::error::CodeDigestError;
-use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 use tempfile::TempDir;
+
+#[cfg(any(unix, test))]
+use std::fs;
 
 /// Check if gh CLI is available
 pub fn gh_available() -> bool {
