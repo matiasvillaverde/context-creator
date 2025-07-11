@@ -1,0 +1,15 @@
+#!/bin/sh
+# Pre-push hook to ensure all tests pass before pushing
+
+echo "🧪 Running pre-push tests..."
+
+# Run all tests (includes validation)
+make test
+
+if [ $? -ne 0 ]; then
+    echo "❌ Pre-push tests failed. Please fix the issues before pushing."
+    exit 1
+fi
+
+echo "✅ Pre-push tests passed!"
+exit 0
