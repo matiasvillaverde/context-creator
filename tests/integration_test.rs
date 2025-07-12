@@ -409,6 +409,12 @@ fn test_quiet_mode() {
 /// Test clipboard functionality
 #[test]
 fn test_clipboard_copy() {
+    // Skip this test in CI environments where clipboard access is not available
+    if std::env::var("CI").is_ok() {
+        eprintln!("Skipping clipboard test in CI environment");
+        return;
+    }
+
     let temp_dir = TempDir::new().unwrap();
     let project_dir = temp_dir.path().join("test_project");
     fs::create_dir(&project_dir).unwrap();
@@ -425,8 +431,6 @@ fn test_clipboard_copy() {
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
     cmd.arg("-d").arg(&project_dir).arg("--copy");
 
-    // Note: This test will fail in CI environments without clipboard access
-    // In a real scenario, we might want to skip this test in CI
     cmd.assert().success().stdout(predicate::str::contains("✓ Copied to clipboard"));
 }
 
