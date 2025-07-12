@@ -109,26 +109,51 @@ pub fn run(mut config: Config) -> Result<()> {
 
     // Handle output based on configuration
     let resolved_prompt = config.get_prompt();
-    match (config.output_file.as_ref(), resolved_prompt.as_ref()) {
-        (Some(file), None) => {
+    match (config.output_file.as_ref(), resolved_prompt.as_ref(), config.copy) {
+        (Some(file), None, false) => {
             // Write to file
             std::fs::write(file, output)?;
             if !config.quiet {
                 println!(" Written to {}", file.display());
             }
         }
-        (None, Some(prompt)) => {
+        (None, Some(prompt), false) => {
             // Send to LLM CLI with prompt
             if config.progress && !config.quiet {
                 eprintln!("🤖 Sending context to {}...", config.llm_tool.command());
             }
             execute_with_llm(prompt, &output, &config)?;
         }
-        (None, None) => {
+        (None, Some(prompt), true) => {
+            // Copy to clipboard then send to LLM
+            copy_to_clipboard(&output)?;
+            if !config.quiet {
+                println!("✓ Copied to clipboard");
+            }
+            if config.progress && !config.quiet {
+                eprintln!("🤖 Sending context to {}...", config.llm_tool.command());
+            }
+            execute_with_llm(prompt, &output, &config)?;
+        }
+        (None, None, true) => {
+            // Copy to clipboard
+            copy_to_clipboard(&output)?;
+            if !config.quiet {
+                println!("✓ Copied to clipboard");
+            }
+        }
+        (None, None, false) => {
             // Print to stdout
             print!("{output}");
         }
-        (Some(_), Some(_)) => {
+        (Some(_), _, true) => {
+            // This should have been caught by validation
+            return Err(CodeDigestError::InvalidConfiguration(
+                "Cannot specify both --copy and --output".to_string(),
+            )
+            .into());
+        }
+        (Some(_), Some(_), _) => {
             return Err(CodeDigestError::InvalidConfiguration(
                 "Cannot specify both output file and prompt".to_string(),
             )
@@ -227,6 +252,20 @@ fn execute_with_llm(prompt: &str, context: &str, config: &Config) -> Result<()> 
     if !config.quiet {
         eprintln!("\n✓ {tool_command} completed successfully");
     }
+
+    Ok(())
+}
+
+/// Copy content to system clipboard
+fn copy_to_clipboard(content: &str) -> Result<()> {
+    use arboard::Clipboard;
+
+    let mut clipboard = Clipboard::new()
+        .map_err(|e| CodeDigestError::ClipboardError(format!("Failed to access clipboard: {e}")))?;
+
+    clipboard.set_text(content).map_err(|e| {
+        CodeDigestError::ClipboardError(format!("Failed to copy to clipboard: {e}"))
+    })?;
 
     Ok(())
 }

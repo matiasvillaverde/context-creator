@@ -90,6 +90,10 @@ pub struct Config {
     /// Show progress indicators during processing
     #[arg(long)]
     pub progress: bool,
+
+    /// Copy output to system clipboard instead of stdout
+    #[arg(short = 'C', long)]
+    pub copy: bool,
 }
 
 impl Config {
@@ -143,6 +147,13 @@ impl Config {
         if self.output_file.is_some() && self.get_prompt().is_some() {
             return Err(CodeDigestError::InvalidConfiguration(
                 "Cannot specify both --output and a prompt".to_string(),
+            ));
+        }
+
+        // Validate copy and output mutual exclusivity
+        if self.copy && self.output_file.is_some() {
+            return Err(CodeDigestError::InvalidConfiguration(
+                "Cannot specify both --copy and --output".to_string(),
             ));
         }
 
@@ -289,6 +300,7 @@ mod tests {
             verbose: false,
             config: None,
             progress: false,
+            copy: false,
         };
 
         assert!(config.validate().is_ok());
@@ -310,6 +322,7 @@ mod tests {
             verbose: false,
             config: None,
             progress: false,
+            copy: false,
         };
 
         assert!(config.validate().is_err());
@@ -335,6 +348,7 @@ mod tests {
             verbose: false,
             config: None,
             progress: false,
+            copy: false,
         };
 
         assert!(config.validate().is_err());
@@ -357,6 +371,7 @@ mod tests {
             verbose: false,
             config: None,
             progress: false,
+            copy: false,
         };
 
         assert!(config.validate().is_err());
@@ -379,6 +394,7 @@ mod tests {
             verbose: false,
             config: None,
             progress: false,
+            copy: false,
         };
 
         assert!(config.validate().is_err());
@@ -412,6 +428,7 @@ mod tests {
             verbose: false,
             config: None,
             progress: false,
+            copy: false,
         };
 
         // Should not error for files in current directory
@@ -435,6 +452,7 @@ mod tests {
             verbose: false,
             config: None,
             progress: false,
+            copy: false,
         };
 
         // Should not error when no config file is found
@@ -507,6 +525,7 @@ mod tests {
             verbose: false,
             config: None,
             progress: false,
+            copy: false,
         };
         assert!(config.validate().is_ok());
 
@@ -525,6 +544,7 @@ mod tests {
             verbose: false,
             config: None,
             progress: false,
+            copy: false,
         };
         assert!(config.validate().is_err());
     }
@@ -552,6 +572,7 @@ mod tests {
             verbose: false,
             config: None,
             progress: false,
+            copy: false,
         };
         assert!(config.validate().is_err());
     }

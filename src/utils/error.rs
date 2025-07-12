@@ -57,6 +57,10 @@ pub enum CodeDigestError {
     #[error("Remote fetch error: {0}")]
     RemoteFetchError(String),
 
+    /// Clipboard errors
+    #[error("Clipboard error: {0}")]
+    ClipboardError(String),
+
     /// General I/O errors
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),

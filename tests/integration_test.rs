@@ -405,3 +405,49 @@ fn test_quiet_mode() {
         .stdout(predicate::str::is_empty()) // Quiet mode should suppress all stdout output
         .stderr(predicate::str::is_empty()); // Quiet mode should suppress all stderr output
 }
+
+/// Test clipboard functionality
+#[test]
+fn test_clipboard_copy() {
+    // Skip this test in CI environments where clipboard access is not available
+    if std::env::var("CI").is_ok() {
+        eprintln!("Skipping clipboard test in CI environment");
+        return;
+    }
+
+    let temp_dir = TempDir::new().unwrap();
+    let project_dir = temp_dir.path().join("test_project");
+    fs::create_dir(&project_dir).unwrap();
+
+    // Create a simple test file
+    fs::write(
+        project_dir.join("test.rs"),
+        r#"fn hello() {
+    println!("test");
+}"#,
+    )
+    .unwrap();
+
+    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    cmd.arg("-d").arg(&project_dir).arg("--copy");
+
+    cmd.assert().success().stdout(predicate::str::contains("✓ Copied to clipboard"));
+}
+
+/// Test that --copy and --output are mutually exclusive
+#[test]
+fn test_copy_output_mutually_exclusive() {
+    let temp_dir = TempDir::new().unwrap();
+    let project_dir = temp_dir.path().join("test_project");
+    fs::create_dir(&project_dir).unwrap();
+    let output_file = temp_dir.path().join("output.md");
+
+    fs::write(project_dir.join("test.rs"), "fn main() {}").unwrap();
+
+    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    cmd.arg("-d").arg(&project_dir).arg("--copy").arg("-o").arg(&output_file);
+
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("Cannot specify both --copy and --output"));
+}
