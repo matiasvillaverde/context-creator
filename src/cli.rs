@@ -150,6 +150,13 @@ impl Config {
             ));
         }
 
+        // Validate copy and output mutual exclusivity
+        if self.copy && self.output_file.is_some() {
+            return Err(CodeDigestError::InvalidConfiguration(
+                "Cannot specify both --copy and --output".to_string(),
+            ));
+        }
+
         Ok(())
     }
 
