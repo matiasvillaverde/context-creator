@@ -9,6 +9,18 @@ fn main() -> Result<()> {
     // Load configuration from file if specified
     config.load_from_file()?;
 
+    // Read prompt from stdin if needed
+    if config.should_read_stdin() {
+        use std::io::Read;
+        let mut buffer = String::new();
+        std::io::stdin().read_to_string(&mut buffer)?;
+
+        // Set the prompt from stdin if not already set
+        if config.prompt.is_none() && config.prompt_flag.is_none() {
+            config.prompt = Some(buffer.trim().to_string());
+        }
+    }
+
     // Run the application
     run(config)?;
 

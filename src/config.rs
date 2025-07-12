@@ -281,8 +281,11 @@ progress = true
 
         let mut cli_config = CliConfig {
             prompt: None,
+            prompt_flag: None,
             directories: vec![PathBuf::from(".")],
+            directories_positional: vec![],
             repo: None,
+            read_stdin: false,
             output_file: None,
             max_tokens: None,
             llm_tool: LlmTool::default(),

@@ -1,5 +1,6 @@
 use clap::Parser;
 use code_digest::cli::{Config, LlmTool};
+use std::path::PathBuf;
 
 #[test]
 fn test_llm_tool_default() {
@@ -65,4 +66,64 @@ fn test_valid_repo_url_accepted() {
         "https://github.com/matiasvillaverde/code-digest",
     ]);
     assert_eq!(config.repo, Some("https://github.com/matiasvillaverde/code-digest".to_string()));
+}
+
+#[test]
+fn test_prompt_flag_with_spaces() {
+    let config = Config::parse_from([
+        "code-digest",
+        "-d",
+        "src",
+        "--prompt",
+        "How does authentication work in this codebase?",
+    ]);
+    assert_eq!(
+        config.get_prompt(),
+        Some("How does authentication work in this codebase?".to_string())
+    );
+    assert_eq!(config.get_directories(), vec![PathBuf::from("src")]);
+}
+
+#[test]
+fn test_prompt_short_flag() {
+    let config = Config::parse_from(["code-digest", "-d", "src", "-p", "Analyze security"]);
+    assert_eq!(config.get_prompt(), Some("Analyze security".to_string()));
+}
+
+#[test]
+fn test_positional_directories() {
+    let config = Config::parse_from(["code-digest", "src/auth", "src/models", "tests/auth"]);
+    assert_eq!(
+        config.get_directories(),
+        vec![PathBuf::from("src/auth"), PathBuf::from("src/models"), PathBuf::from("tests/auth")]
+    );
+}
+
+#[test]
+fn test_mixed_directory_syntax() {
+    // Should support both old and new syntax
+    let config = Config::parse_from(["code-digest", "-d", "src/core", "src/utils", "tests"]);
+    assert_eq!(
+        config.get_directories(),
+        vec![PathBuf::from("src/core"), PathBuf::from("src/utils"), PathBuf::from("tests")]
+    );
+}
+
+#[test]
+fn test_backward_compatibility() {
+    // Old positional prompt still works
+    let config = Config::parse_from(["code-digest", "-d", "src", "simple prompt"]);
+    assert_eq!(config.get_prompt(), Some("simple prompt".to_string()));
+}
+
+#[test]
+fn test_stdin_flag() {
+    // Test with explicit stdin flag
+    let config = Config::parse_from(["code-digest", "-d", "src", "--stdin"]);
+    assert!(config.read_stdin);
+    assert!(config.should_read_stdin());
+
+    // Test without stdin flag
+    let config = Config::parse_from(["code-digest", "-d", "src"]);
+    assert!(!config.read_stdin);
 }

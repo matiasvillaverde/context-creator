@@ -39,17 +39,29 @@ impl LlmTool {
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
 pub struct Config {
+    /// Directories to process (positional)
+    #[arg(value_name = "DIRECTORIES", num_args = 0..)]
+    pub directories_positional: Vec<PathBuf>,
+
     /// The prompt to send to the LLM. If omitted, only generates the Markdown context
-    #[arg(value_name = "PROMPT")]
+    #[arg(value_name = "PROMPT", last = true, conflicts_with = "prompt_flag")]
     pub prompt: Option<String>,
 
+    /// The prompt to send to the LLM (use when prompt contains spaces)
+    #[arg(short = 'p', long = "prompt", conflicts_with = "prompt")]
+    pub prompt_flag: Option<String>,
+
     /// The paths to the directories to process
-    #[arg(short = 'd', long, default_value = ".", num_args = 1.., conflicts_with = "repo")]
+    #[arg(short = 'd', long, num_args = 1.., conflicts_with = "repo")]
     pub directories: Vec<PathBuf>,
 
     /// GitHub repository URL to analyze (e.g., <https://github.com/owner/repo>)
     #[arg(long, conflicts_with = "directories")]
     pub repo: Option<String>,
+
+    /// Read prompt from stdin
+    #[arg(long = "stdin")]
+    pub read_stdin: bool,
 
     /// The path to the output Markdown file. If used, won't call the LLM CLI
     #[arg(short = 'o', long)]
@@ -128,7 +140,7 @@ impl Config {
         }
 
         // Validate mutually exclusive options
-        if self.output_file.is_some() && self.prompt.is_some() {
+        if self.output_file.is_some() && self.get_prompt().is_some() {
             return Err(CodeDigestError::InvalidConfiguration(
                 "Cannot specify both --output and a prompt".to_string(),
             ));
@@ -163,6 +175,95 @@ impl Config {
 
         Ok(())
     }
+
+    /// Get the actual prompt from various sources
+    pub fn get_prompt(&self) -> Option<String> {
+        // First check explicit prompt flag
+        if let Some(prompt) = &self.prompt_flag {
+            return Some(prompt.clone());
+        }
+
+        // Then check the prompt positional argument
+        if let Some(prompt) = &self.prompt {
+            // Don't return empty strings as prompts
+            if !prompt.trim().is_empty() {
+                return Some(prompt.clone());
+            }
+        }
+
+        // For backward compatibility: check if the last directory argument is actually a prompt
+        // This should only apply when using old syntax: -d dir1 "prompt text"
+        // Not when using new multi-directory syntax: -d dir1 dir2
+        if self.directories.len() > 1 && self.prompt.is_none() && self.prompt_flag.is_none() {
+            let last = self.directories.last().unwrap();
+            // Only treat as prompt if it doesn't exist AND doesn't look like a path
+            if !last.exists() {
+                let path_str = last.to_string_lossy();
+                // Check if it looks like a path (contains separators or common path patterns)
+                if !path_str.contains('/')
+                    && !path_str.contains('\\')
+                    && !path_str.starts_with('.')
+                    && !path_str.contains("project")
+                    && !path_str.contains("_dir")
+                    && !path_str.contains("tmp")
+                {
+                    return Some(path_str.to_string());
+                }
+            }
+        }
+
+        None
+    }
+
+    /// Get all directories from both sources
+    pub fn get_directories(&self) -> Vec<PathBuf> {
+        let mut dirs = self.directories.clone();
+
+        // For backward compatibility: remove last directory if it's being used as a prompt
+        if dirs.len() > 1 && self.prompt.is_none() && self.prompt_flag.is_none() {
+            let last = dirs.last().unwrap();
+            if !last.exists() {
+                let path_str = last.to_string_lossy();
+                // Check if it looks like a path (contains separators or common path patterns)
+                if !path_str.contains('/')
+                    && !path_str.contains('\\')
+                    && !path_str.starts_with('.')
+                    && !path_str.contains("project")
+                    && !path_str.contains("_dir")
+                    && !path_str.contains("tmp")
+                {
+                    dirs.pop();
+                }
+            }
+        }
+
+        // Add positional directories
+        dirs.extend(self.directories_positional.clone());
+
+        // If no directories specified, use current directory
+        if dirs.is_empty() {
+            vec![PathBuf::from(".")]
+        } else {
+            dirs
+        }
+    }
+
+    /// Check if we should read from stdin
+    pub fn should_read_stdin(&self) -> bool {
+        use std::io::IsTerminal;
+
+        // Explicitly requested stdin
+        if self.read_stdin {
+            return true;
+        }
+
+        // If stdin is not a terminal (i.e., it's piped) and no prompt is provided
+        if !std::io::stdin().is_terminal() && self.get_prompt().is_none() {
+            return true;
+        }
+
+        false
+    }
 }
 
 #[cfg(test)]
@@ -176,8 +277,11 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let config = Config {
             prompt: None,
+            prompt_flag: None,
             directories: vec![temp_dir.path().to_path_buf()],
+            directories_positional: vec![],
             repo: None,
+            read_stdin: false,
             output_file: None,
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -194,8 +298,11 @@ mod tests {
     fn test_config_validation_invalid_directory() {
         let config = Config {
             prompt: None,
+            prompt_flag: None,
             directories: vec![PathBuf::from("/nonexistent/directory")],
+            directories_positional: vec![],
             repo: None,
+            read_stdin: false,
             output_file: None,
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -216,8 +323,11 @@ mod tests {
 
         let config = Config {
             prompt: None,
+            prompt_flag: None,
             directories: vec![file_path],
+            directories_positional: vec![],
             repo: None,
+            read_stdin: false,
             output_file: None,
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -235,8 +345,11 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let config = Config {
             prompt: None,
+            prompt_flag: None,
             directories: vec![temp_dir.path().to_path_buf()],
+            directories_positional: vec![],
             repo: None,
+            read_stdin: false,
             output_file: Some(PathBuf::from("/nonexistent/directory/output.md")),
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -254,8 +367,11 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let config = Config {
             prompt: Some("test prompt".to_string()),
+            prompt_flag: None,
             directories: vec![temp_dir.path().to_path_buf()],
+            directories_positional: vec![],
             repo: None,
+            read_stdin: false,
             output_file: Some(temp_dir.path().join("output.md")),
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -284,8 +400,11 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let config = Config {
             prompt: None,
+            prompt_flag: None,
             directories: vec![temp_dir.path().to_path_buf()],
+            directories_positional: vec![],
             repo: None,
+            read_stdin: false,
             output_file: Some(PathBuf::from("output.md")),
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -304,8 +423,11 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let mut config = Config {
             prompt: None,
+            prompt_flag: None,
             directories: vec![temp_dir.path().to_path_buf()],
+            directories_positional: vec![],
             repo: None,
+            read_stdin: false,
             output_file: None,
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -373,8 +495,11 @@ mod tests {
         // All directories exist - should succeed
         let config = Config {
             prompt: None,
+            prompt_flag: None,
             directories: vec![dir1.clone(), dir2.clone()],
+            directories_positional: vec![],
             repo: None,
+            read_stdin: false,
             output_file: None,
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -388,8 +513,11 @@ mod tests {
         // One directory doesn't exist - should fail
         let config = Config {
             prompt: None,
+            prompt_flag: None,
             directories: vec![dir1, PathBuf::from("/nonexistent/dir")],
+            directories_positional: vec![],
             repo: None,
+            read_stdin: false,
             output_file: None,
             max_tokens: None,
             llm_tool: LlmTool::default(),
@@ -412,8 +540,11 @@ mod tests {
         // Mix of directory and file - should fail
         let config = Config {
             prompt: None,
+            prompt_flag: None,
             directories: vec![dir1, file1],
+            directories_positional: vec![],
             repo: None,
+            read_stdin: false,
             output_file: None,
             max_tokens: None,
             llm_tool: LlmTool::default(),

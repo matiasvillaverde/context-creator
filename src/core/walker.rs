@@ -384,7 +384,9 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let config = Config {
             prompt: None,
+            prompt_flag: None,
             directories: vec![temp_dir.path().to_path_buf()],
+            directories_positional: vec![],
             output_file: None,
             max_tokens: None,
             llm_tool: crate::cli::LlmTool::default(),
@@ -393,6 +395,7 @@ mod tests {
             config: None,
             progress: false,
             repo: None,
+            read_stdin: false,
         };
 
         let options = WalkOptions::from_config(&config).unwrap();
