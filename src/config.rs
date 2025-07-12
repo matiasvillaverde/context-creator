@@ -293,6 +293,7 @@ progress = true
             verbose: false,
             config: None,
             progress: false,
+            copy: false,
         };
 
         config_file.apply_to_cli_config(&mut cli_config);

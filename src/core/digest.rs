@@ -519,6 +519,7 @@ mod tests {
             progress: false,
             repo: None,
             read_stdin: false,
+            copy: false,
         };
 
         let options = DigestOptions::from_config(&config).unwrap();
