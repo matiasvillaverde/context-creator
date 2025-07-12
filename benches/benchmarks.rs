@@ -12,12 +12,14 @@ use std::path::Path;
 use tempfile::TempDir;
 
 use code_digest::core::{
+    cache::FileCache,
     digest::{generate_markdown, DigestOptions},
     prioritizer::prioritize_files,
     token::TokenCounter,
     walker::{walk_directory, WalkOptions},
 };
 use code_digest::utils::file_ext::FileType;
+use std::sync::Arc;
 
 /// Create a test project with various file sizes and types
 fn create_test_project(
@@ -160,7 +162,8 @@ fn bench_file_prioritization(c: &mut Criterion) {
                 b.iter(|| {
                     let files_clone = (*files).clone();
                     let options_clone = (*options).clone();
-                    black_box(prioritize_files(files_clone, &options_clone).unwrap());
+                    let cache = Arc::new(FileCache::new());
+                    black_box(prioritize_files(files_clone, &options_clone, cache).unwrap());
                 });
             },
         );
@@ -198,7 +201,12 @@ fn bench_markdown_generation(c: &mut Criterion) {
                 b.iter(|| {
                     let files_clone = (*files).clone();
                     let options_clone = (*options).clone();
-                    black_box(generate_markdown(files_clone, options_clone).unwrap());
+                    let cache = Arc::new(FileCache::new());
+                    // Pre-populate cache with file contents
+                    for file in &files_clone {
+                        fs::write(&file.path, "test content").ok();
+                    }
+                    black_box(generate_markdown(files_clone, options_clone, cache).unwrap());
                 });
             },
         );
@@ -211,7 +219,7 @@ fn bench_markdown_generation(c: &mut Criterion) {
 fn bench_end_to_end_processing(c: &mut Criterion) {
     let mut group = c.benchmark_group("end_to_end");
 
-    for &file_count in &[25, 50, 100, 200] {
+    for &file_count in &[25, 50, 100, 200, 1000] {
         let temp_dir = TempDir::new().unwrap();
         let project_dir = create_test_project(temp_dir.path(), file_count, 2500);
 
@@ -236,8 +244,11 @@ fn bench_end_to_end_processing(c: &mut Criterion) {
                         include_toc: true,
                     };
 
-                    let prioritized_files = prioritize_files(files, &digest_options).unwrap();
-                    let _markdown = generate_markdown(prioritized_files, digest_options).unwrap();
+                    let cache = Arc::new(FileCache::new());
+                    let prioritized_files =
+                        prioritize_files(files, &digest_options, cache.clone()).unwrap();
+                    let _markdown =
+                        generate_markdown(prioritized_files, digest_options, cache).unwrap();
 
                     black_box(());
                 });
