@@ -12,9 +12,10 @@ pub mod utils;
 
 use anyhow::Result;
 use std::path::Path;
+use std::sync::Arc;
 
 pub use cli::Config;
-pub use core::{digest::DigestOptions, walker::WalkOptions};
+pub use core::{cache::FileCache, digest::DigestOptions, walker::WalkOptions};
 pub use utils::error::CodeDigestError;
 
 /// Main entry point for the code digest library
@@ -71,6 +72,12 @@ pub fn run(mut config: Config) -> Result<()> {
     }
     let digest_options = DigestOptions::from_config(&config)?;
 
+    // Create shared file cache
+    if config.verbose {
+        eprintln!("💾 Creating file cache for I/O optimization...");
+    }
+    let cache = Arc::new(FileCache::new());
+
     // Process all directories
     let mut all_outputs = Vec::new();
 
@@ -84,8 +91,13 @@ pub fn run(mut config: Config) -> Result<()> {
             );
         }
 
-        let output =
-            process_directory(directory, walk_options.clone(), digest_options.clone(), &config)?;
+        let output = process_directory(
+            directory,
+            walk_options.clone(),
+            digest_options.clone(),
+            cache.clone(),
+            &config,
+        )?;
         all_outputs.push((directory.clone(), output));
     }
 
@@ -169,6 +181,7 @@ fn process_directory(
     path: &Path,
     walk_options: WalkOptions,
     digest_options: DigestOptions,
+    cache: Arc<FileCache>,
     config: &Config,
 ) -> Result<String> {
     // Walk the directory
@@ -193,7 +206,7 @@ fn process_directory(
         if config.progress && !config.quiet {
             eprintln!("🎯 Prioritizing files for token limit...");
         }
-        core::prioritizer::prioritize_files(files, &digest_options)?
+        core::prioritizer::prioritize_files(files, &digest_options, cache.clone())?
     } else {
         files
     };
@@ -203,7 +216,7 @@ fn process_directory(
     }
 
     // Generate markdown
-    let markdown = core::digest::generate_markdown(prioritized_files, digest_options)?;
+    let markdown = core::digest::generate_markdown(prioritized_files, digest_options, cache)?;
 
     if config.progress && !config.quiet {
         eprintln!("✅ Markdown generation complete");

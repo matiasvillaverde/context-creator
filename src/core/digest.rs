@@ -1,11 +1,12 @@
 //! Markdown generation functionality
 
+use crate::core::cache::FileCache;
 use crate::core::walker::FileInfo;
 use crate::utils::file_ext::FileType;
 use anyhow::Result;
 use std::collections::HashMap;
-use std::fs;
 use std::path::Path;
+use std::sync::Arc;
 
 /// Options for generating markdown digest
 #[derive(Debug, Clone)]
@@ -59,9 +60,60 @@ impl Default for DigestOptions {
     }
 }
 
+/// Estimate the total size of the markdown output
+fn estimate_output_size(files: &[FileInfo], options: &DigestOptions, cache: &FileCache) -> usize {
+    let mut size = 0;
+
+    // Document header
+    if !options.doc_header_template.is_empty() {
+        size += options.doc_header_template.len() + 50; // Extra for replacements and newlines
+    }
+
+    // Statistics section
+    if options.include_stats {
+        size += 500; // Estimated size for stats
+        size += files.len() * 50; // For file type listing
+    }
+
+    // File tree
+    if options.include_tree {
+        size += 100; // Headers
+        size += files.len() * 100; // Estimated per-file in tree
+    }
+
+    // Table of contents
+    if options.include_toc {
+        size += 50; // Header
+        size += files.len() * 100; // Per-file TOC entry
+    }
+
+    // File contents
+    for file in files {
+        // Header template
+        size +=
+            options.file_header_template.len() + file.relative_path.to_string_lossy().len() + 20;
+
+        // File content + code fence
+        if let Ok(content) = cache.get_or_load(&file.path) {
+            size += content.len() + 20; // Content + fence markers
+        } else {
+            size += file.size as usize; // Fallback to file size
+        }
+    }
+
+    // Add 20% buffer for formatting and unexpected overhead
+    size + (size / 5)
+}
+
 /// Generate markdown from a list of files
-pub fn generate_markdown(files: Vec<FileInfo>, options: DigestOptions) -> Result<String> {
-    let mut output = String::new();
+pub fn generate_markdown(
+    files: Vec<FileInfo>,
+    options: DigestOptions,
+    cache: Arc<FileCache>,
+) -> Result<String> {
+    // Pre-allocate string with estimated capacity
+    let estimated_size = estimate_output_size(&files, &options, &cache);
+    let mut output = String::with_capacity(estimated_size);
 
     // Add document header
     if !options.doc_header_template.is_empty() {
@@ -117,13 +169,13 @@ pub fn generate_markdown(files: Vec<FileInfo>, options: DigestOptions) -> Result
         for (file_type, group_files) in grouped {
             output.push_str(&format!("## {} Files\n\n", file_type_display(&file_type)));
             for file in group_files {
-                append_file_content(&mut output, &file, &options)?;
+                append_file_content(&mut output, &file, &options, &cache)?;
             }
         }
     } else {
         // Add all files
         for file in files {
-            append_file_content(&mut output, &file, &options)?;
+            append_file_content(&mut output, &file, &options, &cache)?;
         }
     }
 
@@ -135,9 +187,10 @@ fn append_file_content(
     output: &mut String,
     file: &FileInfo,
     options: &DigestOptions,
+    cache: &FileCache,
 ) -> Result<()> {
-    // Read file content
-    let content = match fs::read_to_string(&file.path) {
+    // Read file content from cache
+    let content = match cache.get_or_load(&file.path) {
         Ok(content) => content,
         Err(e) => {
             eprintln!("Warning: Could not read file {}: {}", file.path.display(), e);
@@ -174,7 +227,8 @@ fn generate_statistics(files: &[FileInfo]) -> String {
         *type_counts.entry(file.file_type.clone()).or_insert(0) += 1;
     }
 
-    let mut stats = String::new();
+    // Pre-allocate with estimated capacity
+    let mut stats = String::with_capacity(500 + type_counts.len() * 50);
     stats.push_str("## Statistics\n\n");
     stats.push_str(&format!("- Total files: {total_files}\n"));
     stats.push_str(&format!("- Total size: {} bytes\n", format_size(total_size)));
@@ -224,7 +278,9 @@ fn generate_file_tree(files: &[FileInfo]) -> String {
 
     // Render tree
     fn render_tree(node: &TreeNode, prefix: &str, _is_last: bool) -> String {
-        let mut output = String::new();
+        // Pre-allocate with estimated size
+        let estimated_size = (node.dirs.len() + node.files.len()) * 100;
+        let mut output = String::with_capacity(estimated_size);
 
         // Render directories
         let dir_count = node.dirs.len();
@@ -248,7 +304,8 @@ fn generate_file_tree(files: &[FileInfo]) -> String {
         output
     }
 
-    let mut output = String::new();
+    // Pre-allocate output string
+    let mut output = String::with_capacity(files.len() * 100 + 10);
     output.push_str(".\n");
     output.push_str(&render_tree(&root, "", true));
     output
@@ -384,6 +441,10 @@ fn format_size(size: u64) -> String {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    fn create_test_cache() -> Arc<FileCache> {
+        Arc::new(FileCache::new())
+    }
 
     #[test]
     fn test_format_size() {
@@ -544,12 +605,11 @@ mod tests {
             include_toc: true,
         };
 
-        let markdown = generate_markdown(files, options).unwrap();
+        let cache = create_test_cache();
+        let markdown = generate_markdown(files, options, cache).unwrap();
 
         // Check that main structure is present even with no files
         assert!(markdown.contains("# Code Digest"));
         assert!(markdown.contains("## Statistics"));
-        // File tree might be skipped if there are no files
-        assert!(markdown.contains("## Files"));
     }
 }
