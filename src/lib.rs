@@ -260,12 +260,11 @@ fn execute_with_llm(prompt: &str, context: &str, config: &Config) -> Result<()> 
 fn copy_to_clipboard(content: &str) -> Result<()> {
     use arboard::Clipboard;
 
-    let mut clipboard = Clipboard::new().map_err(|e| {
-        CodeDigestError::ClipboardError(format!("Failed to access clipboard: {}", e))
-    })?;
+    let mut clipboard = Clipboard::new()
+        .map_err(|e| CodeDigestError::ClipboardError(format!("Failed to access clipboard: {e}")))?;
 
     clipboard.set_text(content).map_err(|e| {
-        CodeDigestError::ClipboardError(format!("Failed to copy to clipboard: {}", e))
+        CodeDigestError::ClipboardError(format!("Failed to copy to clipboard: {e}"))
     })?;
 
     Ok(())
