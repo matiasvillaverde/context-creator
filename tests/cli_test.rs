@@ -127,3 +127,21 @@ fn test_stdin_flag() {
     let config = Config::parse_from(["code-digest", "-d", "src"]);
     assert!(!config.read_stdin);
 }
+
+#[test]
+fn test_copy_flag() {
+    let config = Config::parse_from(["code-digest", "-d", "src", "--copy"]);
+    assert!(config.copy);
+}
+
+#[test]
+fn test_copy_short_flag() {
+    let config = Config::parse_from(["code-digest", "-d", "src", "-C"]);
+    assert!(config.copy);
+}
+
+#[test]
+fn test_copy_default_false() {
+    let config = Config::parse_from(["code-digest", "-d", "src"]);
+    assert!(!config.copy);
+}

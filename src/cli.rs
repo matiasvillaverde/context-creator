@@ -90,6 +90,10 @@ pub struct Config {
     /// Show progress indicators during processing
     #[arg(long)]
     pub progress: bool,
+
+    /// Copy output to system clipboard instead of stdout
+    #[arg(short = 'C', long)]
+    pub copy: bool,
 }
 
 impl Config {
@@ -289,6 +293,7 @@ mod tests {
             verbose: false,
             config: None,
             progress: false,
+            copy: false,
         };
 
         assert!(config.validate().is_ok());
@@ -310,6 +315,7 @@ mod tests {
             verbose: false,
             config: None,
             progress: false,
+            copy: false,
         };
 
         assert!(config.validate().is_err());
@@ -335,6 +341,7 @@ mod tests {
             verbose: false,
             config: None,
             progress: false,
+            copy: false,
         };
 
         assert!(config.validate().is_err());
@@ -357,6 +364,7 @@ mod tests {
             verbose: false,
             config: None,
             progress: false,
+            copy: false,
         };
 
         assert!(config.validate().is_err());
@@ -379,6 +387,7 @@ mod tests {
             verbose: false,
             config: None,
             progress: false,
+            copy: false,
         };
 
         assert!(config.validate().is_err());
@@ -412,6 +421,7 @@ mod tests {
             verbose: false,
             config: None,
             progress: false,
+            copy: false,
         };
 
         // Should not error for files in current directory
@@ -435,6 +445,7 @@ mod tests {
             verbose: false,
             config: None,
             progress: false,
+            copy: false,
         };
 
         // Should not error when no config file is found
@@ -507,6 +518,7 @@ mod tests {
             verbose: false,
             config: None,
             progress: false,
+            copy: false,
         };
         assert!(config.validate().is_ok());
 
@@ -525,6 +537,7 @@ mod tests {
             verbose: false,
             config: None,
             progress: false,
+            copy: false,
         };
         assert!(config.validate().is_err());
     }
@@ -552,6 +565,7 @@ mod tests {
             verbose: false,
             config: None,
             progress: false,
+            copy: false,
         };
         assert!(config.validate().is_err());
     }
