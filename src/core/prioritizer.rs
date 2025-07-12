@@ -1,15 +1,25 @@
 //! File prioritization based on token limits
 
+use crate::core::cache::FileCache;
 use crate::core::digest::DigestOptions;
 use crate::core::token::{would_exceed_limit, TokenCounter};
 use crate::core::walker::FileInfo;
 use anyhow::Result;
-use std::fs;
+use rayon::prelude::*;
+use std::sync::Arc;
+
+/// File with pre-computed token count
+#[derive(Debug, Clone)]
+struct FileWithTokens {
+    file: FileInfo,
+    token_count: usize,
+}
 
 /// Prioritize files based on their importance and token limits
 pub fn prioritize_files(
     mut files: Vec<FileInfo>,
     options: &DigestOptions,
+    cache: Arc<FileCache>,
 ) -> Result<Vec<FileInfo>> {
     // If no token limit, return all files sorted by priority
     let max_tokens = match options.max_tokens {
@@ -25,47 +35,62 @@ pub fn prioritize_files(
         }
     };
 
-    // Sort files by priority (highest first)
-    files.sort_by(|a, b| {
-        b.priority
-            .partial_cmp(&a.priority)
-            .unwrap_or(std::cmp::Ordering::Equal)
-            .then_with(|| a.relative_path.cmp(&b.relative_path))
-    });
-
     // Create token counter
     let counter = TokenCounter::new()?;
-    let mut selected_files = Vec::new();
-    let mut total_tokens = 0;
 
     // Calculate overhead for markdown structure
     let structure_overhead = calculate_structure_overhead(options, &files)?;
-    total_tokens += structure_overhead;
 
-    // Add files until we hit the token limit
-    for file in files {
-        // Read file content
-        let content = match fs::read_to_string(&file.path) {
-            Ok(content) => content,
-            Err(e) => {
-                eprintln!("Warning: Could not read file {}: {}", file.path.display(), e);
-                continue;
+    // Phase 1: Count tokens for all files in parallel
+    let files_with_tokens: Vec<FileWithTokens> = files
+        .into_par_iter()
+        .filter_map(|file| {
+            // Read file content from cache
+            let content = match cache.get_or_load(&file.path) {
+                Ok(content) => content,
+                Err(e) => {
+                    eprintln!("Warning: Could not read file {}: {}", file.path.display(), e);
+                    return None;
+                }
+            };
+
+            // Count tokens for this file
+            match counter.count_file_tokens(&content, &file.relative_path.to_string_lossy()) {
+                Ok(file_tokens) => {
+                    Some(FileWithTokens { file, token_count: file_tokens.total_tokens })
+                }
+                Err(e) => {
+                    eprintln!("Warning: Could not count tokens for {}: {}", file.path.display(), e);
+                    None
+                }
             }
-        };
+        })
+        .collect();
 
-        // Count tokens for this file
-        let file_tokens =
-            counter.count_file_tokens(&content, &file.relative_path.to_string_lossy())?;
+    // Phase 2: Sort by priority and select files sequentially
+    let mut files_with_tokens = files_with_tokens;
+    files_with_tokens.sort_by(|a, b| {
+        b.file
+            .priority
+            .partial_cmp(&a.file.priority)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.file.relative_path.cmp(&b.file.relative_path))
+    });
 
+    let mut selected_files = Vec::new();
+    let mut total_tokens = structure_overhead;
+
+    // Select files until we hit the token limit
+    for file_with_tokens in files_with_tokens {
         // Check if adding this file would exceed the limit
-        if would_exceed_limit(total_tokens, file_tokens.total_tokens, max_tokens) {
+        if would_exceed_limit(total_tokens, file_with_tokens.token_count, max_tokens) {
             // Try to find smaller files that might fit
             continue;
         }
 
         // Add the file
-        total_tokens += file_tokens.total_tokens;
-        selected_files.push(file);
+        total_tokens += file_with_tokens.token_count;
+        selected_files.push(file_with_tokens.file);
     }
 
     // Log statistics
@@ -161,20 +186,36 @@ pub fn group_by_directory(files: Vec<FileInfo>) -> Vec<(String, Vec<FileInfo>)> 
 mod tests {
     use super::*;
     use crate::utils::file_ext::FileType;
+    use std::fs;
     use std::path::PathBuf;
+    use tempfile::TempDir;
+
+    fn create_test_cache() -> Arc<FileCache> {
+        Arc::new(FileCache::new())
+    }
+
+    fn create_test_files(_temp_dir: &TempDir, files: &[FileInfo]) {
+        for file in files {
+            if let Some(parent) = file.path.parent() {
+                fs::create_dir_all(parent).ok();
+            }
+            fs::write(&file.path, "test content").ok();
+        }
+    }
 
     #[test]
     fn test_prioritize_without_limit() {
+        let temp_dir = TempDir::new().unwrap();
         let files = vec![
             FileInfo {
-                path: PathBuf::from("low.txt"),
+                path: temp_dir.path().join("low.txt"),
                 relative_path: PathBuf::from("low.txt"),
                 size: 100,
                 file_type: FileType::Text,
                 priority: 0.3,
             },
             FileInfo {
-                path: PathBuf::from("high.rs"),
+                path: temp_dir.path().join("high.rs"),
                 relative_path: PathBuf::from("high.rs"),
                 size: 100,
                 file_type: FileType::Rust,
@@ -182,8 +223,10 @@ mod tests {
             },
         ];
 
+        create_test_files(&temp_dir, &files);
+        let cache = create_test_cache();
         let options = DigestOptions::default();
-        let result = prioritize_files(files, &options).unwrap();
+        let result = prioritize_files(files, &options, cache).unwrap();
 
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].relative_path, PathBuf::from("high.rs"));
@@ -227,23 +270,24 @@ mod tests {
 
     #[test]
     fn test_prioritize_algorithm_ordering() {
+        let temp_dir = TempDir::new().unwrap();
         let files = vec![
             FileInfo {
-                path: PathBuf::from("test.rs"),
+                path: temp_dir.path().join("test.rs"),
                 relative_path: PathBuf::from("test.rs"),
                 size: 500,
                 file_type: FileType::Rust,
                 priority: 0.8,
             },
             FileInfo {
-                path: PathBuf::from("main.rs"),
+                path: temp_dir.path().join("main.rs"),
                 relative_path: PathBuf::from("main.rs"),
                 size: 1000,
                 file_type: FileType::Rust,
                 priority: 1.5,
             },
             FileInfo {
-                path: PathBuf::from("lib.rs"),
+                path: temp_dir.path().join("lib.rs"),
                 relative_path: PathBuf::from("lib.rs"),
                 size: 800,
                 file_type: FileType::Rust,
@@ -251,8 +295,10 @@ mod tests {
             },
         ];
 
+        create_test_files(&temp_dir, &files);
+        let cache = create_test_cache();
         let options = DigestOptions::default();
-        let result = prioritize_files(files, &options).unwrap();
+        let result = prioritize_files(files, &options, cache).unwrap();
 
         // Should return all files when no limit
         assert_eq!(result.len(), 3);
