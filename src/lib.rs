@@ -37,6 +37,9 @@ pub fn run(mut config: Config) -> Result<()> {
         None
     };
 
+    // Update config with resolved directories first
+    config.directories = config.get_directories();
+
     // Setup logging based on verbosity
     if config.verbose {
         eprintln!("🔧 Starting code-digest with configuration:");
@@ -48,7 +51,7 @@ pub fn run(mut config: Config) -> Result<()> {
         if let Some(output) = &config.output_file {
             eprintln!("  Output file: {}", output.display());
         }
-        if let Some(prompt) = &config.prompt {
+        if let Some(prompt) = config.get_prompt() {
             eprintln!("  Prompt: {prompt}");
         }
     }
@@ -105,7 +108,8 @@ pub fn run(mut config: Config) -> Result<()> {
     };
 
     // Handle output based on configuration
-    match (config.output_file.as_ref(), config.prompt.as_ref()) {
+    let resolved_prompt = config.get_prompt();
+    match (config.output_file.as_ref(), resolved_prompt.as_ref()) {
         (Some(file), None) => {
             // Write to file
             std::fs::write(file, output)?;
