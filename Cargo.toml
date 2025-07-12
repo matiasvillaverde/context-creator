@@ -14,6 +14,7 @@ readme = "README.md"
 anyhow = "1.0"
 arboard = "3.2"
 clap = { version = "4.5", features = ["derive"] }
+dashmap = "5.5"
 dirs = "5.0"
 ignore = "0.4"
 rayon = "1.10"
