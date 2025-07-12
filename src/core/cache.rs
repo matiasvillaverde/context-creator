@@ -1,6 +1,6 @@
 //! File caching functionality for eliminating redundant I/O
 //!
-//! This module provides a thread-safe cache for file contents using Arc<str>
+//! This module provides a thread-safe cache for file contents using `Arc<str>`
 //! for cheap cloning across threads.
 
 use anyhow::Result;
