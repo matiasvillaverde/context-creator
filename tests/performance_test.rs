@@ -24,24 +24,24 @@ fn create_large_test_project(base_dir: &Path, file_count: usize) -> Vec<std::pat
     for i in 0..file_count {
         let (path, content) = match i % 10 {
             0 => (
-                format!("src/core/module_{}.rs", i),
-                format!("//! Module {}\n\nuse std::collections::HashMap;\n\npub struct Module{} {{\n    data: HashMap<String, String>,\n}}\n\nimpl Module{} {{\n    pub fn new() -> Self {{\n        Self {{ data: HashMap::new() }}\n    }}\n}}\n", i, i, i),
+                format!("src/core/module_{i}.rs"),
+                format!("//! Module {i}\n\nuse std::collections::HashMap;\n\npub struct Module{i} {{\n    data: HashMap<String, String>,\n}}\n\nimpl Module{i} {{\n    pub fn new() -> Self {{\n        Self {{ data: HashMap::new() }}\n    }}\n}}\n"),
             ),
             1 => (
-                format!("src/utils/helper_{}.rs", i),
-                format!("//! Helper {}\n\npub fn process_data(input: &str) -> String {{\n    input.trim().to_uppercase()\n}}\n\n#[cfg(test)]\nmod tests {{\n    use super::*;\n    \n    #[test]\n    fn test_process() {{\n        assert_eq!(process_data(\"hello\"), \"HELLO\");\n    }}\n}}\n", i),
+                format!("src/utils/helper_{i}.rs"),
+                format!("//! Helper {i}\n\npub fn process_data(input: &str) -> String {{\n    input.trim().to_uppercase()\n}}\n\n#[cfg(test)]\nmod tests {{\n    use super::*;\n    \n    #[test]\n    fn test_process() {{\n        assert_eq!(process_data(\"hello\"), \"HELLO\");\n    }}\n}}\n"),
             ),
             2 => (
-                format!("tests/test_{}.rs", i),
-                format!("#[test]\nfn test_module_{}() {{\n    let result = 2 + 2;\n    assert_eq!(result, 4);\n}}\n", i),
+                format!("tests/test_{i}.rs"),
+                format!("#[test]\nfn test_module_{i}() {{\n    let result = 2 + 2;\n    assert_eq!(result, 4);\n}}\n"),
             ),
             3 => (
-                format!("docs/doc_{}.md", i),
-                format!("# Documentation {}\n\nThis is documentation for module {}.\n\n## Usage\n\n```rust\nlet module = Module::new();\n```\n", i, i),
+                format!("docs/doc_{i}.md"),
+                format!("# Documentation {i}\n\nThis is documentation for module {i}.\n\n## Usage\n\n```rust\nlet module = Module::new();\n```\n"),
             ),
             _ => (
-                format!("src/file_{}.rs", i),
-                format!("//! File {}\n\nconst DATA: &str = \"{}\";\n\npub fn get_data() -> &'static str {{\n    DATA\n}}\n", i, "x".repeat(100)),
+                format!("src/file_{i}.rs"),
+                format!("//! File {i}\n\nconst DATA: &str = \"{}\";\n\npub fn get_data() -> &'static str {{\n    DATA\n}}\n", "x".repeat(100)),
             ),
         };
 

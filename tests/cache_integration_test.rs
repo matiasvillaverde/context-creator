@@ -53,8 +53,8 @@ fn create_test_files(temp_dir: &TempDir, count: usize) -> Vec<std::path::PathBuf
     let mut files = Vec::new();
 
     for i in 0..count {
-        let file_path = temp_dir.path().join(format!("file_{}.txt", i));
-        fs::write(&file_path, format!("Content of file {}", i)).unwrap();
+        let file_path = temp_dir.path().join(format!("file_{i}.txt"));
+        fs::write(&file_path, format!("Content of file {i}")).unwrap();
         files.push(file_path);
     }
 
