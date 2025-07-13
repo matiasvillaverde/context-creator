@@ -29,7 +29,7 @@ install: ## Install the tool locally.
 	$(CARGO) install --path .
 
 dev: ## Run in development mode with example arguments.
-	$(CARGO) run -- -d examples/sample-project
+	$(CARGO) run -- examples/sample-project
 
 # ====================================================================================
 # Quality & CI
