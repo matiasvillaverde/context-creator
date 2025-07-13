@@ -123,6 +123,9 @@ impl ConfigFile {
 
     /// Apply configuration defaults to CLI config
     pub fn apply_to_cli_config(&self, cli_config: &mut CliConfig) {
+        // Apply custom priorities from config file
+        cli_config.custom_priorities = self.priorities.clone();
+
         // Only apply defaults if CLI didn't specify them
         if cli_config.max_tokens.is_none() && self.defaults.max_tokens.is_some() {
             cli_config.max_tokens = self.defaults.max_tokens;
@@ -294,6 +297,7 @@ progress = true
             config: None,
             progress: false,
             copy: false,
+            custom_priorities: vec![],
         };
 
         config_file.apply_to_cli_config(&mut cli_config);
