@@ -3,10 +3,30 @@
 use crate::utils::error::CodeDigestError;
 use crate::utils::file_ext::FileType;
 use anyhow::Result;
+use glob::Pattern;
 use ignore::{Walk, WalkBuilder};
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+
+/// Compiled priority rule for efficient pattern matching
+#[derive(Debug)]
+pub struct CompiledPriority {
+    /// Pre-compiled glob pattern
+    pub matcher: Pattern,
+    /// Priority weight to add to base priority
+    pub weight: f32,
+    /// Original pattern string for debugging
+    pub original_pattern: String,
+}
+
+impl CompiledPriority {
+    /// Create a CompiledPriority from a pattern string
+    pub fn new(pattern: &str, weight: f32) -> Result<Self, glob::PatternError> {
+        let matcher = Pattern::new(pattern)?;
+        Ok(Self { matcher, weight, original_pattern: pattern.to_string() })
+    }
+}
 
 /// Options for walking directories
 #[derive(Debug, Clone)]
@@ -226,13 +246,33 @@ fn process_file(path: &Path, root: &Path, options: &WalkOptions) -> Result<Optio
     let file_type = FileType::from_path(path);
 
     // Calculate initial priority based on file type
-    let priority = calculate_priority(&file_type, &relative_path);
+    let priority = calculate_priority(&file_type, &relative_path, &[]);
 
     Ok(Some(FileInfo { path: path.to_path_buf(), relative_path, size, file_type, priority }))
 }
 
 /// Calculate priority score for a file
-fn calculate_priority(file_type: &FileType, relative_path: &Path) -> f32 {
+fn calculate_priority(
+    file_type: &FileType,
+    relative_path: &Path,
+    custom_priorities: &[CompiledPriority],
+) -> f32 {
+    // Calculate base priority from file type and path heuristics
+    let base_score = calculate_base_priority(file_type, relative_path);
+
+    // Check custom priorities first (first match wins)
+    for priority in custom_priorities {
+        if priority.matcher.matches_path(relative_path) {
+            return base_score + priority.weight;
+        }
+    }
+
+    // No custom priority matched, return base score
+    base_score
+}
+
+/// Calculate base priority score using existing heuristics
+fn calculate_base_priority(file_type: &FileType, relative_path: &Path) -> f32 {
     let mut score: f32 = match file_type {
         FileType::Rust => 1.0,
         FileType::Python => 0.9,
@@ -333,9 +373,9 @@ mod tests {
 
     #[test]
     fn test_priority_calculation() {
-        let rust_priority = calculate_priority(&FileType::Rust, Path::new("src/main.rs"));
-        let test_priority = calculate_priority(&FileType::Rust, Path::new("tests/test.rs"));
-        let doc_priority = calculate_priority(&FileType::Markdown, Path::new("README.md"));
+        let rust_priority = calculate_priority(&FileType::Rust, Path::new("src/main.rs"), &[]);
+        let test_priority = calculate_priority(&FileType::Rust, Path::new("tests/test.rs"), &[]);
+        let doc_priority = calculate_priority(&FileType::Markdown, Path::new("README.md"), &[]);
 
         assert!(rust_priority > doc_priority);
         assert!(rust_priority > test_priority);
@@ -474,19 +514,136 @@ mod tests {
     #[test]
     fn test_priority_edge_cases() {
         // Test priority calculation for edge cases
-        let main_priority = calculate_priority(&FileType::Rust, Path::new("main.rs"));
-        let lib_priority = calculate_priority(&FileType::Rust, Path::new("lib.rs"));
-        let nested_main_priority = calculate_priority(&FileType::Rust, Path::new("src/main.rs"));
+        let main_priority = calculate_priority(&FileType::Rust, Path::new("main.rs"), &[]);
+        let lib_priority = calculate_priority(&FileType::Rust, Path::new("lib.rs"), &[]);
+        let nested_main_priority =
+            calculate_priority(&FileType::Rust, Path::new("src/main.rs"), &[]);
 
         assert!(main_priority > lib_priority);
         assert!(nested_main_priority > lib_priority);
 
         // Test config file priorities
-        let toml_priority = calculate_priority(&FileType::Toml, Path::new("Cargo.toml"));
+        let toml_priority = calculate_priority(&FileType::Toml, Path::new("Cargo.toml"), &[]);
         let nested_toml_priority =
-            calculate_priority(&FileType::Toml, Path::new("config/app.toml"));
+            calculate_priority(&FileType::Toml, Path::new("config/app.toml"), &[]);
 
         assert!(toml_priority > nested_toml_priority);
+    }
+
+    // === Custom Priority Tests (TDD - Red Phase) ===
+
+    #[test]
+    fn test_custom_priority_no_match_returns_base_priority() {
+        // Given: A base priority of 1.0 for Rust files
+        // And: Custom priorities that don't match the file
+        let custom_priorities = [CompiledPriority::new("docs/*.md", 5.0).unwrap()];
+
+        // When: Calculating priority for a file that doesn't match
+        let priority =
+            calculate_priority(&FileType::Rust, Path::new("src/main.rs"), &custom_priorities);
+
+        // Then: Should return base priority only
+        let expected_base = calculate_priority(&FileType::Rust, Path::new("src/main.rs"), &[]);
+        assert_eq!(priority, expected_base);
+    }
+
+    #[test]
+    fn test_custom_priority_single_match_adds_weight() {
+        // Given: Custom priority with weight 10.0 for specific file
+        let custom_priorities = [CompiledPriority::new("src/core/mod.rs", 10.0).unwrap()];
+
+        // When: Calculating priority for matching file
+        let priority =
+            calculate_priority(&FileType::Rust, Path::new("src/core/mod.rs"), &custom_priorities);
+
+        // Then: Should return base priority + weight
+        let base_priority = calculate_priority(&FileType::Rust, Path::new("src/core/mod.rs"), &[]);
+        let expected = base_priority + 10.0;
+        assert_eq!(priority, expected);
+    }
+
+    #[test]
+    fn test_custom_priority_glob_pattern_match() {
+        // Given: Custom priority with glob pattern
+        let custom_priorities = [CompiledPriority::new("src/**/*.rs", 2.5).unwrap()];
+
+        // When: Calculating priority for file matching glob
+        let priority = calculate_priority(
+            &FileType::Rust,
+            Path::new("src/api/handlers.rs"),
+            &custom_priorities,
+        );
+
+        // Then: Should return base priority + weight
+        let base_priority =
+            calculate_priority(&FileType::Rust, Path::new("src/api/handlers.rs"), &[]);
+        let expected = base_priority + 2.5;
+        assert_eq!(priority, expected);
+    }
+
+    #[test]
+    fn test_custom_priority_negative_weight() {
+        // Given: Custom priority with negative weight
+        let custom_priorities = [CompiledPriority::new("tests/*", -0.5).unwrap()];
+
+        // When: Calculating priority for matching file
+        let priority = calculate_priority(
+            &FileType::Rust,
+            Path::new("tests/test_utils.rs"),
+            &custom_priorities,
+        );
+
+        // Then: Should return base priority + negative weight
+        let base_priority =
+            calculate_priority(&FileType::Rust, Path::new("tests/test_utils.rs"), &[]);
+        let expected = base_priority - 0.5;
+        assert_eq!(priority, expected);
+    }
+
+    #[test]
+    fn test_custom_priority_first_match_wins() {
+        // Given: Multiple overlapping patterns
+        let custom_priorities = [
+            CompiledPriority::new("src/**/*.rs", 5.0).unwrap(),
+            CompiledPriority::new("src/main.rs", 100.0).unwrap(),
+        ];
+
+        // When: Calculating priority for file that matches both patterns
+        let priority =
+            calculate_priority(&FileType::Rust, Path::new("src/main.rs"), &custom_priorities);
+
+        // Then: Should use first pattern (5.0), not second (100.0)
+        let base_priority = calculate_priority(&FileType::Rust, Path::new("src/main.rs"), &[]);
+        let expected = base_priority + 5.0;
+        assert_eq!(priority, expected);
+    }
+
+    #[test]
+    fn test_custom_priority_zero_weight() {
+        // Given: Custom priority with zero weight
+        let custom_priorities = [CompiledPriority::new("*.rs", 0.0).unwrap()];
+
+        // When: Calculating priority for matching file
+        let priority =
+            calculate_priority(&FileType::Rust, Path::new("src/main.rs"), &custom_priorities);
+
+        // Then: Should return base priority unchanged
+        let base_priority = calculate_priority(&FileType::Rust, Path::new("src/main.rs"), &[]);
+        assert_eq!(priority, base_priority);
+    }
+
+    #[test]
+    fn test_custom_priority_empty_list() {
+        // Given: Empty custom priorities list
+        let custom_priorities: &[CompiledPriority] = &[];
+
+        // When: Calculating priority
+        let priority =
+            calculate_priority(&FileType::Rust, Path::new("src/main.rs"), custom_priorities);
+
+        // Then: Should return base priority
+        let expected_base = calculate_priority(&FileType::Rust, Path::new("src/main.rs"), &[]);
+        assert_eq!(priority, expected_base);
     }
 
     #[test]
