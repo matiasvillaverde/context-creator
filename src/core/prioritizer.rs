@@ -338,6 +338,7 @@ mod tests {
             file_header_template: "## {path}".to_string(),
             doc_header_template: "# Code Digest".to_string(),
             include_toc: true,
+            enhanced_context: false,
         };
 
         let overhead = calculate_structure_overhead(&options, &files).unwrap();

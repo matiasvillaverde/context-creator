@@ -83,6 +83,7 @@ fn test_performance_1000_files_under_1_second() {
         file_header_template: "## {path}".to_string(),
         doc_header_template: "# Code Digest".to_string(),
         include_toc: true,
+        enhanced_context: false,
     };
 
     let prioritized_files = prioritize_files(files, &digest_options, cache.clone()).unwrap();

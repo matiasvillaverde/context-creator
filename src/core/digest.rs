@@ -27,6 +27,8 @@ pub struct DigestOptions {
     pub doc_header_template: String,
     /// Include table of contents
     pub include_toc: bool,
+    /// Enable enhanced context with file metadata
+    pub enhanced_context: bool,
 }
 
 impl DigestOptions {
@@ -41,6 +43,7 @@ impl DigestOptions {
             file_header_template: "## {path}".to_string(),
             doc_header_template: "# Code Digest: {directory}".to_string(),
             include_toc: true,
+            enhanced_context: config.enhanced_context,
         })
     }
 }
@@ -56,6 +59,7 @@ impl Default for DigestOptions {
             file_header_template: "## {path}".to_string(),
             doc_header_template: "# Code Digest: {directory}".to_string(),
             include_toc: true,
+            enhanced_context: false,
         }
     }
 }
@@ -603,6 +607,7 @@ mod tests {
             file_header_template: "## {path}".to_string(),
             doc_header_template: "# Code Digest".to_string(),
             include_toc: true,
+            enhanced_context: false,
         };
 
         let cache = create_test_cache();
