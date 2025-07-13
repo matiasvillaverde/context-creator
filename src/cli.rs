@@ -83,7 +83,7 @@ pub struct Config {
     #[arg(value_name = "PATHS", help = "Process files and directories")]
     pub paths: Option<Vec<PathBuf>>,
 
-    /// GitHub repository URL to analyze (e.g., https://github.com/owner/repo)
+    /// GitHub repository URL to analyze (e.g., <https://github.com/owner/repo>)
     #[arg(long, help = "Process a GitHub repository")]
     pub repo: Option<String>,
 
