@@ -4,25 +4,25 @@ use std::path::PathBuf;
 
 #[test]
 fn test_llm_tool_default() {
-    let config = Config::parse_from(["code-digest"]);
+    let config = Config::parse_from(["code-digest", "."]);
     assert_eq!(config.llm_tool, LlmTool::Gemini);
 }
 
 #[test]
 fn test_llm_tool_gemini() {
-    let config = Config::parse_from(["code-digest", "--tool", "gemini"]);
+    let config = Config::parse_from(["code-digest", "--tool", "gemini", "."]);
     assert_eq!(config.llm_tool, LlmTool::Gemini);
 }
 
 #[test]
 fn test_llm_tool_codex() {
-    let config = Config::parse_from(["code-digest", "--tool", "codex"]);
+    let config = Config::parse_from(["code-digest", "--tool", "codex", "."]);
     assert_eq!(config.llm_tool, LlmTool::Codex);
 }
 
 #[test]
 fn test_llm_tool_short_flag() {
-    let config = Config::parse_from(["code-digest", "-t", "codex"]);
+    let config = Config::parse_from(["code-digest", "-t", "codex", "."]);
     assert_eq!(config.llm_tool, LlmTool::Codex);
 }
 
@@ -46,13 +46,8 @@ fn test_repo_argument() {
 
 #[test]
 fn test_repo_and_directory_mutually_exclusive() {
-    let result = Config::try_parse_from([
-        "code-digest",
-        "--repo",
-        "https://github.com/owner/repo",
-        "-d",
-        ".",
-    ]);
+    let result =
+        Config::try_parse_from(["code-digest", "--repo", "https://github.com/owner/repo", "."]);
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(err.to_string().contains("cannot be used with"));
@@ -72,8 +67,6 @@ fn test_valid_repo_url_accepted() {
 fn test_prompt_flag_with_spaces() {
     let config = Config::parse_from([
         "code-digest",
-        "-d",
-        "src",
         "--prompt",
         "How does authentication work in this codebase?",
     ]);
@@ -81,12 +74,12 @@ fn test_prompt_flag_with_spaces() {
         config.get_prompt(),
         Some("How does authentication work in this codebase?".to_string())
     );
-    assert_eq!(config.get_directories(), vec![PathBuf::from("src")]);
+    assert_eq!(config.get_directories(), vec![PathBuf::from(".")]);
 }
 
 #[test]
 fn test_prompt_short_flag() {
-    let config = Config::parse_from(["code-digest", "-d", "src", "-p", "Analyze security"]);
+    let config = Config::parse_from(["code-digest", "-p", "Analyze security"]);
     assert_eq!(config.get_prompt(), Some("Analyze security".to_string()));
 }
 
@@ -100,9 +93,8 @@ fn test_positional_directories() {
 }
 
 #[test]
-fn test_mixed_directory_syntax() {
-    // Should support both old and new syntax
-    let config = Config::parse_from(["code-digest", "-d", "src/core", "src/utils", "tests"]);
+fn test_multiple_directories() {
+    let config = Config::parse_from(["code-digest", "src/core", "src/utils", "tests"]);
     assert_eq!(
         config.get_directories(),
         vec![PathBuf::from("src/core"), PathBuf::from("src/utils"), PathBuf::from("tests")]
@@ -110,45 +102,46 @@ fn test_mixed_directory_syntax() {
 }
 
 #[test]
-fn test_backward_compatibility() {
-    // Old positional prompt still works
-    let config = Config::parse_from(["code-digest", "-d", "src", "simple prompt"]);
-    assert_eq!(config.get_prompt(), Some("simple prompt".to_string()));
+fn test_prompt_and_paths_mutually_exclusive() {
+    let result = Config::try_parse_from(["code-digest", "--prompt", "test", "src"]);
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(err.to_string().contains("cannot be used with"));
 }
 
 #[test]
 fn test_stdin_flag() {
     // Test with explicit stdin flag
-    let config = Config::parse_from(["code-digest", "-d", "src", "--stdin"]);
+    let config = Config::parse_from(["code-digest", "--stdin"]);
     assert!(config.read_stdin);
     assert!(config.should_read_stdin());
 
     // Test without stdin flag
-    let config = Config::parse_from(["code-digest", "-d", "src"]);
+    let config = Config::parse_from(["code-digest", "src"]);
     assert!(!config.read_stdin);
 }
 
 #[test]
 fn test_copy_flag() {
-    let config = Config::parse_from(["code-digest", "-d", "src", "--copy"]);
+    let config = Config::parse_from(["code-digest", "src", "--copy"]);
     assert!(config.copy);
 }
 
 #[test]
 fn test_copy_short_flag() {
-    let config = Config::parse_from(["code-digest", "-d", "src", "-C"]);
+    let config = Config::parse_from(["code-digest", "src", "-C"]);
     assert!(config.copy);
 }
 
 #[test]
 fn test_copy_default_false() {
-    let config = Config::parse_from(["code-digest", "-d", "src"]);
+    let config = Config::parse_from(["code-digest", "src"]);
     assert!(!config.copy);
 }
 
 #[test]
 fn test_copy_with_output_conflict() {
-    let config = Config::parse_from(["code-digest", "-d", "src", "--copy", "-o", "out.md"]);
+    let config = Config::parse_from(["code-digest", "src", "--copy", "-o", "out.md"]);
     let result = config.validate();
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("Cannot specify both"));

@@ -16,7 +16,7 @@ fn main() -> Result<()> {
         std::io::stdin().read_to_string(&mut buffer)?;
 
         // Set the prompt from stdin if not already set
-        if config.prompt.is_none() && config.prompt_flag.is_none() {
+        if config.prompt.is_none() {
             config.prompt = Some(buffer.trim().to_string());
         }
     }

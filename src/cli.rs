@@ -3,6 +3,37 @@
 use clap::{Parser, ValueEnum};
 use std::path::PathBuf;
 
+/// Help message explaining custom priority rules and usage
+const AFTER_HELP_MSG: &str = "\
+CUSTOM PRIORITY RULES:
+  Custom priority rules are processed in a 'first-match-wins' basis. Rules are 
+  evaluated in the order they are defined in your .code-digest.toml configuration 
+  file. The first rule that matches a given file will be used, and all subsequent 
+  rules will be ignored for that file.
+
+  Example configuration:
+    [[priorities]]
+    pattern = \"src/**/*.rs\"
+    weight = 10.0
+    
+    [[priorities]]  
+    pattern = \"tests/*\"
+    weight = -2.0
+
+USAGE EXAMPLES:
+  # Process current directory with a prompt
+  code-digest --prompt \"Analyze this code\"
+  
+  # Process specific directories  
+  code-digest src/ tests/ docs/
+  
+  # Process a GitHub repository
+  code-digest --repo https://github.com/owner/repo
+  
+  # Read prompt from stdin
+  echo \"Review this code\" | code-digest --stdin .
+";
+
 /// Supported LLM CLI tools
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Default)]
 pub enum LlmTool {
@@ -37,30 +68,27 @@ impl LlmTool {
 
 /// High-performance CLI tool to convert codebases to Markdown for LLM context
 #[derive(Parser, Debug, Clone)]
-#[command(author, version, about, long_about = None)]
+#[command(author, version, about, long_about = None, after_help = AFTER_HELP_MSG)]
+#[command(group(
+    clap::ArgGroup::new("input_source")
+        .required(true)
+        .args(&["prompt", "paths", "repo", "read_stdin"]),
+))]
 pub struct Config {
-    /// Directories to process (positional)
-    #[arg(value_name = "DIRECTORIES", num_args = 0..)]
-    pub directories_positional: Vec<PathBuf>,
-
-    /// The prompt to send to the LLM. If omitted, only generates the Markdown context
-    #[arg(value_name = "PROMPT", last = true, conflicts_with = "prompt_flag")]
+    /// The prompt to send to the LLM for processing
+    #[arg(short = 'p', long = "prompt", help = "Process a text prompt directly")]
     pub prompt: Option<String>,
 
-    /// The prompt to send to the LLM (use when prompt contains spaces)
-    #[arg(short = 'p', long = "prompt", conflicts_with = "prompt")]
-    pub prompt_flag: Option<String>,
-
-    /// The paths to the directories to process
-    #[arg(short = 'd', long, num_args = 1.., conflicts_with = "repo")]
-    pub directories: Vec<PathBuf>,
+    /// One or more directory or file paths to process
+    #[arg(value_name = "PATHS", help = "Process files and directories")]
+    pub paths: Option<Vec<PathBuf>>,
 
     /// GitHub repository URL to analyze (e.g., <https://github.com/owner/repo>)
-    #[arg(long, conflicts_with = "directories")]
+    #[arg(long, help = "Process a GitHub repository")]
     pub repo: Option<String>,
 
     /// Read prompt from stdin
-    #[arg(long = "stdin")]
+    #[arg(long = "stdin", help = "Read prompt from standard input")]
     pub read_stdin: bool,
 
     /// The path to the output Markdown file. If used, won't call the LLM CLI
@@ -94,6 +122,10 @@ pub struct Config {
     /// Copy output to system clipboard instead of stdout
     #[arg(short = 'C', long)]
     pub copy: bool,
+
+    /// Custom priority rules loaded from config file (not a CLI argument)
+    #[clap(skip)]
+    pub custom_priorities: Vec<crate::config::Priority>,
 }
 
 impl Config {
@@ -113,7 +145,8 @@ impl Config {
             }
         } else {
             // Only validate directories if repo is not provided
-            for directory in &self.directories {
+            let directories = self.get_directories();
+            for directory in &directories {
                 if !directory.exists() {
                     return Err(CodeDigestError::InvalidPath(format!(
                         "Directory does not exist: {}",
@@ -173,6 +206,9 @@ impl Config {
         };
 
         if let Some(config_file) = config_file {
+            // Store custom priorities for the walker
+            self.custom_priorities = config_file.priorities.clone();
+
             config_file.apply_to_cli_config(self);
 
             if self.verbose {
@@ -187,76 +223,14 @@ impl Config {
         Ok(())
     }
 
-    /// Get the actual prompt from various sources
+    /// Get the prompt from the explicit prompt flag
     pub fn get_prompt(&self) -> Option<String> {
-        // First check explicit prompt flag
-        if let Some(prompt) = &self.prompt_flag {
-            return Some(prompt.clone());
-        }
-
-        // Then check the prompt positional argument
-        if let Some(prompt) = &self.prompt {
-            // Don't return empty strings as prompts
-            if !prompt.trim().is_empty() {
-                return Some(prompt.clone());
-            }
-        }
-
-        // For backward compatibility: check if the last directory argument is actually a prompt
-        // This should only apply when using old syntax: -d dir1 "prompt text"
-        // Not when using new multi-directory syntax: -d dir1 dir2
-        if self.directories.len() > 1 && self.prompt.is_none() && self.prompt_flag.is_none() {
-            let last = self.directories.last().unwrap();
-            // Only treat as prompt if it doesn't exist AND doesn't look like a path
-            if !last.exists() {
-                let path_str = last.to_string_lossy();
-                // Check if it looks like a path (contains separators or common path patterns)
-                if !path_str.contains('/')
-                    && !path_str.contains('\\')
-                    && !path_str.starts_with('.')
-                    && !path_str.contains("project")
-                    && !path_str.contains("_dir")
-                    && !path_str.contains("tmp")
-                {
-                    return Some(path_str.to_string());
-                }
-            }
-        }
-
-        None
+        self.prompt.as_ref().filter(|s| !s.trim().is_empty()).cloned()
     }
 
-    /// Get all directories from both sources
+    /// Get all directories from paths argument
     pub fn get_directories(&self) -> Vec<PathBuf> {
-        let mut dirs = self.directories.clone();
-
-        // For backward compatibility: remove last directory if it's being used as a prompt
-        if dirs.len() > 1 && self.prompt.is_none() && self.prompt_flag.is_none() {
-            let last = dirs.last().unwrap();
-            if !last.exists() {
-                let path_str = last.to_string_lossy();
-                // Check if it looks like a path (contains separators or common path patterns)
-                if !path_str.contains('/')
-                    && !path_str.contains('\\')
-                    && !path_str.starts_with('.')
-                    && !path_str.contains("project")
-                    && !path_str.contains("_dir")
-                    && !path_str.contains("tmp")
-                {
-                    dirs.pop();
-                }
-            }
-        }
-
-        // Add positional directories
-        dirs.extend(self.directories_positional.clone());
-
-        // If no directories specified, use current directory
-        if dirs.is_empty() {
-            vec![PathBuf::from(".")]
-        } else {
-            dirs
-        }
+        self.paths.as_ref().cloned().unwrap_or_else(|| vec![PathBuf::from(".")])
     }
 
     /// Check if we should read from stdin
@@ -288,9 +262,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let config = Config {
             prompt: None,
-            prompt_flag: None,
-            directories: vec![temp_dir.path().to_path_buf()],
-            directories_positional: vec![],
+            paths: Some(vec![temp_dir.path().to_path_buf()]),
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -301,6 +273,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            custom_priorities: vec![],
         };
 
         assert!(config.validate().is_ok());
@@ -310,9 +283,7 @@ mod tests {
     fn test_config_validation_invalid_directory() {
         let config = Config {
             prompt: None,
-            prompt_flag: None,
-            directories: vec![PathBuf::from("/nonexistent/directory")],
-            directories_positional: vec![],
+            paths: Some(vec![PathBuf::from("/nonexistent/directory")]),
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -323,6 +294,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            custom_priorities: vec![],
         };
 
         assert!(config.validate().is_err());
@@ -336,9 +308,7 @@ mod tests {
 
         let config = Config {
             prompt: None,
-            prompt_flag: None,
-            directories: vec![file_path],
-            directories_positional: vec![],
+            paths: Some(vec![file_path]),
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -349,6 +319,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            custom_priorities: vec![],
         };
 
         assert!(config.validate().is_err());
@@ -359,9 +330,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let config = Config {
             prompt: None,
-            prompt_flag: None,
-            directories: vec![temp_dir.path().to_path_buf()],
-            directories_positional: vec![],
+            paths: Some(vec![temp_dir.path().to_path_buf()]),
             repo: None,
             read_stdin: false,
             output_file: Some(PathBuf::from("/nonexistent/directory/output.md")),
@@ -372,6 +341,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            custom_priorities: vec![],
         };
 
         assert!(config.validate().is_err());
@@ -382,9 +352,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let config = Config {
             prompt: Some("test prompt".to_string()),
-            prompt_flag: None,
-            directories: vec![temp_dir.path().to_path_buf()],
-            directories_positional: vec![],
+            paths: Some(vec![temp_dir.path().to_path_buf()]),
             repo: None,
             read_stdin: false,
             output_file: Some(temp_dir.path().join("output.md")),
@@ -395,6 +363,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            custom_priorities: vec![],
         };
 
         assert!(config.validate().is_err());
@@ -416,9 +385,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let config = Config {
             prompt: None,
-            prompt_flag: None,
-            directories: vec![temp_dir.path().to_path_buf()],
-            directories_positional: vec![],
+            paths: Some(vec![temp_dir.path().to_path_buf()]),
             repo: None,
             read_stdin: false,
             output_file: Some(PathBuf::from("output.md")),
@@ -429,6 +396,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            custom_priorities: vec![],
         };
 
         // Should not error for files in current directory
@@ -440,9 +408,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let mut config = Config {
             prompt: None,
-            prompt_flag: None,
-            directories: vec![temp_dir.path().to_path_buf()],
-            directories_positional: vec![],
+            paths: Some(vec![temp_dir.path().to_path_buf()]),
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -453,6 +419,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            custom_priorities: vec![],
         };
 
         // Should not error when no config file is found
@@ -460,45 +427,31 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_multiple_directories() {
+    fn test_parse_directories() {
         use clap::Parser;
 
-        // Test single directory (backward compatibility)
-        let args = vec!["code-digest", "-d", "/path/one"];
+        // Test single directory
+        let args = vec!["code-digest", "/path/one"];
         let config = Config::parse_from(args);
-        assert_eq!(config.directories.len(), 1);
-        assert_eq!(config.directories[0], PathBuf::from("/path/one"));
+        assert_eq!(config.paths.as_ref().unwrap().len(), 1);
+        assert_eq!(config.paths.as_ref().unwrap()[0], PathBuf::from("/path/one"));
     }
 
     #[test]
-    fn test_parse_multiple_directories_new_api() {
+    fn test_parse_multiple_directories() {
         use clap::Parser;
 
-        // Test single directory (backward compatibility)
-        let args = vec!["code-digest", "-d", "/path/one"];
-        let config = Config::parse_from(args);
-        assert_eq!(config.directories.len(), 1);
-        assert_eq!(config.directories[0], PathBuf::from("/path/one"));
-
         // Test multiple directories
-        let args = vec!["code-digest", "-d", "/path/one", "/path/two", "/path/three"];
+        let args = vec!["code-digest", "/path/one", "/path/two", "/path/three"];
         let config = Config::parse_from(args);
-        assert_eq!(config.directories.len(), 3);
-        assert_eq!(config.directories[0], PathBuf::from("/path/one"));
-        assert_eq!(config.directories[1], PathBuf::from("/path/two"));
-        assert_eq!(config.directories[2], PathBuf::from("/path/three"));
+        assert_eq!(config.paths.as_ref().unwrap().len(), 3);
+        assert_eq!(config.paths.as_ref().unwrap()[0], PathBuf::from("/path/one"));
+        assert_eq!(config.paths.as_ref().unwrap()[1], PathBuf::from("/path/two"));
+        assert_eq!(config.paths.as_ref().unwrap()[2], PathBuf::from("/path/three"));
 
-        // Test with prompt after directories using -- separator
-        let args = vec![
-            "code-digest",
-            "-d",
-            "/src/module1",
-            "/src/module2",
-            "--",
-            "Find duplicated patterns",
-        ];
+        // Test with explicit prompt
+        let args = vec!["code-digest", "--prompt", "Find duplicated patterns"];
         let config = Config::parse_from(args);
-        assert_eq!(config.directories.len(), 2);
         assert_eq!(config.prompt, Some("Find duplicated patterns".to_string()));
     }
 
@@ -513,9 +466,7 @@ mod tests {
         // All directories exist - should succeed
         let config = Config {
             prompt: None,
-            prompt_flag: None,
-            directories: vec![dir1.clone(), dir2.clone()],
-            directories_positional: vec![],
+            paths: Some(vec![dir1.clone(), dir2.clone()]),
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -526,15 +477,14 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            custom_priorities: vec![],
         };
         assert!(config.validate().is_ok());
 
         // One directory doesn't exist - should fail
         let config = Config {
             prompt: None,
-            prompt_flag: None,
-            directories: vec![dir1, PathBuf::from("/nonexistent/dir")],
-            directories_positional: vec![],
+            paths: Some(vec![dir1, PathBuf::from("/nonexistent/dir")]),
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -545,6 +495,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            custom_priorities: vec![],
         };
         assert!(config.validate().is_err());
     }
@@ -560,9 +511,7 @@ mod tests {
         // Mix of directory and file - should fail
         let config = Config {
             prompt: None,
-            prompt_flag: None,
-            directories: vec![dir1, file1],
-            directories_positional: vec![],
+            paths: Some(vec![dir1, file1]),
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -573,6 +522,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            custom_priorities: vec![],
         };
         assert!(config.validate().is_err());
     }
