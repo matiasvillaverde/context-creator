@@ -18,6 +18,7 @@ dashmap = "5.5"
 dirs = "5.0"
 glob = "0.3"
 ignore = "0.4"
+itertools = "0.13"
 rayon = "1.10"
 serde = { version = "1.0", features = ["derive"] }
 tempfile = "3.10"

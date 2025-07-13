@@ -31,20 +31,19 @@ pub fn run(mut config: Config) -> Result<()> {
         let repo_path = crate::remote::get_repo_path(&temp_dir, repo_url)?;
 
         // Update config to use the cloned repository
-        config.directories = vec![repo_path];
+        config.paths = Some(vec![repo_path]);
 
         Some(temp_dir) // Keep temp_dir alive until end of function
     } else {
         None
     };
 
-    // Update config with resolved directories first
-    config.directories = config.get_directories();
+    // No need to update config since get_directories() handles resolution
 
     // Setup logging based on verbosity
     if config.verbose {
         eprintln!("🔧 Starting code-digest with configuration:");
-        eprintln!("  Directories: {:?}", config.directories);
+        eprintln!("  Directories: {:?}", config.get_directories());
         eprintln!("  Max tokens: {:?}", config.max_tokens);
         eprintln!("  LLM tool: {}", config.llm_tool.command());
         eprintln!("  Progress: {}", config.progress);
@@ -81,12 +80,13 @@ pub fn run(mut config: Config) -> Result<()> {
     // Process all directories
     let mut all_outputs = Vec::new();
 
-    for (index, directory) in config.directories.iter().enumerate() {
-        if config.progress && !config.quiet && config.directories.len() > 1 {
+    let directories = config.get_directories();
+    for (index, directory) in directories.iter().enumerate() {
+        if config.progress && !config.quiet && directories.len() > 1 {
             eprintln!(
                 "📂 Processing directory {} of {}: {}",
                 index + 1,
-                config.directories.len(),
+                directories.len(),
                 directory.display()
             );
         }
