@@ -581,6 +581,7 @@ mod tests {
             repo: None,
             read_stdin: false,
             copy: false,
+            custom_priorities: vec![],
         };
 
         let options = DigestOptions::from_config(&config).unwrap();
