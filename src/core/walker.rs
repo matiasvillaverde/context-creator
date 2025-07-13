@@ -493,6 +493,7 @@ mod tests {
             repo: None,
             read_stdin: false,
             copy: false,
+            enhanced_context: false,
             custom_priorities: vec![],
         };
 
@@ -744,6 +745,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            enhanced_context: false,
             custom_priorities: vec![],
         };
         config_file.apply_to_cli_config(&mut config);
@@ -807,6 +809,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            enhanced_context: false,
             custom_priorities: vec![],
         };
         config_file.apply_to_cli_config(&mut config);
@@ -846,6 +849,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            enhanced_context: false,
             custom_priorities: vec![],
         };
         config_file.apply_to_cli_config(&mut config);
@@ -884,6 +888,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            enhanced_context: false,
             custom_priorities: vec![],
         };
         config_file.apply_to_cli_config(&mut config);
@@ -928,6 +933,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            enhanced_context: false,
             custom_priorities: vec![],
         };
         config_file.apply_to_cli_config(&mut config);

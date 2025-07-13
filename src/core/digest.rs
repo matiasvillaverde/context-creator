@@ -579,6 +579,7 @@ mod tests {
             repo: None,
             read_stdin: false,
             copy: false,
+            enhanced_context: false,
             custom_priorities: vec![],
         };
 

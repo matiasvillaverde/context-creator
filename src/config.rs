@@ -296,6 +296,7 @@ progress = true
             config: None,
             progress: false,
             copy: false,
+            enhanced_context: false,
             custom_priorities: vec![],
         };
 

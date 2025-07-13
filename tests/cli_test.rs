@@ -146,3 +146,15 @@ fn test_copy_with_output_conflict() {
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("Cannot specify both"));
 }
+
+#[test]
+fn test_enhanced_context_flag() {
+    let config = Config::parse_from(["code-digest", "--enhanced-context", "."]);
+    assert!(config.enhanced_context);
+}
+
+#[test]
+fn test_enhanced_context_default_false() {
+    let config = Config::parse_from(["code-digest", "."]);
+    assert!(!config.enhanced_context);
+}
