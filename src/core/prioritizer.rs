@@ -41,31 +41,41 @@ pub fn prioritize_files(
     // Calculate overhead for markdown structure
     let structure_overhead = calculate_structure_overhead(options, &files)?;
 
-    // Phase 1: Count tokens for all files in parallel
-    let files_with_tokens: Vec<FileWithTokens> = files
+    // Phase 1: Count tokens for all files in parallel with proper error handling
+    let results: Vec<crate::utils::error::Result<FileWithTokens>> = files
         .into_par_iter()
-        .filter_map(|file| {
+        .map(|file| {
             // Read file content from cache
-            let content = match cache.get_or_load(&file.path) {
-                Ok(content) => content,
-                Err(e) => {
-                    eprintln!("Warning: Could not read file {}: {}", file.path.display(), e);
-                    return None;
+            let content = cache.get_or_load(&file.path).map_err(|e| {
+                crate::utils::error::CodeDigestError::FileProcessingError {
+                    path: file.path.display().to_string(),
+                    error: format!("Could not read file: {}", e),
                 }
-            };
+            })?;
 
             // Count tokens for this file
-            match counter.count_file_tokens(&content, &file.relative_path.to_string_lossy()) {
-                Ok(file_tokens) => {
-                    Some(FileWithTokens { file, token_count: file_tokens.total_tokens })
-                }
-                Err(e) => {
-                    eprintln!("Warning: Could not count tokens for {}: {}", file.path.display(), e);
-                    None
-                }
-            }
+            let file_tokens = counter
+                .count_file_tokens(&content, &file.relative_path.to_string_lossy())
+                .map_err(|e| crate::utils::error::CodeDigestError::TokenCountingError {
+                    path: file.path.display().to_string(),
+                    error: e.to_string(),
+                })?;
+
+            Ok(FileWithTokens { file, token_count: file_tokens.total_tokens })
         })
         .collect();
+
+    // Use partition_result to separate successes from errors
+    use itertools::Itertools;
+    let (files_with_tokens, errors): (Vec<_>, Vec<_>) = results.into_iter().partition_result();
+
+    // Log errors without failing the entire operation
+    if !errors.is_empty() {
+        eprintln!("Warning: {} files could not be processed for token counting:", errors.len());
+        for error in &errors {
+            eprintln!("  {}", error);
+        }
+    }
 
     // Phase 2: Sort by priority and select files sequentially
     let mut files_with_tokens = files_with_tokens;

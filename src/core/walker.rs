@@ -241,21 +241,42 @@ fn walk_sequential(walker: Walk, root: &Path, options: &WalkOptions) -> Result<V
 
 /// Walk directory in parallel
 fn walk_parallel(walker: Walk, root: &Path, options: &WalkOptions) -> Result<Vec<FileInfo>> {
+    use itertools::Itertools;
+
     let root = Arc::new(root.to_path_buf());
     let options = Arc::new(options.clone());
 
     // Collect entries first
     let entries: Vec<_> = walker.filter_map(|e| e.ok()).filter(|e| !e.path().is_dir()).collect();
 
-    // Process in parallel
-    let files: Vec<_> = entries
+    // Process in parallel with proper error collection
+    let results: Vec<Result<Option<FileInfo>, CodeDigestError>> = entries
         .into_par_iter()
-        .filter_map(|entry| {
+        .map(|entry| {
             let path = entry.path();
-            process_file(path, &root, &options).ok().flatten()
+            match process_file(path, &root, &options) {
+                Ok(file_info) => Ok(file_info),
+                Err(e) => Err(CodeDigestError::FileProcessingError {
+                    path: path.display().to_string(),
+                    error: e.to_string(),
+                }),
+            }
         })
         .collect();
 
+    // Use partition_result to separate successes from errors
+    let (successes, errors): (Vec<_>, Vec<_>) = results.into_iter().partition_result();
+
+    // Log errors without failing the entire operation
+    if !errors.is_empty() {
+        eprintln!("Warning: {} files could not be processed:", errors.len());
+        for error in &errors {
+            eprintln!("  {}", error);
+        }
+    }
+
+    // Filter out None values and return successful file infos
+    let files: Vec<FileInfo> = successes.into_iter().flatten().collect();
     Ok(files)
 }
 
@@ -461,9 +482,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let config = Config {
             prompt: None,
-            prompt_flag: None,
-            directories: vec![temp_dir.path().to_path_buf()],
-            directories_positional: vec![],
+            paths: Some(vec![temp_dir.path().to_path_buf()]),
             output_file: None,
             max_tokens: None,
             llm_tool: crate::cli::LlmTool::default(),
@@ -714,9 +733,7 @@ mod tests {
         // Create CLI config and apply config file
         let mut config = crate::cli::Config {
             prompt: None,
-            prompt_flag: None,
-            directories: vec![root.to_path_buf()],
-            directories_positional: vec![],
+            paths: Some(vec![root.to_path_buf()]),
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -779,9 +796,7 @@ mod tests {
 
         let mut config = crate::cli::Config {
             prompt: None,
-            prompt_flag: None,
-            directories: vec![temp_dir.path().to_path_buf()],
-            directories_positional: vec![],
+            paths: Some(vec![temp_dir.path().to_path_buf()]),
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -820,9 +835,7 @@ mod tests {
 
         let mut config = crate::cli::Config {
             prompt: None,
-            prompt_flag: None,
-            directories: vec![temp_dir.path().to_path_buf()],
-            directories_positional: vec![],
+            paths: Some(vec![temp_dir.path().to_path_buf()]),
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -860,9 +873,7 @@ mod tests {
 
         let mut config = crate::cli::Config {
             prompt: None,
-            prompt_flag: None,
-            directories: vec![temp_dir.path().to_path_buf()],
-            directories_positional: vec![],
+            paths: Some(vec![temp_dir.path().to_path_buf()]),
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -906,9 +917,7 @@ mod tests {
 
         let mut config = crate::cli::Config {
             prompt: None,
-            prompt_flag: None,
-            directories: vec![temp_dir.path().to_path_buf()],
-            directories_positional: vec![],
+            paths: Some(vec![temp_dir.path().to_path_buf()]),
             repo: None,
             read_stdin: false,
             output_file: None,

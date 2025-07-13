@@ -61,6 +61,16 @@ pub enum CodeDigestError {
     #[error("Clipboard error: {0}")]
     ClipboardError(String),
 
+    /// Parallel processing errors
+    #[error("File processing error for {path}: {error}")]
+    FileProcessingError { path: String, error: String },
+
+    #[error("Token counting error for {path}: {error}")]
+    TokenCountingError { path: String, error: String },
+
+    #[error("Parallel processing errors: {error_count} files failed")]
+    ParallelProcessingErrors { error_count: usize },
+
     /// General I/O errors
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
