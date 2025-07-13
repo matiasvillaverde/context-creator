@@ -94,6 +94,10 @@ pub struct Config {
     /// Copy output to system clipboard instead of stdout
     #[arg(short = 'C', long)]
     pub copy: bool,
+
+    /// Custom priority rules loaded from config file (not a CLI argument)
+    #[clap(skip)]
+    pub custom_priorities: Vec<crate::config::Priority>,
 }
 
 impl Config {
@@ -173,6 +177,9 @@ impl Config {
         };
 
         if let Some(config_file) = config_file {
+            // Store custom priorities for the walker
+            self.custom_priorities = config_file.priorities.clone();
+
             config_file.apply_to_cli_config(self);
 
             if self.verbose {
@@ -301,6 +308,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            custom_priorities: vec![],
         };
 
         assert!(config.validate().is_ok());
@@ -323,6 +331,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            custom_priorities: vec![],
         };
 
         assert!(config.validate().is_err());
@@ -349,6 +358,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            custom_priorities: vec![],
         };
 
         assert!(config.validate().is_err());
@@ -372,6 +382,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            custom_priorities: vec![],
         };
 
         assert!(config.validate().is_err());
@@ -395,6 +406,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            custom_priorities: vec![],
         };
 
         assert!(config.validate().is_err());
@@ -429,6 +441,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            custom_priorities: vec![],
         };
 
         // Should not error for files in current directory
@@ -453,6 +466,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            custom_priorities: vec![],
         };
 
         // Should not error when no config file is found
@@ -526,6 +540,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            custom_priorities: vec![],
         };
         assert!(config.validate().is_ok());
 
@@ -545,6 +560,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            custom_priorities: vec![],
         };
         assert!(config.validate().is_err());
     }
@@ -573,6 +589,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            custom_priorities: vec![],
         };
         assert!(config.validate().is_err());
     }
