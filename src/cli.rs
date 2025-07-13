@@ -123,6 +123,10 @@ pub struct Config {
     #[arg(short = 'C', long)]
     pub copy: bool,
 
+    /// Enable enhanced context with file metadata
+    #[arg(long = "enhanced-context")]
+    pub enhanced_context: bool,
+
     /// Custom priority rules loaded from config file (not a CLI argument)
     #[clap(skip)]
     pub custom_priorities: Vec<crate::config::Priority>,
@@ -273,6 +277,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            enhanced_context: false,
             custom_priorities: vec![],
         };
 
@@ -294,6 +299,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            enhanced_context: false,
             custom_priorities: vec![],
         };
 
@@ -319,6 +325,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            enhanced_context: false,
             custom_priorities: vec![],
         };
 
@@ -341,6 +348,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            enhanced_context: false,
             custom_priorities: vec![],
         };
 
@@ -363,6 +371,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            enhanced_context: false,
             custom_priorities: vec![],
         };
 
@@ -396,6 +405,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            enhanced_context: false,
             custom_priorities: vec![],
         };
 
@@ -419,6 +429,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            enhanced_context: false,
             custom_priorities: vec![],
         };
 
@@ -477,6 +488,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            enhanced_context: false,
             custom_priorities: vec![],
         };
         assert!(config.validate().is_ok());
@@ -495,6 +507,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            enhanced_context: false,
             custom_priorities: vec![],
         };
         assert!(config.validate().is_err());
@@ -522,6 +535,7 @@ mod tests {
             config: None,
             progress: false,
             copy: false,
+            enhanced_context: false,
             custom_priorities: vec![],
         };
         assert!(config.validate().is_err());
