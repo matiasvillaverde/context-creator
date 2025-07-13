@@ -27,6 +27,8 @@ pub struct DigestOptions {
     pub doc_header_template: String,
     /// Include table of contents
     pub include_toc: bool,
+    /// Enable enhanced context with file metadata
+    pub enhanced_context: bool,
 }
 
 impl DigestOptions {
@@ -41,6 +43,7 @@ impl DigestOptions {
             file_header_template: "## {path}".to_string(),
             doc_header_template: "# Code Digest: {directory}".to_string(),
             include_toc: true,
+            enhanced_context: config.enhanced_context,
         })
     }
 }
@@ -56,6 +59,7 @@ impl Default for DigestOptions {
             file_header_template: "## {path}".to_string(),
             doc_header_template: "# Code Digest: {directory}".to_string(),
             include_toc: true,
+            enhanced_context: false,
         }
     }
 }
@@ -131,7 +135,7 @@ pub fn generate_markdown(
 
     // Add file tree if requested
     if options.include_tree {
-        let tree = generate_file_tree(&files);
+        let tree = generate_file_tree(&files, &options);
         output.push_str("## File Structure\n\n");
         output.push_str("```\n");
         output.push_str(&tree);
@@ -198,9 +202,19 @@ fn append_file_content(
         }
     };
 
-    // Add file header
-    let header =
-        options.file_header_template.replace("{path}", &file.relative_path.display().to_string());
+    // Add file header with optional metadata
+    let path_with_metadata = if options.enhanced_context {
+        format!(
+            "{} ({}, {})",
+            file.relative_path.display(),
+            format_size(file.size),
+            file_type_display(&file.file_type)
+        )
+    } else {
+        file.relative_path.display().to_string()
+    };
+
+    let header = options.file_header_template.replace("{path}", &path_with_metadata);
     output.push_str(&header);
     output.push_str("\n\n");
 
@@ -245,8 +259,8 @@ fn generate_statistics(files: &[FileInfo]) -> String {
 }
 
 /// Generate a file tree representation
-fn generate_file_tree(files: &[FileInfo]) -> String {
-    use std::collections::BTreeMap;
+fn generate_file_tree(files: &[FileInfo], options: &DigestOptions) -> String {
+    use std::collections::{BTreeMap, HashMap};
 
     #[derive(Default)]
     struct TreeNode {
@@ -255,6 +269,10 @@ fn generate_file_tree(files: &[FileInfo]) -> String {
     }
 
     let mut root = TreeNode::default();
+
+    // Create a lookup map from relative path to FileInfo for metadata
+    let file_lookup: HashMap<String, &FileInfo> =
+        files.iter().map(|f| (f.relative_path.to_string_lossy().to_string(), f)).collect();
 
     // Build tree structure
     for file in files {
@@ -277,7 +295,14 @@ fn generate_file_tree(files: &[FileInfo]) -> String {
     }
 
     // Render tree
-    fn render_tree(node: &TreeNode, prefix: &str, _is_last: bool) -> String {
+    fn render_tree(
+        node: &TreeNode,
+        prefix: &str,
+        _is_last: bool,
+        current_path: &str,
+        file_lookup: &HashMap<String, &FileInfo>,
+        options: &DigestOptions,
+    ) -> String {
         // Pre-allocate with estimated size
         let estimated_size = (node.dirs.len() + node.files.len()) * 100;
         let mut output = String::with_capacity(estimated_size);
@@ -290,7 +315,19 @@ fn generate_file_tree(files: &[FileInfo]) -> String {
             let extension = if is_last_dir { "    " } else { "│   " };
 
             output.push_str(&format!("{prefix}{connector}{name}/\n"));
-            output.push_str(&render_tree(child, &format!("{prefix}{extension}"), is_last_dir));
+            let child_path = if current_path.is_empty() {
+                name.clone()
+            } else {
+                format!("{current_path}/{name}")
+            };
+            output.push_str(&render_tree(
+                child,
+                &format!("{prefix}{extension}"),
+                is_last_dir,
+                &child_path,
+                file_lookup,
+                options,
+            ));
         }
 
         // Render files
@@ -298,7 +335,30 @@ fn generate_file_tree(files: &[FileInfo]) -> String {
         for (i, name) in node.files.iter().enumerate() {
             let is_last_file = i == file_count - 1;
             let connector = if is_last_file { "└── " } else { "├── " };
-            output.push_str(&format!("{prefix}{connector}{name}\n"));
+
+            let file_path = if current_path.is_empty() {
+                name.clone()
+            } else {
+                format!("{current_path}/{name}")
+            };
+
+            // Include metadata if enhanced context is enabled
+            let display_name = if options.enhanced_context {
+                if let Some(file_info) = file_lookup.get(&file_path) {
+                    format!(
+                        "{} ({}, {})",
+                        name,
+                        format_size(file_info.size),
+                        file_type_display(&file_info.file_type)
+                    )
+                } else {
+                    name.clone()
+                }
+            } else {
+                name.clone()
+            };
+
+            output.push_str(&format!("{prefix}{connector}{display_name}\n"));
         }
 
         output
@@ -307,7 +367,7 @@ fn generate_file_tree(files: &[FileInfo]) -> String {
     // Pre-allocate output string
     let mut output = String::with_capacity(files.len() * 100 + 10);
     output.push_str(".\n");
-    output.push_str(&render_tree(&root, "", true));
+    output.push_str(&render_tree(&root, "", true, "", &file_lookup, options));
     output
 }
 
@@ -552,7 +612,8 @@ mod tests {
             },
         ];
 
-        let tree = generate_file_tree(&files);
+        let options = DigestOptions::default();
+        let tree = generate_file_tree(&files, &options);
         assert!(tree.contains("src/"));
         assert!(tree.contains("tests/"));
         assert!(tree.contains("main.rs"));
@@ -579,6 +640,7 @@ mod tests {
             repo: None,
             read_stdin: false,
             copy: false,
+            enhanced_context: false,
             custom_priorities: vec![],
         };
 
@@ -602,6 +664,7 @@ mod tests {
             file_header_template: "## {path}".to_string(),
             doc_header_template: "# Code Digest".to_string(),
             include_toc: true,
+            enhanced_context: false,
         };
 
         let cache = create_test_cache();
@@ -610,5 +673,116 @@ mod tests {
         // Check that main structure is present even with no files
         assert!(markdown.contains("# Code Digest"));
         assert!(markdown.contains("## Statistics"));
+    }
+
+    #[test]
+    fn test_enhanced_tree_generation_with_metadata() {
+        use crate::core::walker::FileInfo;
+        use crate::utils::file_ext::FileType;
+        use std::path::PathBuf;
+
+        let files = vec![
+            FileInfo {
+                path: PathBuf::from("src/main.rs"),
+                relative_path: PathBuf::from("src/main.rs"),
+                size: 145,
+                file_type: FileType::Rust,
+                priority: 1.5,
+            },
+            FileInfo {
+                path: PathBuf::from("src/lib.rs"),
+                relative_path: PathBuf::from("src/lib.rs"),
+                size: 89,
+                file_type: FileType::Rust,
+                priority: 1.2,
+            },
+        ];
+
+        let options = DigestOptions {
+            max_tokens: None,
+            include_tree: true,
+            include_stats: true,
+            group_by_type: false,
+            sort_by_priority: true,
+            file_header_template: "## {path}".to_string(),
+            doc_header_template: "# Code Digest".to_string(),
+            include_toc: true,
+            enhanced_context: true,
+        };
+
+        let cache = create_test_cache();
+        let markdown = generate_markdown(files, options, cache).unwrap();
+
+        // Should include file sizes and types in tree
+        assert!(markdown.contains("main.rs (145 B, Rust)"));
+        assert!(markdown.contains("lib.rs (89 B, Rust)"));
+    }
+
+    #[test]
+    fn test_enhanced_file_headers_with_metadata() {
+        use crate::core::walker::FileInfo;
+        use crate::utils::file_ext::FileType;
+        use std::path::PathBuf;
+
+        let files = vec![FileInfo {
+            path: PathBuf::from("src/main.rs"),
+            relative_path: PathBuf::from("src/main.rs"),
+            size: 145,
+            file_type: FileType::Rust,
+            priority: 1.5,
+        }];
+
+        let options = DigestOptions {
+            max_tokens: None,
+            include_tree: true,
+            include_stats: true,
+            group_by_type: false,
+            sort_by_priority: true,
+            file_header_template: "## {path}".to_string(),
+            doc_header_template: "# Code Digest".to_string(),
+            include_toc: true,
+            enhanced_context: true,
+        };
+
+        let cache = create_test_cache();
+        let markdown = generate_markdown(files, options, cache).unwrap();
+
+        // Should include metadata in file headers
+        assert!(markdown.contains("## src/main.rs (145 B, Rust)"));
+    }
+
+    #[test]
+    fn test_basic_mode_unchanged() {
+        use crate::core::walker::FileInfo;
+        use crate::utils::file_ext::FileType;
+        use std::path::PathBuf;
+
+        let files = vec![FileInfo {
+            path: PathBuf::from("src/main.rs"),
+            relative_path: PathBuf::from("src/main.rs"),
+            size: 145,
+            file_type: FileType::Rust,
+            priority: 1.5,
+        }];
+
+        let options = DigestOptions {
+            max_tokens: None,
+            include_tree: true,
+            include_stats: true,
+            group_by_type: false,
+            sort_by_priority: true,
+            file_header_template: "## {path}".to_string(),
+            doc_header_template: "# Code Digest".to_string(),
+            include_toc: true,
+            enhanced_context: false,
+        };
+
+        let cache = create_test_cache();
+        let markdown = generate_markdown(files, options, cache).unwrap();
+
+        // Should NOT include metadata - backward compatibility
+        assert!(markdown.contains("## src/main.rs"));
+        assert!(!markdown.contains("## src/main.rs (145 B, Rust)"));
+        assert!(markdown.contains("main.rs") && !markdown.contains("main.rs (145 B, Rust)"));
     }
 }
