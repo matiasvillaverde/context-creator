@@ -1,11 +1,9 @@
 # code-digest 
+> Turn your entire codebase into context. 
 
-Turn your codebase into context. 
-
-[](https://github.com/matiasvillaverde/code-digest/actions/workflows/ci.yml)
-[](https://opensource.org/licenses/MIT)
-[](https://www.rust-lang.org/)
-
+[![CI](https://github.com/matiasvillaverde/code-digest/actions/workflows/ci.yml/badge.svg)](https://github.com/matiasvillaverde/code-digest/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Rust](https://img.shields.io/badge/rust-%23000000.svg?style=flat&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 
 `code-digest` transforms your entire git repository into a single, LLM-optimized Markdown file—intelligently compressed and prioritized—so you can feed it directly into Gemini’s(or any LLM) long-context window for fast, high-level insights and deep architectural understanding.
 
