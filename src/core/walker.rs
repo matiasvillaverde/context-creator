@@ -10,19 +10,18 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 /// Compiled priority rule for efficient pattern matching
-/// 
-/// This struct represents a custom priority rule that has been compiled from 
+///
+/// This struct represents a custom priority rule that has been compiled from
 /// the configuration file. The glob pattern is pre-compiled for performance,
 /// and the weight is applied additively to the base file type priority.
-/// 
+///
 /// # Priority Calculation
 /// Final priority = base_priority + weight (if pattern matches)
-/// 
+///
 /// # Pattern Matching
 /// Uses first-match-wins semantics - the first pattern that matches a file
 /// will determine the priority adjustment. Subsequent patterns are not evaluated.
-#[derive(Debug)]
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct CompiledPriority {
     /// Pre-compiled glob pattern for efficient matching
     pub matcher: Pattern,
@@ -40,7 +39,9 @@ impl CompiledPriority {
     }
 
     /// Convert from config::Priority to CompiledPriority with error handling
-    pub fn try_from_config_priority(priority: &crate::config::Priority) -> Result<Self, glob::PatternError> {
+    pub fn try_from_config_priority(
+        priority: &crate::config::Priority,
+    ) -> Result<Self, glob::PatternError> {
         Self::new(&priority.pattern, priority.weight)
     }
 }
@@ -76,9 +77,10 @@ impl WalkOptions {
                 Ok(compiled) => custom_priorities.push(compiled),
                 Err(e) => {
                     return Err(CodeDigestError::ConfigError(format!(
-                        "Invalid glob pattern '{}' in custom priorities: {}", 
+                        "Invalid glob pattern '{}' in custom priorities: {}",
                         priority.pattern, e
-                    )).into());
+                    ))
+                    .into());
                 }
             }
         }
@@ -693,7 +695,7 @@ mod tests {
         // Setup: Create test directory with files
         let temp_dir = TempDir::new().unwrap();
         let root = temp_dir.path();
-        
+
         // Create test files that will match our patterns
         File::create(root.join("high_priority.rs")).unwrap();
         File::create(root.join("normal.txt")).unwrap();
@@ -731,27 +733,33 @@ mod tests {
 
         // Act: Create WalkOptions from config (this should work)
         let walk_options = WalkOptions::from_config(&config).unwrap();
-        
+
         // Walk directory and collect results
         let files = walk_directory(root, walk_options).unwrap();
 
         // Assert: Verify that files have correct priorities
-        let rs_file = files.iter().find(|f| f.relative_path.to_string_lossy().contains("high_priority.rs")).unwrap();
-        let log_file = files.iter().find(|f| f.relative_path.to_string_lossy().contains("app.log")).unwrap();
-        let txt_file = files.iter().find(|f| f.relative_path.to_string_lossy().contains("normal.txt")).unwrap();
+        let rs_file = files
+            .iter()
+            .find(|f| f.relative_path.to_string_lossy().contains("high_priority.rs"))
+            .unwrap();
+        let log_file =
+            files.iter().find(|f| f.relative_path.to_string_lossy().contains("app.log")).unwrap();
+        let txt_file = files
+            .iter()
+            .find(|f| f.relative_path.to_string_lossy().contains("normal.txt"))
+            .unwrap();
 
         // Calculate expected priorities using the same logic as the walker
         let base_rs = calculate_base_priority(&rs_file.file_type, &rs_file.relative_path);
         let base_txt = calculate_base_priority(&txt_file.file_type, &txt_file.relative_path);
         let base_log = calculate_base_priority(&log_file.file_type, &log_file.relative_path);
 
-
         // RS file should have base + 10.0 (matches "*.rs" pattern)
         assert_eq!(rs_file.priority, base_rs + 10.0);
-        
-        // Log file should have base - 5.0 (matches "logs/*.log" pattern)  
+
+        // Log file should have base - 5.0 (matches "logs/*.log" pattern)
         assert_eq!(log_file.priority, base_log - 5.0);
-        
+
         // Text file should have base priority (no pattern matches)
         assert_eq!(txt_file.priority, base_txt);
     }
@@ -762,12 +770,10 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        
+
         // Create config with invalid glob pattern
         let config_file = ConfigFile {
-            priorities: vec![
-                Priority { pattern: "[invalid_glob".to_string(), weight: 5.0 },
-            ],
+            priorities: vec![Priority { pattern: "[invalid_glob".to_string(), weight: 5.0 }],
             ..Default::default()
         };
 
@@ -793,7 +799,7 @@ mod tests {
         // Should return error when creating WalkOptions
         let result = WalkOptions::from_config(&config);
         assert!(result.is_err());
-        
+
         // Error should mention the invalid pattern
         let error_msg = result.unwrap_err().to_string();
         assert!(error_msg.contains("invalid_glob") || error_msg.contains("Invalid"));
@@ -805,7 +811,7 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        
+
         // Create config with empty priorities
         let config_file = ConfigFile {
             priorities: vec![], // Empty
@@ -833,7 +839,7 @@ mod tests {
 
         // Should work fine with empty priorities
         let walk_options = WalkOptions::from_config(&config).unwrap();
-        
+
         // Should behave same as no custom priorities
         // (This is hard to test directly, but at least shouldn't error)
         assert!(walk_directory(temp_dir.path(), walk_options).is_ok());
@@ -845,12 +851,10 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        
+
         // Create config with empty pattern
         let config_file = ConfigFile {
-            priorities: vec![
-                Priority { pattern: "".to_string(), weight: 5.0 },
-            ],
+            priorities: vec![Priority { pattern: "".to_string(), weight: 5.0 }],
             ..Default::default()
         };
 
@@ -876,7 +880,7 @@ mod tests {
         // Should handle empty pattern gracefully (empty pattern matches everything)
         let result = WalkOptions::from_config(&config);
         assert!(result.is_ok());
-        
+
         // Empty pattern should compile successfully in glob (matches everything)
         let walk_options = result.unwrap();
         assert_eq!(walk_options.custom_priorities.len(), 1);
@@ -888,7 +892,7 @@ mod tests {
         use tempfile::TempDir;
 
         let temp_dir = TempDir::new().unwrap();
-        
+
         // Create config with extreme weights
         let config_file = ConfigFile {
             priorities: vec![
@@ -922,7 +926,7 @@ mod tests {
         // Should handle extreme weights without panicking
         let result = WalkOptions::from_config(&config);
         assert!(result.is_ok());
-        
+
         let walk_options = result.unwrap();
         assert_eq!(walk_options.custom_priorities.len(), 4);
     }
