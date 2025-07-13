@@ -3,10 +3,48 @@
 use crate::utils::error::CodeDigestError;
 use crate::utils::file_ext::FileType;
 use anyhow::Result;
+use glob::Pattern;
 use ignore::{Walk, WalkBuilder};
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+
+/// Compiled priority rule for efficient pattern matching
+///
+/// This struct represents a custom priority rule that has been compiled from
+/// the configuration file. The glob pattern is pre-compiled for performance,
+/// and the weight is applied additively to the base file type priority.
+///
+/// # Priority Calculation
+/// Final priority = base_priority + weight (if pattern matches)
+///
+/// # Pattern Matching
+/// Uses first-match-wins semantics - the first pattern that matches a file
+/// will determine the priority adjustment. Subsequent patterns are not evaluated.
+#[derive(Debug, Clone)]
+pub struct CompiledPriority {
+    /// Pre-compiled glob pattern for efficient matching
+    pub matcher: Pattern,
+    /// Priority weight to add to base priority (can be negative)
+    pub weight: f32,
+    /// Original pattern string for debugging and error reporting
+    pub original_pattern: String,
+}
+
+impl CompiledPriority {
+    /// Create a CompiledPriority from a pattern string
+    pub fn new(pattern: &str, weight: f32) -> Result<Self, glob::PatternError> {
+        let matcher = Pattern::new(pattern)?;
+        Ok(Self { matcher, weight, original_pattern: pattern.to_string() })
+    }
+
+    /// Convert from config::Priority to CompiledPriority with error handling
+    pub fn try_from_config_priority(
+        priority: &crate::config::Priority,
+    ) -> Result<Self, glob::PatternError> {
+        Self::new(&priority.pattern, priority.weight)
+    }
+}
 
 /// Options for walking directories
 #[derive(Debug, Clone)]
@@ -25,11 +63,28 @@ pub struct WalkOptions {
     pub ignore_patterns: Vec<String>,
     /// Only include files matching these patterns
     pub include_patterns: Vec<String>,
+    /// Custom priority rules for file prioritization
+    pub custom_priorities: Vec<CompiledPriority>,
 }
 
 impl WalkOptions {
     /// Create WalkOptions from CLI config
-    pub fn from_config(_config: &crate::cli::Config) -> Result<Self> {
+    pub fn from_config(config: &crate::cli::Config) -> Result<Self> {
+        // Convert config priorities to CompiledPriority with error handling
+        let mut custom_priorities = Vec::new();
+        for priority in &config.custom_priorities {
+            match CompiledPriority::try_from_config_priority(priority) {
+                Ok(compiled) => custom_priorities.push(compiled),
+                Err(e) => {
+                    return Err(CodeDigestError::ConfigError(format!(
+                        "Invalid glob pattern '{}' in custom priorities: {}",
+                        priority.pattern, e
+                    ))
+                    .into());
+                }
+            }
+        }
+
         Ok(WalkOptions {
             max_file_size: Some(10 * 1024 * 1024), // 10MB default
             follow_links: false,
@@ -38,6 +93,7 @@ impl WalkOptions {
             ignore_file: ".digestignore".to_string(),
             ignore_patterns: vec![],
             include_patterns: vec![],
+            custom_priorities,
         })
     }
 }
@@ -52,6 +108,7 @@ impl Default for WalkOptions {
             ignore_file: ".digestignore".to_string(),
             ignore_patterns: vec![],
             include_patterns: vec![],
+            custom_priorities: vec![],
         }
     }
 }
@@ -184,21 +241,42 @@ fn walk_sequential(walker: Walk, root: &Path, options: &WalkOptions) -> Result<V
 
 /// Walk directory in parallel
 fn walk_parallel(walker: Walk, root: &Path, options: &WalkOptions) -> Result<Vec<FileInfo>> {
+    use itertools::Itertools;
+
     let root = Arc::new(root.to_path_buf());
     let options = Arc::new(options.clone());
 
     // Collect entries first
     let entries: Vec<_> = walker.filter_map(|e| e.ok()).filter(|e| !e.path().is_dir()).collect();
 
-    // Process in parallel
-    let files: Vec<_> = entries
+    // Process in parallel with proper error collection
+    let results: Vec<Result<Option<FileInfo>, CodeDigestError>> = entries
         .into_par_iter()
-        .filter_map(|entry| {
+        .map(|entry| {
             let path = entry.path();
-            process_file(path, &root, &options).ok().flatten()
+            match process_file(path, &root, &options) {
+                Ok(file_info) => Ok(file_info),
+                Err(e) => Err(CodeDigestError::FileProcessingError {
+                    path: path.display().to_string(),
+                    error: e.to_string(),
+                }),
+            }
         })
         .collect();
 
+    // Use partition_result to separate successes from errors
+    let (successes, errors): (Vec<_>, Vec<_>) = results.into_iter().partition_result();
+
+    // Log errors without failing the entire operation
+    if !errors.is_empty() {
+        eprintln!("Warning: {} files could not be processed:", errors.len());
+        for error in &errors {
+            eprintln!("  {error}");
+        }
+    }
+
+    // Filter out None values and return successful file infos
+    let files: Vec<FileInfo> = successes.into_iter().flatten().collect();
     Ok(files)
 }
 
@@ -225,14 +303,34 @@ fn process_file(path: &Path, root: &Path, options: &WalkOptions) -> Result<Optio
     // Determine file type
     let file_type = FileType::from_path(path);
 
-    // Calculate initial priority based on file type
-    let priority = calculate_priority(&file_type, &relative_path);
+    // Calculate priority based on file type and custom priorities
+    let priority = calculate_priority(&file_type, &relative_path, &options.custom_priorities);
 
     Ok(Some(FileInfo { path: path.to_path_buf(), relative_path, size, file_type, priority }))
 }
 
 /// Calculate priority score for a file
-fn calculate_priority(file_type: &FileType, relative_path: &Path) -> f32 {
+fn calculate_priority(
+    file_type: &FileType,
+    relative_path: &Path,
+    custom_priorities: &[CompiledPriority],
+) -> f32 {
+    // Calculate base priority from file type and path heuristics
+    let base_score = calculate_base_priority(file_type, relative_path);
+
+    // Check custom priorities first (first match wins)
+    for priority in custom_priorities {
+        if priority.matcher.matches_path(relative_path) {
+            return base_score + priority.weight;
+        }
+    }
+
+    // No custom priority matched, return base score
+    base_score
+}
+
+/// Calculate base priority score using existing heuristics
+fn calculate_base_priority(file_type: &FileType, relative_path: &Path) -> f32 {
     let mut score: f32 = match file_type {
         FileType::Rust => 1.0,
         FileType::Python => 0.9,
@@ -333,9 +431,9 @@ mod tests {
 
     #[test]
     fn test_priority_calculation() {
-        let rust_priority = calculate_priority(&FileType::Rust, Path::new("src/main.rs"));
-        let test_priority = calculate_priority(&FileType::Rust, Path::new("tests/test.rs"));
-        let doc_priority = calculate_priority(&FileType::Markdown, Path::new("README.md"));
+        let rust_priority = calculate_priority(&FileType::Rust, Path::new("src/main.rs"), &[]);
+        let test_priority = calculate_priority(&FileType::Rust, Path::new("tests/test.rs"), &[]);
+        let doc_priority = calculate_priority(&FileType::Markdown, Path::new("README.md"), &[]);
 
         assert!(rust_priority > doc_priority);
         assert!(rust_priority > test_priority);
@@ -384,9 +482,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let config = Config {
             prompt: None,
-            prompt_flag: None,
-            directories: vec![temp_dir.path().to_path_buf()],
-            directories_positional: vec![],
+            paths: Some(vec![temp_dir.path().to_path_buf()]),
             output_file: None,
             max_tokens: None,
             llm_tool: crate::cli::LlmTool::default(),
@@ -397,6 +493,7 @@ mod tests {
             repo: None,
             read_stdin: false,
             copy: false,
+            custom_priorities: vec![],
         };
 
         let options = WalkOptions::from_config(&config).unwrap();
@@ -474,19 +571,373 @@ mod tests {
     #[test]
     fn test_priority_edge_cases() {
         // Test priority calculation for edge cases
-        let main_priority = calculate_priority(&FileType::Rust, Path::new("main.rs"));
-        let lib_priority = calculate_priority(&FileType::Rust, Path::new("lib.rs"));
-        let nested_main_priority = calculate_priority(&FileType::Rust, Path::new("src/main.rs"));
+        let main_priority = calculate_priority(&FileType::Rust, Path::new("main.rs"), &[]);
+        let lib_priority = calculate_priority(&FileType::Rust, Path::new("lib.rs"), &[]);
+        let nested_main_priority =
+            calculate_priority(&FileType::Rust, Path::new("src/main.rs"), &[]);
 
         assert!(main_priority > lib_priority);
         assert!(nested_main_priority > lib_priority);
 
         // Test config file priorities
-        let toml_priority = calculate_priority(&FileType::Toml, Path::new("Cargo.toml"));
+        let toml_priority = calculate_priority(&FileType::Toml, Path::new("Cargo.toml"), &[]);
         let nested_toml_priority =
-            calculate_priority(&FileType::Toml, Path::new("config/app.toml"));
+            calculate_priority(&FileType::Toml, Path::new("config/app.toml"), &[]);
 
         assert!(toml_priority > nested_toml_priority);
+    }
+
+    // === Custom Priority Tests (TDD - Red Phase) ===
+
+    #[test]
+    fn test_custom_priority_no_match_returns_base_priority() {
+        // Given: A base priority of 1.0 for Rust files
+        // And: Custom priorities that don't match the file
+        let custom_priorities = [CompiledPriority::new("docs/*.md", 5.0).unwrap()];
+
+        // When: Calculating priority for a file that doesn't match
+        let priority =
+            calculate_priority(&FileType::Rust, Path::new("src/main.rs"), &custom_priorities);
+
+        // Then: Should return base priority only
+        let expected_base = calculate_priority(&FileType::Rust, Path::new("src/main.rs"), &[]);
+        assert_eq!(priority, expected_base);
+    }
+
+    #[test]
+    fn test_custom_priority_single_match_adds_weight() {
+        // Given: Custom priority with weight 10.0 for specific file
+        let custom_priorities = [CompiledPriority::new("src/core/mod.rs", 10.0).unwrap()];
+
+        // When: Calculating priority for matching file
+        let priority =
+            calculate_priority(&FileType::Rust, Path::new("src/core/mod.rs"), &custom_priorities);
+
+        // Then: Should return base priority + weight
+        let base_priority = calculate_priority(&FileType::Rust, Path::new("src/core/mod.rs"), &[]);
+        let expected = base_priority + 10.0;
+        assert_eq!(priority, expected);
+    }
+
+    #[test]
+    fn test_custom_priority_glob_pattern_match() {
+        // Given: Custom priority with glob pattern
+        let custom_priorities = [CompiledPriority::new("src/**/*.rs", 2.5).unwrap()];
+
+        // When: Calculating priority for file matching glob
+        let priority = calculate_priority(
+            &FileType::Rust,
+            Path::new("src/api/handlers.rs"),
+            &custom_priorities,
+        );
+
+        // Then: Should return base priority + weight
+        let base_priority =
+            calculate_priority(&FileType::Rust, Path::new("src/api/handlers.rs"), &[]);
+        let expected = base_priority + 2.5;
+        assert_eq!(priority, expected);
+    }
+
+    #[test]
+    fn test_custom_priority_negative_weight() {
+        // Given: Custom priority with negative weight
+        let custom_priorities = [CompiledPriority::new("tests/*", -0.5).unwrap()];
+
+        // When: Calculating priority for matching file
+        let priority = calculate_priority(
+            &FileType::Rust,
+            Path::new("tests/test_utils.rs"),
+            &custom_priorities,
+        );
+
+        // Then: Should return base priority + negative weight
+        let base_priority =
+            calculate_priority(&FileType::Rust, Path::new("tests/test_utils.rs"), &[]);
+        let expected = base_priority - 0.5;
+        assert_eq!(priority, expected);
+    }
+
+    #[test]
+    fn test_custom_priority_first_match_wins() {
+        // Given: Multiple overlapping patterns
+        let custom_priorities = [
+            CompiledPriority::new("src/**/*.rs", 5.0).unwrap(),
+            CompiledPriority::new("src/main.rs", 100.0).unwrap(),
+        ];
+
+        // When: Calculating priority for file that matches both patterns
+        let priority =
+            calculate_priority(&FileType::Rust, Path::new("src/main.rs"), &custom_priorities);
+
+        // Then: Should use first pattern (5.0), not second (100.0)
+        let base_priority = calculate_priority(&FileType::Rust, Path::new("src/main.rs"), &[]);
+        let expected = base_priority + 5.0;
+        assert_eq!(priority, expected);
+    }
+
+    #[test]
+    fn test_custom_priority_zero_weight() {
+        // Given: Custom priority with zero weight
+        let custom_priorities = [CompiledPriority::new("*.rs", 0.0).unwrap()];
+
+        // When: Calculating priority for matching file
+        let priority =
+            calculate_priority(&FileType::Rust, Path::new("src/main.rs"), &custom_priorities);
+
+        // Then: Should return base priority unchanged
+        let base_priority = calculate_priority(&FileType::Rust, Path::new("src/main.rs"), &[]);
+        assert_eq!(priority, base_priority);
+    }
+
+    #[test]
+    fn test_custom_priority_empty_list() {
+        // Given: Empty custom priorities list
+        let custom_priorities: &[CompiledPriority] = &[];
+
+        // When: Calculating priority
+        let priority =
+            calculate_priority(&FileType::Rust, Path::new("src/main.rs"), custom_priorities);
+
+        // Then: Should return base priority
+        let expected_base = calculate_priority(&FileType::Rust, Path::new("src/main.rs"), &[]);
+        assert_eq!(priority, expected_base);
+    }
+
+    // === Integration Tests (Config -> Walker Data Flow) ===
+
+    #[test]
+    fn test_config_to_walker_data_flow() {
+        use crate::config::{ConfigFile, Priority};
+        use std::fs::{self, File};
+        use tempfile::TempDir;
+
+        // Setup: Create test directory with files
+        let temp_dir = TempDir::new().unwrap();
+        let root = temp_dir.path();
+
+        // Create test files that will match our patterns
+        File::create(root.join("high_priority.rs")).unwrap();
+        File::create(root.join("normal.txt")).unwrap();
+        fs::create_dir(root.join("logs")).unwrap();
+        File::create(root.join("logs/app.log")).unwrap();
+
+        // Arrange: Create config with custom priorities
+        let config_file = ConfigFile {
+            priorities: vec![
+                Priority { pattern: "*.rs".to_string(), weight: 10.0 },
+                Priority { pattern: "logs/*.log".to_string(), weight: -5.0 },
+            ],
+            ..Default::default()
+        };
+
+        // Create CLI config and apply config file
+        let mut config = crate::cli::Config {
+            prompt: None,
+            paths: Some(vec![root.to_path_buf()]),
+            repo: None,
+            read_stdin: false,
+            output_file: None,
+            max_tokens: None,
+            llm_tool: crate::cli::LlmTool::default(),
+            quiet: false,
+            verbose: false,
+            config: None,
+            progress: false,
+            copy: false,
+            custom_priorities: vec![],
+        };
+        config_file.apply_to_cli_config(&mut config);
+
+        // Act: Create WalkOptions from config (this should work)
+        let walk_options = WalkOptions::from_config(&config).unwrap();
+
+        // Walk directory and collect results
+        let files = walk_directory(root, walk_options).unwrap();
+
+        // Assert: Verify that files have correct priorities
+        let rs_file = files
+            .iter()
+            .find(|f| f.relative_path.to_string_lossy().contains("high_priority.rs"))
+            .unwrap();
+        let log_file =
+            files.iter().find(|f| f.relative_path.to_string_lossy().contains("app.log")).unwrap();
+        let txt_file = files
+            .iter()
+            .find(|f| f.relative_path.to_string_lossy().contains("normal.txt"))
+            .unwrap();
+
+        // Calculate expected priorities using the same logic as the walker
+        let base_rs = calculate_base_priority(&rs_file.file_type, &rs_file.relative_path);
+        let base_txt = calculate_base_priority(&txt_file.file_type, &txt_file.relative_path);
+        let base_log = calculate_base_priority(&log_file.file_type, &log_file.relative_path);
+
+        // RS file should have base + 10.0 (matches "*.rs" pattern)
+        assert_eq!(rs_file.priority, base_rs + 10.0);
+
+        // Log file should have base - 5.0 (matches "logs/*.log" pattern)
+        assert_eq!(log_file.priority, base_log - 5.0);
+
+        // Text file should have base priority (no pattern matches)
+        assert_eq!(txt_file.priority, base_txt);
+    }
+
+    #[test]
+    fn test_invalid_glob_pattern_in_config() {
+        use crate::config::{ConfigFile, Priority};
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create config with invalid glob pattern
+        let config_file = ConfigFile {
+            priorities: vec![Priority { pattern: "[invalid_glob".to_string(), weight: 5.0 }],
+            ..Default::default()
+        };
+
+        let mut config = crate::cli::Config {
+            prompt: None,
+            paths: Some(vec![temp_dir.path().to_path_buf()]),
+            repo: None,
+            read_stdin: false,
+            output_file: None,
+            max_tokens: None,
+            llm_tool: crate::cli::LlmTool::default(),
+            quiet: false,
+            verbose: false,
+            config: None,
+            progress: false,
+            copy: false,
+            custom_priorities: vec![],
+        };
+        config_file.apply_to_cli_config(&mut config);
+
+        // Should return error when creating WalkOptions
+        let result = WalkOptions::from_config(&config);
+        assert!(result.is_err());
+
+        // Error should mention the invalid pattern
+        let error_msg = result.unwrap_err().to_string();
+        assert!(error_msg.contains("invalid_glob") || error_msg.contains("Invalid"));
+    }
+
+    #[test]
+    fn test_empty_custom_priorities_config() {
+        use crate::config::ConfigFile;
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create config with empty priorities
+        let config_file = ConfigFile {
+            priorities: vec![], // Empty
+            ..Default::default()
+        };
+
+        let mut config = crate::cli::Config {
+            prompt: None,
+            paths: Some(vec![temp_dir.path().to_path_buf()]),
+            repo: None,
+            read_stdin: false,
+            output_file: None,
+            max_tokens: None,
+            llm_tool: crate::cli::LlmTool::default(),
+            quiet: false,
+            verbose: false,
+            config: None,
+            progress: false,
+            copy: false,
+            custom_priorities: vec![],
+        };
+        config_file.apply_to_cli_config(&mut config);
+
+        // Should work fine with empty priorities
+        let walk_options = WalkOptions::from_config(&config).unwrap();
+
+        // Should behave same as no custom priorities
+        // (This is hard to test directly, but at least shouldn't error)
+        assert!(walk_directory(temp_dir.path(), walk_options).is_ok());
+    }
+
+    #[test]
+    fn test_empty_pattern_in_config() {
+        use crate::config::{ConfigFile, Priority};
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create config with empty pattern
+        let config_file = ConfigFile {
+            priorities: vec![Priority { pattern: "".to_string(), weight: 5.0 }],
+            ..Default::default()
+        };
+
+        let mut config = crate::cli::Config {
+            prompt: None,
+            paths: Some(vec![temp_dir.path().to_path_buf()]),
+            repo: None,
+            read_stdin: false,
+            output_file: None,
+            max_tokens: None,
+            llm_tool: crate::cli::LlmTool::default(),
+            quiet: false,
+            verbose: false,
+            config: None,
+            progress: false,
+            copy: false,
+            custom_priorities: vec![],
+        };
+        config_file.apply_to_cli_config(&mut config);
+
+        // Should handle empty pattern gracefully (empty pattern matches everything)
+        let result = WalkOptions::from_config(&config);
+        assert!(result.is_ok());
+
+        // Empty pattern should compile successfully in glob (matches everything)
+        let walk_options = result.unwrap();
+        assert_eq!(walk_options.custom_priorities.len(), 1);
+    }
+
+    #[test]
+    fn test_extreme_weights_in_config() {
+        use crate::config::{ConfigFile, Priority};
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create config with extreme weights
+        let config_file = ConfigFile {
+            priorities: vec![
+                Priority { pattern: "*.rs".to_string(), weight: f32::MAX },
+                Priority { pattern: "*.txt".to_string(), weight: f32::MIN },
+                Priority { pattern: "*.md".to_string(), weight: f32::INFINITY },
+                Priority { pattern: "*.log".to_string(), weight: f32::NEG_INFINITY },
+            ],
+            ..Default::default()
+        };
+
+        let mut config = crate::cli::Config {
+            prompt: None,
+            paths: Some(vec![temp_dir.path().to_path_buf()]),
+            repo: None,
+            read_stdin: false,
+            output_file: None,
+            max_tokens: None,
+            llm_tool: crate::cli::LlmTool::default(),
+            quiet: false,
+            verbose: false,
+            config: None,
+            progress: false,
+            copy: false,
+            custom_priorities: vec![],
+        };
+        config_file.apply_to_cli_config(&mut config);
+
+        // Should handle extreme weights without panicking
+        let result = WalkOptions::from_config(&config);
+        assert!(result.is_ok());
+
+        let walk_options = result.unwrap();
+        assert_eq!(walk_options.custom_priorities.len(), 4);
     }
 
     #[test]

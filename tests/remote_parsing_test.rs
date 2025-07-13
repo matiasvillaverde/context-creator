@@ -175,7 +175,7 @@ fn test_invalid_repo_url() {
 #[test]
 fn test_repo_and_directory_mutually_exclusive_cli() {
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg("--repo").arg("https://github.com/fake/repo").arg("-d").arg(".");
+    cmd.arg("--repo").arg("https://github.com/fake/repo").arg(".");
 
     cmd.assert().failure().stderr(predicate::str::contains("cannot be used with"));
 }

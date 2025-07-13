@@ -123,6 +123,9 @@ impl ConfigFile {
 
     /// Apply configuration defaults to CLI config
     pub fn apply_to_cli_config(&self, cli_config: &mut CliConfig) {
+        // Apply custom priorities from config file
+        cli_config.custom_priorities = self.priorities.clone();
+
         // Only apply defaults if CLI didn't specify them
         if cli_config.max_tokens.is_none() && self.defaults.max_tokens.is_some() {
             cli_config.max_tokens = self.defaults.max_tokens;
@@ -153,11 +156,12 @@ impl ConfigFile {
         }
 
         // Apply directory default if CLI used default (".")
-        if cli_config.directories.len() == 1
-            && cli_config.directories[0] == PathBuf::from(".")
+        let current_paths = cli_config.get_directories();
+        if current_paths.len() == 1
+            && current_paths[0] == PathBuf::from(".")
             && self.defaults.directory.is_some()
         {
-            cli_config.directories = vec![self.defaults.directory.clone().unwrap()];
+            cli_config.paths = Some(vec![self.defaults.directory.clone().unwrap()]);
         }
 
         // Apply output file default if not specified
@@ -281,9 +285,7 @@ progress = true
 
         let mut cli_config = CliConfig {
             prompt: None,
-            prompt_flag: None,
-            directories: vec![PathBuf::from(".")],
-            directories_positional: vec![],
+            paths: Some(vec![PathBuf::from(".")]),
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -294,6 +296,7 @@ progress = true
             config: None,
             progress: false,
             copy: false,
+            custom_priorities: vec![],
         };
 
         config_file.apply_to_cli_config(&mut cli_config);
@@ -302,7 +305,7 @@ progress = true
         assert_eq!(cli_config.llm_tool, LlmTool::Codex);
         assert!(cli_config.progress);
         assert!(cli_config.verbose);
-        assert_eq!(cli_config.directories, vec![PathBuf::from("/tmp")]);
+        assert_eq!(cli_config.get_directories(), vec![PathBuf::from("/tmp")]);
         assert_eq!(cli_config.output_file, Some(PathBuf::from("output.md")));
     }
 
