@@ -49,7 +49,7 @@ pub fn prioritize_files(
             let content = cache.get_or_load(&file.path).map_err(|e| {
                 crate::utils::error::CodeDigestError::FileProcessingError {
                     path: file.path.display().to_string(),
-                    error: format!("Could not read file: {}", e),
+                    error: format!("Could not read file: {e}"),
                 }
             })?;
 
@@ -73,7 +73,7 @@ pub fn prioritize_files(
     if !errors.is_empty() {
         eprintln!("Warning: {} files could not be processed for token counting:", errors.len());
         for error in &errors {
-            eprintln!("  {}", error);
+            eprintln!("  {error}");
         }
     }
 

@@ -271,7 +271,7 @@ fn walk_parallel(walker: Walk, root: &Path, options: &WalkOptions) -> Result<Vec
     if !errors.is_empty() {
         eprintln!("Warning: {} files could not be processed:", errors.len());
         for error in &errors {
-            eprintln!("  {}", error);
+            eprintln!("  {error}");
         }
     }
 
