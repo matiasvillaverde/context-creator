@@ -22,11 +22,11 @@ mod glob_pattern_integration_tests {
         let temp_dir = TempDir::new().unwrap();
         let root = temp_dir.path();
 
-        // Create test files
-        File::create(root.join("main.py")).unwrap();
-        File::create(root.join("utils.py")).unwrap();
-        File::create(root.join("README.md")).unwrap();
-        File::create(root.join("config.toml")).unwrap();
+        // Create test files with actual content
+        fs::write(root.join("main.py"), "print('Hello from main')\\n").unwrap();
+        fs::write(root.join("utils.py"), "def helper(): pass\\n").unwrap();
+        fs::write(root.join("README.md"), "# Test Project\\n").unwrap();
+        fs::write(root.join("config.toml"), "[test]\\nvalue = 1\\n").unwrap();
 
         let mut cmd = Command::cargo_bin("code-digest").unwrap();
         cmd.current_dir(root)
@@ -35,7 +35,14 @@ mod glob_pattern_integration_tests {
             .arg("--output-file")
             .arg("output.md");
 
-        cmd.assert().success();
+        // Run command and capture output for debugging
+        let output = cmd.output().unwrap();
+        if !output.status.success() {
+            panic!("Command failed with stderr: {}", String::from_utf8_lossy(&output.stderr));
+        }
+
+        // Ensure output file exists before reading
+        assert!(root.join("output.md").exists(), "Output file was not created");
 
         // Check that output file was created and contains only Python files
         let output_content = fs::read_to_string(root.join("output.md")).unwrap();
