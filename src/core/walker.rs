@@ -85,6 +85,9 @@ impl WalkOptions {
             }
         }
 
+        // Get include patterns from CLI
+        let include_patterns = config.include.clone().unwrap_or_default();
+
         Ok(WalkOptions {
             max_file_size: Some(10 * 1024 * 1024), // 10MB default
             follow_links: false,
@@ -92,7 +95,7 @@ impl WalkOptions {
             parallel: true,
             ignore_file: ".digestignore".to_string(),
             ignore_patterns: vec![],
-            include_patterns: vec![],
+            include_patterns,
             custom_priorities,
         })
     }
@@ -209,10 +212,7 @@ fn build_walker(root: &Path, options: &WalkOptions) -> Walk {
         let _ = builder.add_ignore(pattern);
     }
 
-    // Add include patterns (as negative ignore patterns)
-    for pattern in &options.include_patterns {
-        let _ = builder.add_ignore(format!("!{pattern}"));
-    }
+    // Include patterns are handled in process_file() for exact matching
 
     builder.build()
 }
@@ -299,6 +299,22 @@ fn process_file(path: &Path, root: &Path, options: &WalkOptions) -> Result<Optio
 
     // Calculate relative path
     let relative_path = path.strip_prefix(root).unwrap_or(path).to_path_buf();
+
+    // Filter based on include patterns (if any)
+    if !options.include_patterns.is_empty() {
+        let matches_pattern = options.include_patterns.iter().any(|pattern| {
+            // Use glob matching on the relative path
+            if let Ok(glob_pattern) = glob::Pattern::new(pattern) {
+                glob_pattern.matches_path(&relative_path)
+            } else {
+                false
+            }
+        });
+
+        if !matches_pattern {
+            return Ok(None); // File doesn't match any include pattern
+        }
+    }
 
     // Determine file type
     let file_type = FileType::from_path(path);

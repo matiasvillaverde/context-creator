@@ -87,10 +87,10 @@ pub struct Config {
     #[arg(value_name = "PATHS", help = "Process directories", conflicts_with = "include")]
     pub paths: Option<Vec<PathBuf>>,
 
-    /// Include specific paths for processing
-    /// IMPORTANT: Use `get_directories()` to access the correct input paths.
-    #[arg(long, help = "Include specific paths for processing")]
-    pub include: Option<Vec<PathBuf>>,
+    /// Include files matching glob patterns (e.g., "*.py", "src/**/*.rs")
+    /// IMPORTANT: These are glob patterns, not literal paths.
+    #[arg(long, help = "Include files matching glob patterns")]
+    pub include: Option<Vec<String>>,
 
     /// GitHub repository URL to analyze (e.g., <https://github.com/owner/repo>)
     #[arg(long, help = "Process a GitHub repository")]
@@ -157,21 +157,51 @@ impl Config {
                 ));
             }
         } else {
-            // Only validate directories if repo is not provided
-            let directories = self.get_directories();
-            for directory in &directories {
-                if !directory.exists() {
-                    return Err(CodeDigestError::InvalidPath(format!(
-                        "Directory does not exist: {}",
-                        directory.display()
-                    )));
-                }
+            // Validate literal directory paths (from --paths)
+            if let Some(paths) = &self.paths {
+                for directory in paths {
+                    if !directory.exists() {
+                        return Err(CodeDigestError::InvalidPath(format!(
+                            "Directory does not exist: {}",
+                            directory.display()
+                        )));
+                    }
 
-                if !directory.is_dir() {
-                    return Err(CodeDigestError::InvalidPath(format!(
-                        "Path is not a directory: {}",
-                        directory.display()
-                    )));
+                    if !directory.is_dir() {
+                        return Err(CodeDigestError::InvalidPath(format!(
+                            "Path is not a directory: {}",
+                            directory.display()
+                        )));
+                    }
+                }
+            }
+
+            // Validate include patterns (from --include)
+            if let Some(include_patterns) = &self.include {
+                for pattern in include_patterns {
+                    // Skip empty or whitespace-only patterns
+                    if pattern.trim().is_empty() {
+                        continue;
+                    }
+
+                    let path = PathBuf::from(pattern);
+                    if path.exists() {
+                        // If it's a literal path that exists, it must be a directory
+                        if !path.is_dir() {
+                            return Err(CodeDigestError::InvalidPath(format!(
+                                "Path is not a directory: {}",
+                                path.display()
+                            )));
+                        }
+                    } else {
+                        // If it doesn't exist, treat as glob pattern and validate syntax
+                        if let Err(e) = glob::Pattern::new(pattern) {
+                            return Err(CodeDigestError::InvalidConfiguration(format!(
+                                "Invalid include pattern '{}': {}",
+                                pattern, e
+                            )));
+                        }
+                    }
                 }
             }
         }
@@ -241,11 +271,36 @@ impl Config {
         self.prompt.as_ref().filter(|s| !s.trim().is_empty()).cloned()
     }
 
-    /// Get all directories from paths argument or include flags
+    /// Get all directories to walk
+    /// When using literal directories (--include with paths), returns those paths
+    /// When using glob patterns (--include with patterns), defaults to current directory
+    /// When using positional args, returns those paths
     pub fn get_directories(&self) -> Vec<PathBuf> {
-        if let Some(include_paths) = &self.include {
-            include_paths.clone()
+        if let Some(include_patterns) = &self.include {
+            // Check if include patterns are literal directory paths or glob patterns
+            let mut directories = Vec::new();
+            let mut has_glob_patterns = false;
+
+            for pattern in include_patterns {
+                let path = PathBuf::from(pattern);
+                if path.exists() && path.is_dir() {
+                    // It's a literal directory path
+                    directories.push(path);
+                } else {
+                    // It's a glob pattern
+                    has_glob_patterns = true;
+                }
+            }
+
+            if has_glob_patterns || directories.is_empty() {
+                // If we have any glob patterns or no valid directories, walk from current directory
+                vec![PathBuf::from(".")]
+            } else {
+                // All patterns were literal directory paths
+                directories
+            }
         } else {
+            // When using positional args, use those directories
             self.paths.as_ref().cloned().unwrap_or_else(|| vec![PathBuf::from(".")])
         }
     }
@@ -299,7 +354,7 @@ mod tests {
 
         /// Helper function for creating Config instances with include paths in tests
         #[allow(dead_code)]
-        fn new_for_test_with_include(include: Option<Vec<PathBuf>>) -> Self {
+        fn new_for_test_with_include(include: Option<Vec<String>>) -> Self {
             Self {
                 prompt: None,
                 paths: None,
