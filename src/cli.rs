@@ -30,6 +30,12 @@ USAGE EXAMPLES:
   # Process specific directories (explicit include flags)
   code-digest --include src/ --include tests/ --include docs/
   
+  # Process files matching glob patterns (QUOTE patterns to prevent shell expansion)
+  code-digest --include \"**/*.py\" --include \"src/**/*.{rs,toml}\"
+  
+  # Process specific file types across all directories
+  code-digest --include \"**/*repository*.py\" --include \"**/test[0-9].py\"
+  
   # Process a GitHub repository
   code-digest --repo https://github.com/owner/repo
   
@@ -87,10 +93,13 @@ pub struct Config {
     #[arg(value_name = "PATHS", help = "Process directories", conflicts_with = "include")]
     pub paths: Option<Vec<PathBuf>>,
 
-    /// Include specific paths for processing
+    /// Include files and directories matching glob patterns
     /// IMPORTANT: Use `get_directories()` to access the correct input paths.
-    #[arg(long, help = "Include specific paths for processing")]
-    pub include: Option<Vec<PathBuf>>,
+    #[arg(
+        long,
+        help = "Include files and directories matching the given glob pattern.\nPatterns use gitignore-style syntax. To prevent shell expansion,\nquote patterns: --include \"*.py\" --include \"src/**/*.{rs,toml}\""
+    )]
+    pub include: Option<Vec<String>>,
 
     /// GitHub repository URL to analyze (e.g., <https://github.com/owner/repo>)
     #[arg(long, help = "Process a GitHub repository")]
@@ -176,6 +185,22 @@ impl Config {
             }
         }
 
+        // Validate include patterns if provided
+        for pattern in &self.get_include_patterns() {
+            // Skip empty or whitespace-only patterns
+            if pattern.trim().is_empty() {
+                continue;
+            }
+
+            // Validate pattern syntax using glob crate
+            if let Err(e) = glob::Pattern::new(pattern) {
+                return Err(CodeDigestError::InvalidConfiguration(format!(
+                    "Invalid include pattern '{}': {}",
+                    pattern, e
+                )));
+            }
+        }
+
         // Validate output file parent directory exists if specified
         if let Some(output) = &self.output_file {
             if let Some(parent) = output.parent() {
@@ -241,13 +266,21 @@ impl Config {
         self.prompt.as_ref().filter(|s| !s.trim().is_empty()).cloned()
     }
 
-    /// Get all directories from paths argument or include flags
+    /// Get all directories from paths argument
+    /// When using --include patterns, this returns the default directory (current dir)
+    /// since patterns are handled separately by the walker
     pub fn get_directories(&self) -> Vec<PathBuf> {
-        if let Some(include_paths) = &self.include {
-            include_paths.clone()
+        if self.include.is_some() {
+            // When using include patterns, use current directory as base
+            vec![PathBuf::from(".")]
         } else {
             self.paths.as_ref().cloned().unwrap_or_else(|| vec![PathBuf::from(".")])
         }
+    }
+
+    /// Get include patterns if specified
+    pub fn get_include_patterns(&self) -> Vec<String> {
+        self.include.as_ref().cloned().unwrap_or_default()
     }
 
     /// Check if we should read from stdin
@@ -297,9 +330,9 @@ mod tests {
             }
         }
 
-        /// Helper function for creating Config instances with include paths in tests
+        /// Helper function for creating Config instances with include patterns in tests
         #[allow(dead_code)]
-        fn new_for_test_with_include(include: Option<Vec<PathBuf>>) -> Self {
+        fn new_for_test_with_include(include: Option<Vec<String>>) -> Self {
             Self {
                 prompt: None,
                 paths: None,
