@@ -483,6 +483,7 @@ mod tests {
         let config = Config {
             prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
+            include: None,
             output_file: None,
             max_tokens: None,
             llm_tool: crate::cli::LlmTool::default(),
@@ -735,6 +736,7 @@ mod tests {
         let mut config = crate::cli::Config {
             prompt: None,
             paths: Some(vec![root.to_path_buf()]),
+            include: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -799,6 +801,7 @@ mod tests {
         let mut config = crate::cli::Config {
             prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
+            include: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -839,6 +842,7 @@ mod tests {
         let mut config = crate::cli::Config {
             prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
+            include: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -878,6 +882,7 @@ mod tests {
         let mut config = crate::cli::Config {
             prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
+            include: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -923,6 +928,7 @@ mod tests {
         let mut config = crate::cli::Config {
             prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
+            include: None,
             repo: None,
             read_stdin: false,
             output_file: None,
