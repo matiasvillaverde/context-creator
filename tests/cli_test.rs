@@ -158,3 +158,121 @@ fn test_enhanced_context_default_false() {
     let config = Config::parse_from(["code-digest", "."]);
     assert!(!config.enhanced_context);
 }
+
+// Tests for --include flag functionality
+#[test]
+fn test_include_single_path() {
+    let config = Config::parse_from(["code-digest", "--include", "src/"]);
+    assert_eq!(config.get_directories(), vec![PathBuf::from("src/")]);
+}
+
+#[test]
+fn test_include_multiple_paths() {
+    let config = Config::parse_from(["code-digest", "--include", "src/", "--include", "tests/"]);
+    assert_eq!(config.get_directories(), vec![PathBuf::from("src/"), PathBuf::from("tests/")]);
+}
+
+#[test]
+fn test_include_three_paths() {
+    let config = Config::parse_from([
+        "code-digest",
+        "--include",
+        "src/",
+        "--include",
+        "tests/",
+        "--include",
+        "docs/",
+    ]);
+    assert_eq!(
+        config.get_directories(),
+        vec![PathBuf::from("src/"), PathBuf::from("tests/"), PathBuf::from("docs/")]
+    );
+}
+
+#[test]
+fn test_positional_and_include_conflict() {
+    let result = Config::try_parse_from(["code-digest", "src/", "--include", "tests/"]);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("cannot be used with"));
+}
+
+#[test]
+fn test_include_with_prompt_conflict() {
+    let result = Config::try_parse_from(["code-digest", "--prompt", "test", "--include", "src/"]);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("cannot be used with"));
+}
+
+#[test]
+fn test_include_with_repo_conflict() {
+    let result = Config::try_parse_from([
+        "code-digest",
+        "--repo",
+        "https://github.com/owner/repo",
+        "--include",
+        "src/",
+    ]);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("cannot be used with"));
+}
+
+#[test]
+fn test_include_with_stdin_conflict() {
+    let result = Config::try_parse_from(["code-digest", "--stdin", "--include", "src/"]);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("cannot be used with"));
+}
+
+#[test]
+fn test_no_arguments_defaults_to_current_directory() {
+    // This test ensures that when no paths or include flags are provided,
+    // we default to current directory "."
+    let config = Config::parse_from(["code-digest", "--prompt", "test"]);
+    // Note: This is testing that the default behavior is preserved
+    assert_eq!(config.get_directories(), vec![PathBuf::from(".")]);
+}
+
+#[test]
+fn test_include_with_file_path_validation_error() {
+    use std::fs;
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().unwrap();
+    let file_path = temp_dir.path().join("test_file.txt");
+    fs::write(&file_path, "test content").unwrap();
+
+    let config = Config::parse_from([
+        "code-digest",
+        "--include",
+        file_path.to_str().unwrap(),
+        "--output-file",
+        "/tmp/test.md",
+    ]);
+
+    // Should fail validation because include path points to a file, not directory
+    let result = config.validate();
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("Path is not a directory"));
+}
+
+#[test]
+fn test_positional_with_file_path_validation_error() {
+    use std::fs;
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().unwrap();
+    let file_path = temp_dir.path().join("test_file.txt");
+    fs::write(&file_path, "test content").unwrap();
+
+    let config = Config::parse_from([
+        "code-digest",
+        file_path.to_str().unwrap(),
+        "--output-file",
+        "/tmp/test.md",
+    ]);
+
+    // Should fail validation because positional path points to a file, not directory
+    let result = config.validate();
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("Path is not a directory"));
+}

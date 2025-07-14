@@ -286,6 +286,7 @@ progress = true
         let mut cli_config = CliConfig {
             prompt: None,
             paths: Some(vec![PathBuf::from(".")]),
+            include: None,
             repo: None,
             read_stdin: false,
             output_file: None,
