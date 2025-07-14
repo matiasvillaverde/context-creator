@@ -197,3 +197,4 @@ weight = 100
 pattern = "tests/**/*.rs"
 weight = 50
 ```
+# Security fixes applied
