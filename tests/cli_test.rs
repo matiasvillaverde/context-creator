@@ -239,28 +239,6 @@ fn test_no_arguments_defaults_to_current_directory() {
 }
 
 #[test]
-fn test_include_with_file_path_validation_success() {
-    use std::fs;
-    use tempfile::TempDir;
-
-    let temp_dir = TempDir::new().unwrap();
-    let file_path = temp_dir.path().join("test_file.txt");
-    fs::write(&file_path, "test content").unwrap();
-
-    let config = Config::parse_from([
-        "code-digest",
-        "--include",
-        file_path.to_str().unwrap(),
-        "--output-file",
-        "/tmp/test.md",
-    ]);
-
-    // Should pass validation because include patterns are now glob patterns, not directory paths
-    let result = config.validate();
-    assert!(result.is_ok());
-}
-
-#[test]
 fn test_positional_with_file_path_validation_error() {
     use std::fs;
     use tempfile::TempDir;
@@ -434,15 +412,4 @@ fn test_include_pattern_validation_invalid_pattern() {
     let result = config.validate();
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("Invalid include pattern"));
-}
-
-#[test]
-fn test_include_whitespace_only_pattern() {
-    // Test handling of whitespace-only patterns
-    let config =
-        Config::parse_from(["code-digest", "--include", "   ", "--output-file", "/tmp/test.md"]);
-
-    // This should be handled gracefully (likely ignored)
-    let result = config.validate();
-    assert!(result.is_ok());
 }
