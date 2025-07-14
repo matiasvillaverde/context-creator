@@ -163,13 +163,19 @@ fn test_enhanced_context_default_false() {
 #[test]
 fn test_include_single_path() {
     let config = Config::parse_from(["code-digest", "--include", "src/"]);
-    assert_eq!(config.get_directories(), vec![PathBuf::from("src/")]);
+    // When using include patterns, base directory is current dir
+    assert_eq!(config.get_directories(), vec![PathBuf::from(".")]);
+    // The patterns themselves are accessed via get_include_patterns
+    assert_eq!(config.get_include_patterns(), vec!["src/"]);
 }
 
 #[test]
 fn test_include_multiple_paths() {
     let config = Config::parse_from(["code-digest", "--include", "src/", "--include", "tests/"]);
-    assert_eq!(config.get_directories(), vec![PathBuf::from("src/"), PathBuf::from("tests/")]);
+    // When using include patterns, base directory is current dir
+    assert_eq!(config.get_directories(), vec![PathBuf::from(".")]);
+    // The patterns themselves are accessed via get_include_patterns
+    assert_eq!(config.get_include_patterns(), vec!["src/", "tests/"]);
 }
 
 #[test]
@@ -183,10 +189,10 @@ fn test_include_three_paths() {
         "--include",
         "docs/",
     ]);
-    assert_eq!(
-        config.get_directories(),
-        vec![PathBuf::from("src/"), PathBuf::from("tests/"), PathBuf::from("docs/")]
-    );
+    // When using include patterns, base directory is current dir
+    assert_eq!(config.get_directories(), vec![PathBuf::from(".")]);
+    // The patterns themselves are accessed via get_include_patterns
+    assert_eq!(config.get_include_patterns(), vec!["src/", "tests/", "docs/"]);
 }
 
 #[test]
@@ -233,7 +239,7 @@ fn test_no_arguments_defaults_to_current_directory() {
 }
 
 #[test]
-fn test_include_with_file_path_validation_error() {
+fn test_include_with_file_path_validation_success() {
     use std::fs;
     use tempfile::TempDir;
 
@@ -249,10 +255,9 @@ fn test_include_with_file_path_validation_error() {
         "/tmp/test.md",
     ]);
 
-    // Should fail validation because include path points to a file, not directory
+    // Should pass validation because include patterns are now glob patterns, not directory paths
     let result = config.validate();
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("Path is not a directory"));
+    assert!(result.is_ok());
 }
 
 #[test]
@@ -275,4 +280,122 @@ fn test_positional_with_file_path_validation_error() {
     let result = config.validate();
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("Path is not a directory"));
+}
+
+// === GLOB PATTERN TESTS (TDD - Red Phase) ===
+
+#[test]
+fn test_include_glob_pattern_simple_wildcard() {
+    // Test simple wildcard patterns
+    let config = Config::parse_from(["code-digest", "--include", "*.py"]);
+    // Note: This will fail until we change include type from Vec<PathBuf> to Vec<String>
+    assert_eq!(config.include, Some(vec!["*.py".to_string()]));
+}
+
+#[test]
+fn test_include_glob_pattern_recursive_directory() {
+    // Test recursive directory matching
+    let config = Config::parse_from(["code-digest", "--include", "**/*.rs"]);
+    assert_eq!(config.include, Some(vec!["**/*.rs".to_string()]));
+}
+
+#[test]
+fn test_include_glob_pattern_brace_expansion() {
+    // Test brace expansion
+    let config = Config::parse_from(["code-digest", "--include", "src/**/*.{py,js}"]);
+    assert_eq!(config.include, Some(vec!["src/**/*.{py,js}".to_string()]));
+}
+
+#[test]
+fn test_include_glob_pattern_character_sets() {
+    // Test character sets and ranges
+    let config = Config::parse_from(["code-digest", "--include", "**/test[0-9].py"]);
+    assert_eq!(config.include, Some(vec!["**/test[0-9].py".to_string()]));
+}
+
+#[test]
+fn test_include_multiple_glob_patterns() {
+    // Test multiple glob patterns
+    let config = Config::parse_from([
+        "code-digest",
+        "--include",
+        "**/*repository*.py",
+        "--include",
+        "**/db/**",
+    ]);
+    assert_eq!(
+        config.include,
+        Some(vec!["**/*repository*.py".to_string(), "**/db/**".to_string()])
+    );
+}
+
+#[test]
+fn test_include_complex_pattern_combinations() {
+    // Test complex pattern combinations
+    let config = Config::parse_from([
+        "code-digest",
+        "--include",
+        "**/*{repository,service,model}*.py",
+        "--include",
+        "**/db/**",
+    ]);
+    assert_eq!(
+        config.include,
+        Some(vec!["**/*{repository,service,model}*.py".to_string(), "**/db/**".to_string()])
+    );
+}
+
+#[test]
+fn test_include_pattern_validation_valid_patterns() {
+    // Test that valid glob patterns pass validation
+    let config = Config::parse_from([
+        "code-digest",
+        "--include",
+        "**/*.py",
+        "--output-file",
+        "/tmp/test.md",
+    ]);
+
+    // This should pass validation once we implement pattern validation
+    let result = config.validate();
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_include_pattern_validation_invalid_pattern() {
+    // Test that invalid glob patterns fail validation
+    let config = Config::parse_from([
+        "code-digest",
+        "--include",
+        "src/[", // Invalid pattern - unclosed bracket
+        "--output-file",
+        "/tmp/test.md",
+    ]);
+
+    // This should fail validation once we implement pattern validation
+    let result = config.validate();
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("Invalid include pattern"));
+}
+
+#[test]
+fn test_include_empty_pattern() {
+    // Test handling of empty patterns
+    let config =
+        Config::parse_from(["code-digest", "--include", "", "--output-file", "/tmp/test.md"]);
+
+    // This should be handled gracefully (likely ignored)
+    let result = config.validate();
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_include_whitespace_only_pattern() {
+    // Test handling of whitespace-only patterns
+    let config =
+        Config::parse_from(["code-digest", "--include", "   ", "--output-file", "/tmp/test.md"]);
+
+    // This should be handled gracefully (likely ignored)
+    let result = config.validate();
+    assert!(result.is_ok());
 }

@@ -85,6 +85,13 @@ impl WalkOptions {
             }
         }
 
+        // Get include patterns from CLI config and filter out empty/whitespace patterns
+        let include_patterns = config
+            .get_include_patterns()
+            .into_iter()
+            .filter(|pattern| !pattern.trim().is_empty())
+            .collect();
+
         Ok(WalkOptions {
             max_file_size: Some(10 * 1024 * 1024), // 10MB default
             follow_links: false,
@@ -92,7 +99,7 @@ impl WalkOptions {
             parallel: true,
             ignore_file: ".digestignore".to_string(),
             ignore_patterns: vec![],
-            include_patterns: vec![],
+            include_patterns,
             custom_priorities,
         })
     }
@@ -180,7 +187,7 @@ pub fn walk_directory(root: &Path, options: WalkOptions) -> Result<Vec<FileInfo>
     }
 
     let root = root.canonicalize()?;
-    let walker = build_walker(&root, &options);
+    let walker = build_walker(&root, &options)?;
 
     if options.parallel {
         walk_parallel(walker, &root, &options)
@@ -190,7 +197,7 @@ pub fn walk_directory(root: &Path, options: WalkOptions) -> Result<Vec<FileInfo>
 }
 
 /// Build the ignore walker with configured options
-fn build_walker(root: &Path, options: &WalkOptions) -> Walk {
+fn build_walker(root: &Path, options: &WalkOptions) -> Result<Walk> {
     let mut builder = WalkBuilder::new(root);
 
     // Configure the walker
@@ -209,12 +216,33 @@ fn build_walker(root: &Path, options: &WalkOptions) -> Walk {
         let _ = builder.add_ignore(pattern);
     }
 
-    // Add include patterns (as negative ignore patterns)
-    for pattern in &options.include_patterns {
-        let _ = builder.add_ignore(format!("!{pattern}"));
+    // Handle include patterns using OverrideBuilder for proper filtering
+    if !options.include_patterns.is_empty() {
+        let mut override_builder = ignore::overrides::OverrideBuilder::new(root);
+
+        for pattern in &options.include_patterns {
+            if !pattern.trim().is_empty() {
+                // Include patterns are added directly (not as negations)
+                override_builder.add(pattern).map_err(|e| {
+                    CodeDigestError::InvalidConfiguration(format!(
+                        "Invalid include pattern '{}': {}",
+                        pattern, e
+                    ))
+                })?;
+            }
+        }
+
+        let overrides = override_builder.build().map_err(|e| {
+            CodeDigestError::InvalidConfiguration(format!(
+                "Failed to build include pattern overrides: {}",
+                e
+            ))
+        })?;
+
+        builder.overrides(overrides);
     }
 
-    builder.build()
+    Ok(builder.build())
 }
 
 /// Walk directory sequentially
@@ -973,5 +1001,91 @@ mod tests {
         };
 
         assert_eq!(file_info_md.file_type_display(), "Markdown");
+    }
+
+    // === WALKER GLOB PATTERN INTEGRATION TESTS (TDD - Red Phase) ===
+
+    #[test]
+    fn test_walk_options_from_config_with_include_patterns() {
+        // Test that CLI include patterns are passed to WalkOptions
+        let config = crate::cli::Config {
+            prompt: None,
+            paths: None,
+            include: Some(vec!["**/*.rs".to_string(), "**/test[0-9].py".to_string()]),
+            repo: None,
+            read_stdin: false,
+            output_file: None,
+            max_tokens: None,
+            llm_tool: crate::cli::LlmTool::default(),
+            quiet: false,
+            verbose: false,
+            config: None,
+            progress: false,
+            copy: false,
+            enhanced_context: false,
+            custom_priorities: vec![],
+        };
+
+        let options = WalkOptions::from_config(&config).unwrap();
+
+        // This test will fail until we update from_config to use CLI include patterns
+        assert_eq!(options.include_patterns, vec!["**/*.rs", "**/test[0-9].py"]);
+    }
+
+    #[test]
+    fn test_walk_options_from_config_empty_include_patterns() {
+        // Test that empty include patterns work correctly
+        let config = crate::cli::Config {
+            prompt: None,
+            paths: None,
+            include: None,
+            repo: None,
+            read_stdin: false,
+            output_file: None,
+            max_tokens: None,
+            llm_tool: crate::cli::LlmTool::default(),
+            quiet: false,
+            verbose: false,
+            config: None,
+            progress: false,
+            copy: false,
+            enhanced_context: false,
+            custom_priorities: vec![],
+        };
+
+        let options = WalkOptions::from_config(&config).unwrap();
+        assert_eq!(options.include_patterns, Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_walk_options_filters_empty_patterns() {
+        // Test that empty/whitespace patterns are filtered out
+        let config = crate::cli::Config {
+            prompt: None,
+            paths: None,
+            include: Some(vec![
+                "**/*.rs".to_string(),
+                "".to_string(),
+                "   ".to_string(),
+                "*.py".to_string(),
+            ]),
+            repo: None,
+            read_stdin: false,
+            output_file: None,
+            max_tokens: None,
+            llm_tool: crate::cli::LlmTool::default(),
+            quiet: false,
+            verbose: false,
+            config: None,
+            progress: false,
+            copy: false,
+            enhanced_context: false,
+            custom_priorities: vec![],
+        };
+
+        let options = WalkOptions::from_config(&config).unwrap();
+
+        // Should filter out empty and whitespace-only patterns
+        assert_eq!(options.include_patterns, vec!["**/*.rs", "*.py"]);
     }
 }
