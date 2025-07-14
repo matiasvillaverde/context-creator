@@ -24,8 +24,11 @@ USAGE EXAMPLES:
   # Process current directory with a prompt
   code-digest --prompt \"Analyze this code\"
   
-  # Process specific directories  
+  # Process specific directories (positional arguments)
   code-digest src/ tests/ docs/
+  
+  # Process specific directories (explicit include flags)
+  code-digest --include src/ --include tests/ --include docs/
   
   # Process a GitHub repository
   code-digest --repo https://github.com/owner/repo
@@ -72,16 +75,22 @@ impl LlmTool {
 #[command(group(
     clap::ArgGroup::new("input_source")
         .required(true)
-        .args(&["prompt", "paths", "repo", "read_stdin"]),
+        .args(&["prompt", "paths", "repo", "read_stdin", "include"]),
 ))]
 pub struct Config {
     /// The prompt to send to the LLM for processing
     #[arg(short = 'p', long = "prompt", help = "Process a text prompt directly")]
     pub prompt: Option<String>,
 
-    /// One or more directory or file paths to process
-    #[arg(value_name = "PATHS", help = "Process files and directories")]
+    /// One or more directory paths to process
+    /// IMPORTANT: Use `get_directories()` to access the correct input paths.
+    #[arg(value_name = "PATHS", help = "Process directories", conflicts_with = "include")]
     pub paths: Option<Vec<PathBuf>>,
+
+    /// Include specific paths for processing
+    /// IMPORTANT: Use `get_directories()` to access the correct input paths.
+    #[arg(long, help = "Include specific paths for processing")]
+    pub include: Option<Vec<PathBuf>>,
 
     /// GitHub repository URL to analyze (e.g., <https://github.com/owner/repo>)
     #[arg(long, help = "Process a GitHub repository")]
@@ -232,9 +241,13 @@ impl Config {
         self.prompt.as_ref().filter(|s| !s.trim().is_empty()).cloned()
     }
 
-    /// Get all directories from paths argument
+    /// Get all directories from paths argument or include flags
     pub fn get_directories(&self) -> Vec<PathBuf> {
-        self.paths.as_ref().cloned().unwrap_or_else(|| vec![PathBuf::from(".")])
+        if let Some(include_paths) = &self.include {
+            include_paths.clone()
+        } else {
+            self.paths.as_ref().cloned().unwrap_or_else(|| vec![PathBuf::from(".")])
+        }
     }
 
     /// Check if we should read from stdin
@@ -261,12 +274,59 @@ mod tests {
     use std::fs;
     use tempfile::TempDir;
 
+    impl Config {
+        /// Helper function for creating Config instances in tests
+        #[allow(dead_code)]
+        fn new_for_test(paths: Option<Vec<PathBuf>>) -> Self {
+            Self {
+                prompt: None,
+                paths,
+                include: None,
+                repo: None,
+                read_stdin: false,
+                output_file: None,
+                max_tokens: None,
+                llm_tool: LlmTool::default(),
+                quiet: true, // Good default for tests
+                verbose: false,
+                config: None,
+                progress: false,
+                copy: false,
+                enhanced_context: false,
+                custom_priorities: vec![],
+            }
+        }
+
+        /// Helper function for creating Config instances with include paths in tests
+        #[allow(dead_code)]
+        fn new_for_test_with_include(include: Option<Vec<PathBuf>>) -> Self {
+            Self {
+                prompt: None,
+                paths: None,
+                include,
+                repo: None,
+                read_stdin: false,
+                output_file: None,
+                max_tokens: None,
+                llm_tool: LlmTool::default(),
+                quiet: true, // Good default for tests
+                verbose: false,
+                config: None,
+                progress: false,
+                copy: false,
+                enhanced_context: false,
+                custom_priorities: vec![],
+            }
+        }
+    }
+
     #[test]
     fn test_config_validation_valid_directory() {
         let temp_dir = TempDir::new().unwrap();
         let config = Config {
             prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
+            include: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -289,6 +349,7 @@ mod tests {
         let config = Config {
             prompt: None,
             paths: Some(vec![PathBuf::from("/nonexistent/directory")]),
+            include: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -315,6 +376,7 @@ mod tests {
         let config = Config {
             prompt: None,
             paths: Some(vec![file_path]),
+            include: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -338,6 +400,7 @@ mod tests {
         let config = Config {
             prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
+            include: None,
             repo: None,
             read_stdin: false,
             output_file: Some(PathBuf::from("/nonexistent/directory/output.md")),
@@ -361,6 +424,7 @@ mod tests {
         let config = Config {
             prompt: Some("test prompt".to_string()),
             paths: Some(vec![temp_dir.path().to_path_buf()]),
+            include: None,
             repo: None,
             read_stdin: false,
             output_file: Some(temp_dir.path().join("output.md")),
@@ -395,6 +459,7 @@ mod tests {
         let config = Config {
             prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
+            include: None,
             repo: None,
             read_stdin: false,
             output_file: Some(PathBuf::from("output.md")),
@@ -419,6 +484,7 @@ mod tests {
         let mut config = Config {
             prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
+            include: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -478,6 +544,7 @@ mod tests {
         let config = Config {
             prompt: None,
             paths: Some(vec![dir1.clone(), dir2.clone()]),
+            include: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -497,6 +564,7 @@ mod tests {
         let config = Config {
             prompt: None,
             paths: Some(vec![dir1, PathBuf::from("/nonexistent/dir")]),
+            include: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -525,6 +593,7 @@ mod tests {
         let config = Config {
             prompt: None,
             paths: Some(vec![dir1, file1]),
+            include: None,
             repo: None,
             read_stdin: false,
             output_file: None,
