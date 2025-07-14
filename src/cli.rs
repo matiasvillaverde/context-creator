@@ -73,6 +73,14 @@ impl LlmTool {
             }
         }
     }
+
+    /// Get the default maximum tokens for the tool
+    pub fn default_max_tokens(&self) -> usize {
+        match self {
+            LlmTool::Gemini => 1_000_000,
+            LlmTool::Codex => 1_000_000,
+        }
+    }
 }
 
 /// High-performance CLI tool to convert codebases to Markdown for LLM context
@@ -280,6 +288,14 @@ impl Config {
         self.include.as_ref().cloned().unwrap_or_default()
     }
 
+    /// Get effective max tokens with precedence: explicit > default (if prompt) > None
+    pub fn get_effective_max_tokens(&self) -> Option<usize> {
+        self.max_tokens.or_else(|| {
+            self.get_prompt()
+                .map(|_| self.llm_tool.default_max_tokens())
+        })
+    }
+
     /// Check if we should read from stdin
     pub fn should_read_stdin(&self) -> bool {
         use std::io::IsTerminal;
@@ -483,6 +499,45 @@ mod tests {
         assert!(LlmTool::Codex.install_instructions().contains("github.com"));
 
         assert_eq!(LlmTool::default(), LlmTool::Gemini);
+    }
+
+    #[test]
+    fn test_llm_tool_default_max_tokens() {
+        assert_eq!(LlmTool::Gemini.default_max_tokens(), 1_000_000);
+        assert_eq!(LlmTool::Codex.default_max_tokens(), 1_000_000);
+    }
+
+    #[test]
+    fn test_config_get_effective_max_tokens_with_explicit() {
+        let config = Config {
+            prompt: Some("test prompt".to_string()),
+            max_tokens: Some(500_000),
+            llm_tool: LlmTool::Gemini,
+            ..Config::new_for_test(None)
+        };
+        assert_eq!(config.get_effective_max_tokens(), Some(500_000));
+    }
+
+    #[test]
+    fn test_config_get_effective_max_tokens_with_prompt_default() {
+        let config = Config {
+            prompt: Some("test prompt".to_string()),
+            max_tokens: None,
+            llm_tool: LlmTool::Gemini,
+            ..Config::new_for_test(None)
+        };
+        assert_eq!(config.get_effective_max_tokens(), Some(1_000_000));
+    }
+
+    #[test]
+    fn test_config_get_effective_max_tokens_no_prompt() {
+        let config = Config {
+            prompt: None,
+            max_tokens: None,
+            llm_tool: LlmTool::Gemini,
+            ..Config::new_for_test(None)
+        };
+        assert_eq!(config.get_effective_max_tokens(), None);
     }
 
     #[test]
