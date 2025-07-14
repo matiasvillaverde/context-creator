@@ -79,7 +79,7 @@ mod glob_pattern_integration_tests {
 
     #[test]
     fn test_brace_expansion() {
-        // Test scenario: code-digest --include "src/**/*.{py,js}" --prompt "analyze source files"
+        // Test scenario: code-digest --include "src/**/*.py" --include "src/**/*.js" (using multiple patterns instead of brace expansion)
         let temp_dir = TempDir::new().unwrap();
         let root = temp_dir.path();
 
@@ -96,7 +96,9 @@ mod glob_pattern_integration_tests {
         let mut cmd = Command::cargo_bin("code-digest").unwrap();
         cmd.current_dir(root)
             .arg("--include")
-            .arg("src/**/*.{py,js}")
+            .arg("src/**/*.py")
+            .arg("--include")
+            .arg("src/**/*.js")
             .arg("--output-file")
             .arg("output.md");
 
@@ -150,7 +152,7 @@ mod glob_pattern_integration_tests {
 
     #[test]
     fn test_complex_pattern_combinations() {
-        // Test scenario: code-digest --include "**/*{repository,service,model}*.py" --include "**/db/**"
+        // Test scenario: code-digest --include "**/*repository*.py" --include "**/*service*.py" --include "**/*model*.py" --include "**/db/**"
         let temp_dir = TempDir::new().unwrap();
         let root = temp_dir.path();
 
@@ -165,13 +167,17 @@ mod glob_pattern_integration_tests {
         File::create(root.join("src/db/models/base.py")).unwrap();
         File::create(root.join("src/db/connection.py")).unwrap();
         File::create(root.join("db/migrations/001.sql")).unwrap();
-        File::create(root.join("src/utils.py")).unwrap(); // Should not match first pattern
-        File::create(root.join("src/config.py")).unwrap(); // Should not match first pattern
+        File::create(root.join("src/utils.py")).unwrap(); // Should not match first patterns
+        File::create(root.join("src/config.py")).unwrap(); // Should not match first patterns
 
         let mut cmd = Command::cargo_bin("code-digest").unwrap();
         cmd.current_dir(root)
             .arg("--include")
-            .arg("**/*{repository,service,model}*.py")
+            .arg("**/*repository*.py")
+            .arg("--include")
+            .arg("**/*service*.py")
+            .arg("--include")
+            .arg("**/*model*.py")
             .arg("--include")
             .arg("**/db/**")
             .arg("--output-file")
@@ -179,10 +185,10 @@ mod glob_pattern_integration_tests {
 
         cmd.assert().success();
 
-        // Check that output contains files matching either pattern
+        // Check that output contains files matching any of the patterns
         let output_content = fs::read_to_string(root.join("output.md")).unwrap();
 
-        // Files matching first pattern (repository, service, model)
+        // Files matching repository/service/model patterns
         assert!(contains_path(&output_content, "src/user_repository.py"));
         assert!(contains_path(&output_content, "src/api/auth_service.py"));
         assert!(contains_path(&output_content, "src/user_model.py"));

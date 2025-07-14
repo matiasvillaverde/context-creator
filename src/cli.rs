@@ -20,6 +20,19 @@ CUSTOM PRIORITY RULES:
     pattern = \"tests/*\"
     weight = -2.0
 
+GLOB PATTERN EXAMPLES:
+  The --include flag supports glob pattern matching for flexible file selection.
+  Make sure to quote patterns to prevent shell expansion:
+  
+  # Include all Python files recursively
+  code-digest --include \"**/*.py\" --prompt \"Analyze Python code\"
+  
+  # Include specific file extensions in src directory
+  code-digest --include \"src/**/*.rs\" --include \"src/**/*.toml\"
+  
+  # Include numbered test files
+  code-digest --include \"**/test[0-9].py\"
+
 USAGE EXAMPLES:
   # Process current directory with a prompt
   code-digest --prompt \"Analyze this code\"
