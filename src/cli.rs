@@ -195,8 +195,7 @@ impl Config {
             // Validate pattern syntax using glob crate
             if let Err(e) = glob::Pattern::new(pattern) {
                 return Err(CodeDigestError::InvalidConfiguration(format!(
-                    "Invalid include pattern '{}': {}",
-                    pattern, e
+                    "Invalid include pattern '{pattern}': {e}"
                 )));
             }
         }
