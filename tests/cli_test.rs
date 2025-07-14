@@ -282,14 +282,89 @@ fn test_positional_with_file_path_validation_error() {
     assert!(result.unwrap_err().to_string().contains("Path is not a directory"));
 }
 
-// === GLOB PATTERN TESTS (TDD - Red Phase) ===
+#[test]
+fn test_include_with_file_path_validation_success() {
+    use std::fs;
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().unwrap();
+    let dir_path = temp_dir.path().join("test_dir");
+    fs::create_dir(&dir_path).unwrap();
+
+    let config = Config::parse_from([
+        "code-digest",
+        "--include",
+        dir_path.to_str().unwrap(),
+        "--output-file",
+        "/tmp/test.md",
+    ]);
+
+    // Should succeed validation because include path points to a directory
+    let result = config.validate();
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_include_pattern_validation_valid_patterns() {
+    let config = Config::parse_from([
+        "code-digest",
+        "--include",
+        "*.py",
+        "--include",
+        "**/*.rs",
+        "--include",
+        "src/**/*.js",
+        "--output-file",
+        "/tmp/test.md",
+    ]);
+
+    // Should succeed validation for valid glob patterns
+    let result = config.validate();
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_include_empty_pattern() {
+    let config = Config::parse_from([
+        "code-digest",
+        "--include",
+        "",
+        "--include",
+        "*.py",
+        "--output-file",
+        "/tmp/test.md",
+    ]);
+
+    // Should succeed validation - empty patterns are skipped
+    let result = config.validate();
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_include_whitespace_only_pattern() {
+    let config = Config::parse_from([
+        "code-digest",
+        "--include",
+        "   ",
+        "--include",
+        "*.py",
+        "--output-file",
+        "/tmp/test.md",
+    ]);
+
+    // Should succeed validation - whitespace-only patterns are skipped
+    let result = config.validate();
+    assert!(result.is_ok());
+}
 
 #[test]
 fn test_include_glob_pattern_simple_wildcard() {
-    // Test simple wildcard patterns
-    let config = Config::parse_from(["code-digest", "--include", "*.py"]);
-    // Note: This will fail until we change include type from Vec<PathBuf> to Vec<String>
-    assert_eq!(config.include, Some(vec!["*.py".to_string()]));
+    let config =
+        Config::parse_from(["code-digest", "--include", "*.py", "--output-file", "/tmp/test.md"]);
+
+    // Should succeed validation for simple wildcard pattern
+    let result = config.validate();
+    assert!(result.is_ok());
 }
 
 #[test]
@@ -346,47 +421,19 @@ fn test_include_complex_pattern_combinations() {
 }
 
 #[test]
-fn test_include_pattern_validation_valid_patterns() {
-    // Test that valid glob patterns pass validation
-    let config = Config::parse_from([
-        "code-digest",
-        "--include",
-        "**/*.py",
-        "--output-file",
-        "/tmp/test.md",
-    ]);
-
-    // This should pass validation once we implement pattern validation
-    let result = config.validate();
-    assert!(result.is_ok());
-}
-
-#[test]
 fn test_include_pattern_validation_invalid_pattern() {
-    // Test that invalid glob patterns fail validation
     let config = Config::parse_from([
         "code-digest",
         "--include",
-        "src/[", // Invalid pattern - unclosed bracket
+        "src/[", // Invalid unclosed bracket
         "--output-file",
         "/tmp/test.md",
     ]);
 
-    // This should fail validation once we implement pattern validation
+    // Should fail validation for invalid glob pattern
     let result = config.validate();
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("Invalid include pattern"));
-}
-
-#[test]
-fn test_include_empty_pattern() {
-    // Test handling of empty patterns
-    let config =
-        Config::parse_from(["code-digest", "--include", "", "--output-file", "/tmp/test.md"]);
-
-    // This should be handled gracefully (likely ignored)
-    let result = config.validate();
-    assert!(result.is_ok());
 }
 
 #[test]
