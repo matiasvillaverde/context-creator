@@ -630,6 +630,9 @@ mod tests {
         let config = Config {
             prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
+            include: None,
+            repo: None,
+            read_stdin: false,
             output_file: None,
             max_tokens: Some(100000),
             llm_tool: crate::cli::LlmTool::default(),
@@ -637,8 +640,6 @@ mod tests {
             verbose: false,
             config: None,
             progress: false,
-            repo: None,
-            read_stdin: false,
             copy: false,
             enhanced_context: false,
             custom_priorities: vec![],
