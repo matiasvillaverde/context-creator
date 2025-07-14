@@ -209,10 +209,10 @@ pub fn sanitize_pattern(pattern: &str) -> Result<String> {
     // No null bytes, control characters, or dangerous Unicode characters
     if pattern.contains('\0')
         || pattern.chars().any(|c| {
-            c.is_control() || 
-        c == '\u{2028}' ||  // Line separator
-        c == '\u{2029}' ||  // Paragraph separator  
-        c == '\u{FEFF}' // Byte order mark
+            c.is_control() ||
+            c == '\u{2028}' ||  // Line separator
+            c == '\u{2029}' ||  // Paragraph separator
+            c == '\u{FEFF}' // Byte order mark
         })
     {
         return Err(CodeDigestError::InvalidConfiguration(
@@ -1331,7 +1331,7 @@ mod tests {
         use crate::utils::error::CodeDigestError;
 
         // Simulate critical errors
-        let critical_errors = vec![
+        let critical_errors = [
             CodeDigestError::FileProcessingError {
                 path: "test.txt".to_string(),
                 error: "Permission denied".to_string(),
