@@ -77,8 +77,8 @@ impl WalkOptions {
                 Ok(compiled) => custom_priorities.push(compiled),
                 Err(e) => {
                     return Err(CodeDigestError::ConfigError(format!(
-                        "Invalid glob pattern '{}' in custom priorities: {}",
-                        priority.pattern, e
+                        "Invalid glob pattern '{}' in custom priorities: {e}",
+                        priority.pattern
                     ))
                     .into());
                 }
@@ -225,8 +225,7 @@ fn build_walker(root: &Path, options: &WalkOptions) -> Result<Walk> {
                 // Include patterns are added directly (not as negations)
                 override_builder.add(pattern).map_err(|e| {
                     CodeDigestError::InvalidConfiguration(format!(
-                        "Invalid include pattern '{}': {}",
-                        pattern, e
+                        "Invalid include pattern '{pattern}': {e}"
                     ))
                 })?;
             }
@@ -234,8 +233,7 @@ fn build_walker(root: &Path, options: &WalkOptions) -> Result<Walk> {
 
         let overrides = override_builder.build().map_err(|e| {
             CodeDigestError::InvalidConfiguration(format!(
-                "Failed to build include pattern overrides: {}",
-                e
+                "Failed to build include pattern overrides: {e}"
             ))
         })?;
 
