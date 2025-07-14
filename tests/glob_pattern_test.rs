@@ -5,6 +5,13 @@ use predicates::prelude::*;
 use std::fs::{self, File};
 use tempfile::TempDir;
 
+/// Helper function to check if content contains a path, handling both Unix and Windows separators
+fn contains_path(content: &str, path: &str) -> bool {
+    let unix_path = path.replace('\\', "/");
+    let windows_path = path.replace('/', "\\");
+    content.contains(&unix_path) || content.contains(&windows_path)
+}
+
 /// Test that all test scenarios from GitHub issue #16 work correctly
 mod glob_pattern_integration_tests {
     use super::*;
@@ -28,10 +35,10 @@ mod glob_pattern_integration_tests {
 
         // Check that output file was created and contains only Python files
         let output_content = fs::read_to_string(root.join("output.md")).unwrap();
-        assert!(output_content.contains("main.py"));
-        assert!(output_content.contains("utils.py"));
-        assert!(!output_content.contains("README.md"));
-        assert!(!output_content.contains("config.toml"));
+        assert!(contains_path(&output_content, "main.py"));
+        assert!(contains_path(&output_content, "utils.py"));
+        assert!(!contains_path(&output_content, "README.md"));
+        assert!(!contains_path(&output_content, "config.toml"));
     }
 
     #[test]
@@ -56,11 +63,11 @@ mod glob_pattern_integration_tests {
 
         // Check that output contains all Rust files recursively
         let output_content = fs::read_to_string(root.join("output.md")).unwrap();
-        assert!(output_content.contains("main.rs"));
-        assert!(output_content.contains("src/lib.rs"));
-        assert!(output_content.contains("src/core/mod.rs"));
-        assert!(output_content.contains("tests/test.rs"));
-        assert!(!output_content.contains("README.md"));
+        assert!(contains_path(&output_content, "main.rs"));
+        assert!(contains_path(&output_content, "src/lib.rs"));
+        assert!(contains_path(&output_content, "src/core/mod.rs"));
+        assert!(contains_path(&output_content, "tests/test.rs"));
+        assert!(!contains_path(&output_content, "README.md"));
     }
 
     #[test]
@@ -90,12 +97,12 @@ mod glob_pattern_integration_tests {
 
         // Check that output contains only Python and JavaScript files in src/
         let output_content = fs::read_to_string(root.join("output.md")).unwrap();
-        assert!(output_content.contains("src/main.py"));
-        assert!(output_content.contains("src/app.js"));
-        assert!(output_content.contains("src/api/handler.py"));
-        assert!(output_content.contains("src/api/client.js"));
-        assert!(!output_content.contains("tests/test.py"));
-        assert!(!output_content.contains("src/config.toml"));
+        assert!(contains_path(&output_content, "src/main.py"));
+        assert!(contains_path(&output_content, "src/app.js"));
+        assert!(contains_path(&output_content, "src/api/handler.py"));
+        assert!(contains_path(&output_content, "src/api/client.js"));
+        assert!(!contains_path(&output_content, "tests/test.py"));
+        assert!(!contains_path(&output_content, "src/config.toml"));
     }
 
     #[test]
@@ -125,13 +132,13 @@ mod glob_pattern_integration_tests {
 
         // Check that output contains only numbered test files
         let output_content = fs::read_to_string(root.join("output.md")).unwrap();
-        assert!(output_content.contains("test1.py"));
-        assert!(output_content.contains("test2.py"));
-        assert!(output_content.contains("test9.py"));
-        assert!(output_content.contains("tests/test3.py"));
-        assert!(!output_content.contains("test.py"));
-        assert!(!output_content.contains("test10.py"));
-        assert!(!output_content.contains("testA.py"));
+        assert!(contains_path(&output_content, "test1.py"));
+        assert!(contains_path(&output_content, "test2.py"));
+        assert!(contains_path(&output_content, "test9.py"));
+        assert!(contains_path(&output_content, "tests/test3.py"));
+        assert!(!contains_path(&output_content, "test.py"));
+        assert!(!contains_path(&output_content, "test10.py"));
+        assert!(!contains_path(&output_content, "testA.py"));
     }
 
     #[test]
@@ -169,18 +176,18 @@ mod glob_pattern_integration_tests {
         let output_content = fs::read_to_string(root.join("output.md")).unwrap();
 
         // Files matching first pattern (repository, service, model)
-        assert!(output_content.contains("src/user_repository.py"));
-        assert!(output_content.contains("src/api/auth_service.py"));
-        assert!(output_content.contains("src/user_model.py"));
+        assert!(contains_path(&output_content, "src/user_repository.py"));
+        assert!(contains_path(&output_content, "src/api/auth_service.py"));
+        assert!(contains_path(&output_content, "src/user_model.py"));
 
         // Files matching second pattern (**/db/**)
-        assert!(output_content.contains("src/db/models/base.py"));
-        assert!(output_content.contains("src/db/connection.py"));
-        assert!(output_content.contains("db/migrations/001.sql"));
+        assert!(contains_path(&output_content, "src/db/models/base.py"));
+        assert!(contains_path(&output_content, "src/db/connection.py"));
+        assert!(contains_path(&output_content, "db/migrations/001.sql"));
 
         // Files that should not match
-        assert!(!output_content.contains("src/utils.py"));
-        assert!(!output_content.contains("src/config.py"));
+        assert!(!contains_path(&output_content, "src/utils.py"));
+        assert!(!contains_path(&output_content, "src/config.py"));
     }
 
     #[test]
@@ -220,7 +227,7 @@ mod glob_pattern_integration_tests {
 
         // Should include the Python file despite empty pattern
         let output_content = fs::read_to_string(root.join("output.md")).unwrap();
-        assert!(output_content.contains("test.py"));
+        assert!(contains_path(&output_content, "test.py"));
     }
 
     #[test]
@@ -247,10 +254,10 @@ mod glob_pattern_integration_tests {
 
         // Should include both Python and JavaScript files
         let output_content = fs::read_to_string(root.join("output.md")).unwrap();
-        assert!(output_content.contains("main.py"));
-        assert!(output_content.contains("app.js"));
-        assert!(!output_content.contains("config.rs"));
-        assert!(!output_content.contains("README.md"));
+        assert!(contains_path(&output_content, "main.py"));
+        assert!(contains_path(&output_content, "app.js"));
+        assert!(!contains_path(&output_content, "config.rs"));
+        assert!(!contains_path(&output_content, "README.md"));
     }
 
     #[test]
@@ -275,9 +282,9 @@ mod glob_pattern_integration_tests {
         cmd.assert().success();
 
         let output_content = fs::read_to_string(root.join("output.md")).unwrap();
-        assert!(output_content.contains("src/main.rs"));
-        assert!(output_content.contains("src/lib.rs"));
-        assert!(!output_content.contains("test.py"));
+        assert!(contains_path(&output_content, "src/main.rs"));
+        assert!(contains_path(&output_content, "src/lib.rs"));
+        assert!(!contains_path(&output_content, "test.py"));
     }
 }
 
