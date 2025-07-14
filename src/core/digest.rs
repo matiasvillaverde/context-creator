@@ -197,7 +197,11 @@ fn append_file_content(
     let content = match cache.get_or_load(&file.path) {
         Ok(content) => content,
         Err(e) => {
-            eprintln!("Warning: Could not read file {}: {}", file.path.display(), e);
+            eprintln!(
+                "Warning: Could not read file {}: {}",
+                file.path.display(),
+                e
+            );
             return Ok(());
         }
     };
@@ -214,7 +218,9 @@ fn append_file_content(
         file.relative_path.display().to_string()
     };
 
-    let header = options.file_header_template.replace("{path}", &path_with_metadata);
+    let header = options
+        .file_header_template
+        .replace("{path}", &path_with_metadata);
     output.push_str(&header);
     output.push_str("\n\n");
 
@@ -245,7 +251,10 @@ fn generate_statistics(files: &[FileInfo]) -> String {
     let mut stats = String::with_capacity(500 + type_counts.len() * 50);
     stats.push_str("## Statistics\n\n");
     stats.push_str(&format!("- Total files: {total_files}\n"));
-    stats.push_str(&format!("- Total size: {} bytes\n", format_size(total_size)));
+    stats.push_str(&format!(
+        "- Total size: {} bytes\n",
+        format_size(total_size)
+    ));
     stats.push_str("\n### Files by type:\n");
 
     let mut types: Vec<_> = type_counts.into_iter().collect();
@@ -271,8 +280,10 @@ fn generate_file_tree(files: &[FileInfo], options: &DigestOptions) -> String {
     let mut root = TreeNode::default();
 
     // Create a lookup map from relative path to FileInfo for metadata
-    let file_lookup: HashMap<String, &FileInfo> =
-        files.iter().map(|f| (f.relative_path.to_string_lossy().to_string(), f)).collect();
+    let file_lookup: HashMap<String, &FileInfo> = files
+        .iter()
+        .map(|f| (f.relative_path.to_string_lossy().to_string(), f))
+        .collect();
 
     // Build tree structure
     for file in files {
@@ -311,7 +322,11 @@ fn generate_file_tree(files: &[FileInfo], options: &DigestOptions) -> String {
         let dir_count = node.dirs.len();
         for (i, (name, child)) in node.dirs.iter().enumerate() {
             let is_last_dir = i == dir_count - 1 && node.files.is_empty();
-            let connector = if is_last_dir { "└── " } else { "├── " };
+            let connector = if is_last_dir {
+                "└── "
+            } else {
+                "├── "
+            };
             let extension = if is_last_dir { "    " } else { "│   " };
 
             output.push_str(&format!("{prefix}{connector}{name}/\n"));
@@ -334,7 +349,11 @@ fn generate_file_tree(files: &[FileInfo], options: &DigestOptions) -> String {
         let file_count = node.files.len();
         for (i, name) in node.files.iter().enumerate() {
             let is_last_file = i == file_count - 1;
-            let connector = if is_last_file { "└── " } else { "├── " };
+            let connector = if is_last_file {
+                "└── "
+            } else {
+                "├── "
+            };
 
             let file_path = if current_path.is_empty() {
                 name.clone()
@@ -476,7 +495,10 @@ fn file_type_priority(file_type: &FileType) -> u8 {
 
 /// Convert path to anchor-friendly string
 fn path_to_anchor(path: &Path) -> String {
-    path.display().to_string().replace(['/', '\\', '.', ' '], "-").to_lowercase()
+    path.display()
+        .to_string()
+        .replace(['/', '\\', '.', ' '], "-")
+        .to_lowercase()
 }
 
 /// Format file size in human-readable format

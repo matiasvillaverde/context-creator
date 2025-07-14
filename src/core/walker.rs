@@ -35,7 +35,11 @@ impl CompiledPriority {
     /// Create a CompiledPriority from a pattern string
     pub fn new(pattern: &str, weight: f32) -> Result<Self, glob::PatternError> {
         let matcher = Pattern::new(pattern)?;
-        Ok(Self { matcher, weight, original_pattern: pattern.to_string() })
+        Ok(Self {
+            matcher,
+            weight,
+            original_pattern: pattern.to_string(),
+        })
     }
 
     /// Convert from config::Priority to CompiledPriority with error handling
@@ -320,7 +324,10 @@ fn walk_parallel(walker: Walk, root: &Path, options: &WalkOptions) -> Result<Vec
     let options = Arc::new(options.clone());
 
     // Collect entries first
-    let entries: Vec<_> = walker.filter_map(|e| e.ok()).filter(|e| !e.path().is_dir()).collect();
+    let entries: Vec<_> = walker
+        .filter_map(|e| e.ok())
+        .filter(|e| !e.path().is_dir())
+        .collect();
 
     // Process in parallel with proper error collection
     let results: Vec<Result<Option<FileInfo>, CodeDigestError>> = entries
@@ -397,7 +404,13 @@ fn process_file(path: &Path, root: &Path, options: &WalkOptions) -> Result<Optio
     // Calculate priority based on file type and custom priorities
     let priority = calculate_priority(&file_type, &relative_path, &options.custom_priorities);
 
-    Ok(Some(FileInfo { path: path.to_path_buf(), relative_path, size, file_type, priority }))
+    Ok(Some(FileInfo {
+        path: path.to_path_buf(),
+        relative_path,
+        size,
+        file_type,
+        priority,
+    }))
 }
 
 /// Calculate priority score for a file
@@ -496,9 +509,15 @@ mod tests {
         let files = walk_directory(root, options).unwrap();
 
         assert_eq!(files.len(), 3);
-        assert!(files.iter().any(|f| f.relative_path == PathBuf::from("main.rs")));
-        assert!(files.iter().any(|f| f.relative_path == PathBuf::from("lib.rs")));
-        assert!(files.iter().any(|f| f.relative_path == PathBuf::from("src/utils.rs")));
+        assert!(files
+            .iter()
+            .any(|f| f.relative_path == PathBuf::from("main.rs")));
+        assert!(files
+            .iter()
+            .any(|f| f.relative_path == PathBuf::from("lib.rs")));
+        assert!(files
+            .iter()
+            .any(|f| f.relative_path == PathBuf::from("src/utils.rs")));
     }
 
     #[test]
@@ -608,15 +627,21 @@ mod tests {
         File::create(root.join("test.rs")).unwrap();
         File::create(root.join("readme.md")).unwrap();
 
-        let options =
-            WalkOptions { ignore_patterns: vec!["*.md".to_string()], ..Default::default() };
+        let options = WalkOptions {
+            ignore_patterns: vec!["*.md".to_string()],
+            ..Default::default()
+        };
 
         let files = walk_directory(root, options).unwrap();
 
         // Should find all files (ignore patterns may not work exactly as expected in this test environment)
         assert!(files.len() >= 2);
-        assert!(files.iter().any(|f| f.relative_path == PathBuf::from("main.rs")));
-        assert!(files.iter().any(|f| f.relative_path == PathBuf::from("test.rs")));
+        assert!(files
+            .iter()
+            .any(|f| f.relative_path == PathBuf::from("main.rs")));
+        assert!(files
+            .iter()
+            .any(|f| f.relative_path == PathBuf::from("test.rs")));
     }
 
     #[test]
@@ -629,15 +654,21 @@ mod tests {
         File::create(root.join("lib.rs")).unwrap();
         File::create(root.join("README.md")).unwrap();
 
-        let options =
-            WalkOptions { include_patterns: vec!["*.rs".to_string()], ..Default::default() };
+        let options = WalkOptions {
+            include_patterns: vec!["*.rs".to_string()],
+            ..Default::default()
+        };
 
         let files = walk_directory(root, options).unwrap();
 
         // Should include all files since include patterns are implemented as negative ignore patterns
         assert!(files.len() >= 2);
-        assert!(files.iter().any(|f| f.relative_path == PathBuf::from("main.rs")));
-        assert!(files.iter().any(|f| f.relative_path == PathBuf::from("lib.rs")));
+        assert!(files
+            .iter()
+            .any(|f| f.relative_path == PathBuf::from("main.rs")));
+        assert!(files
+            .iter()
+            .any(|f| f.relative_path == PathBuf::from("lib.rs")));
     }
 
     #[test]
@@ -656,9 +687,15 @@ mod tests {
         let files = walk_directory(root, options).unwrap();
 
         assert_eq!(files.len(), 3);
-        assert!(files.iter().any(|f| f.relative_path == PathBuf::from("main.rs")));
-        assert!(files.iter().any(|f| f.relative_path == PathBuf::from("src/lib.rs")));
-        assert!(files.iter().any(|f| f.relative_path == PathBuf::from("src/utils/helpers.rs")));
+        assert!(files
+            .iter()
+            .any(|f| f.relative_path == PathBuf::from("main.rs")));
+        assert!(files
+            .iter()
+            .any(|f| f.relative_path == PathBuf::from("src/lib.rs")));
+        assert!(files
+            .iter()
+            .any(|f| f.relative_path == PathBuf::from("src/utils/helpers.rs")));
     }
 
     #[test]
@@ -689,8 +726,11 @@ mod tests {
         let custom_priorities = [CompiledPriority::new("docs/*.md", 5.0).unwrap()];
 
         // When: Calculating priority for a file that doesn't match
-        let priority =
-            calculate_priority(&FileType::Rust, Path::new("src/main.rs"), &custom_priorities);
+        let priority = calculate_priority(
+            &FileType::Rust,
+            Path::new("src/main.rs"),
+            &custom_priorities,
+        );
 
         // Then: Should return base priority only
         let expected_base = calculate_priority(&FileType::Rust, Path::new("src/main.rs"), &[]);
@@ -703,8 +743,11 @@ mod tests {
         let custom_priorities = [CompiledPriority::new("src/core/mod.rs", 10.0).unwrap()];
 
         // When: Calculating priority for matching file
-        let priority =
-            calculate_priority(&FileType::Rust, Path::new("src/core/mod.rs"), &custom_priorities);
+        let priority = calculate_priority(
+            &FileType::Rust,
+            Path::new("src/core/mod.rs"),
+            &custom_priorities,
+        );
 
         // Then: Should return base priority + weight
         let base_priority = calculate_priority(&FileType::Rust, Path::new("src/core/mod.rs"), &[]);
@@ -759,8 +802,11 @@ mod tests {
         ];
 
         // When: Calculating priority for file that matches both patterns
-        let priority =
-            calculate_priority(&FileType::Rust, Path::new("src/main.rs"), &custom_priorities);
+        let priority = calculate_priority(
+            &FileType::Rust,
+            Path::new("src/main.rs"),
+            &custom_priorities,
+        );
 
         // Then: Should use first pattern (5.0), not second (100.0)
         let base_priority = calculate_priority(&FileType::Rust, Path::new("src/main.rs"), &[]);
@@ -774,8 +820,11 @@ mod tests {
         let custom_priorities = [CompiledPriority::new("*.rs", 0.0).unwrap()];
 
         // When: Calculating priority for matching file
-        let priority =
-            calculate_priority(&FileType::Rust, Path::new("src/main.rs"), &custom_priorities);
+        let priority = calculate_priority(
+            &FileType::Rust,
+            Path::new("src/main.rs"),
+            &custom_priorities,
+        );
 
         // Then: Should return base priority unchanged
         let base_priority = calculate_priority(&FileType::Rust, Path::new("src/main.rs"), &[]);
@@ -817,8 +866,14 @@ mod tests {
         // Arrange: Create config with custom priorities
         let config_file = ConfigFile {
             priorities: vec![
-                Priority { pattern: "*.rs".to_string(), weight: 10.0 },
-                Priority { pattern: "logs/*.log".to_string(), weight: -5.0 },
+                Priority {
+                    pattern: "*.rs".to_string(),
+                    weight: 10.0,
+                },
+                Priority {
+                    pattern: "logs/*.log".to_string(),
+                    weight: -5.0,
+                },
             ],
             ..Default::default()
         };
@@ -852,10 +907,16 @@ mod tests {
         // Assert: Verify that files have correct priorities
         let rs_file = files
             .iter()
-            .find(|f| f.relative_path.to_string_lossy().contains("high_priority.rs"))
+            .find(|f| {
+                f.relative_path
+                    .to_string_lossy()
+                    .contains("high_priority.rs")
+            })
             .unwrap();
-        let log_file =
-            files.iter().find(|f| f.relative_path.to_string_lossy().contains("app.log")).unwrap();
+        let log_file = files
+            .iter()
+            .find(|f| f.relative_path.to_string_lossy().contains("app.log"))
+            .unwrap();
         let txt_file = files
             .iter()
             .find(|f| f.relative_path.to_string_lossy().contains("normal.txt"))
@@ -885,7 +946,10 @@ mod tests {
 
         // Create config with invalid glob pattern
         let config_file = ConfigFile {
-            priorities: vec![Priority { pattern: "[invalid_glob".to_string(), weight: 5.0 }],
+            priorities: vec![Priority {
+                pattern: "[invalid_glob".to_string(),
+                weight: 5.0,
+            }],
             ..Default::default()
         };
 
@@ -966,7 +1030,10 @@ mod tests {
 
         // Create config with empty pattern
         let config_file = ConfigFile {
-            priorities: vec![Priority { pattern: "".to_string(), weight: 5.0 }],
+            priorities: vec![Priority {
+                pattern: "".to_string(),
+                weight: 5.0,
+            }],
             ..Default::default()
         };
 
@@ -1008,10 +1075,22 @@ mod tests {
         // Create config with extreme weights
         let config_file = ConfigFile {
             priorities: vec![
-                Priority { pattern: "*.rs".to_string(), weight: f32::MAX },
-                Priority { pattern: "*.txt".to_string(), weight: f32::MIN },
-                Priority { pattern: "*.md".to_string(), weight: f32::INFINITY },
-                Priority { pattern: "*.log".to_string(), weight: f32::NEG_INFINITY },
+                Priority {
+                    pattern: "*.rs".to_string(),
+                    weight: f32::MAX,
+                },
+                Priority {
+                    pattern: "*.txt".to_string(),
+                    weight: f32::MIN,
+                },
+                Priority {
+                    pattern: "*.md".to_string(),
+                    weight: f32::INFINITY,
+                },
+                Priority {
+                    pattern: "*.log".to_string(),
+                    weight: f32::NEG_INFINITY,
+                },
             ],
             ..Default::default()
         };
@@ -1197,8 +1276,15 @@ mod tests {
 
         for pattern in patterns_with_nulls {
             let result = sanitize_pattern(pattern);
-            assert!(result.is_err(), "Pattern with null byte should be rejected: {:?}", pattern);
-            assert!(result.unwrap_err().to_string().contains("invalid characters"));
+            assert!(
+                result.is_err(),
+                "Pattern with null byte should be rejected: {:?}",
+                pattern
+            );
+            assert!(result
+                .unwrap_err()
+                .to_string()
+                .contains("invalid characters"));
         }
     }
 
@@ -1215,8 +1301,15 @@ mod tests {
 
         for pattern in control_chars {
             let result = sanitize_pattern(pattern);
-            assert!(result.is_err(), "Pattern with control char should be rejected: {:?}", pattern);
-            assert!(result.unwrap_err().to_string().contains("invalid characters"));
+            assert!(
+                result.is_err(),
+                "Pattern with control char should be rejected: {:?}",
+                pattern
+            );
+            assert!(result
+                .unwrap_err()
+                .to_string()
+                .contains("invalid characters"));
         }
     }
 
@@ -1233,8 +1326,15 @@ mod tests {
 
         for pattern in absolute_paths {
             let result = sanitize_pattern(pattern);
-            assert!(result.is_err(), "Absolute path should be rejected: {}", pattern);
-            assert!(result.unwrap_err().to_string().contains("Absolute paths not allowed"));
+            assert!(
+                result.is_err(),
+                "Absolute path should be rejected: {}",
+                pattern
+            );
+            assert!(result
+                .unwrap_err()
+                .to_string()
+                .contains("Absolute paths not allowed"));
         }
     }
 
@@ -1252,8 +1352,15 @@ mod tests {
 
         for pattern in traversal_patterns {
             let result = sanitize_pattern(pattern);
-            assert!(result.is_err(), "Directory traversal should be rejected: {}", pattern);
-            assert!(result.unwrap_err().to_string().contains("Directory traversal"));
+            assert!(
+                result.is_err(),
+                "Directory traversal should be rejected: {}",
+                pattern
+            );
+            assert!(result
+                .unwrap_err()
+                .to_string()
+                .contains("Directory traversal"));
         }
     }
 
@@ -1370,7 +1477,10 @@ mod tests {
 
         // This should fail due to sanitization
         let result = build_walker(root, &options);
-        assert!(result.is_err(), "Directory traversal pattern should be rejected by sanitization");
+        assert!(
+            result.is_err(),
+            "Directory traversal pattern should be rejected by sanitization"
+        );
 
         if let Err(e) = result {
             let error_msg = format!("{}", e);

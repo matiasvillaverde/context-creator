@@ -27,19 +27,31 @@ fn test_sanitization_stress_unicode_edge_cases() {
 
     // Unicode dots that could be used for traversal
     let unicode_dots = "file\u{002e}\u{002e}/secret";
-    assert!(sanitize_pattern(unicode_dots).is_err(), "Unicode dots should be rejected");
+    assert!(
+        sanitize_pattern(unicode_dots).is_err(),
+        "Unicode dots should be rejected"
+    );
 
     // Unicode null
     let unicode_null = "file\u{0000}.txt";
-    assert!(sanitize_pattern(unicode_null).is_err(), "Unicode null should be rejected");
+    assert!(
+        sanitize_pattern(unicode_null).is_err(),
+        "Unicode null should be rejected"
+    );
 
     // Unicode separators
     let unicode_sep = "file\u{2028}name.txt"; // Line separator
-    assert!(sanitize_pattern(unicode_sep).is_err(), "Unicode line separator should be rejected");
+    assert!(
+        sanitize_pattern(unicode_sep).is_err(),
+        "Unicode line separator should be rejected"
+    );
 
     // Valid Unicode
     let valid_unicode = "файл*.txt";
-    assert!(sanitize_pattern(valid_unicode).is_ok(), "Valid Unicode should be allowed");
+    assert!(
+        sanitize_pattern(valid_unicode).is_ok(),
+        "Valid Unicode should be allowed"
+    );
 }
 
 #[test]
@@ -244,7 +256,10 @@ fn test_memory_safety_large_inputs() {
     // Pattern with many null bytes
     let many_nulls = "\0".repeat(1000);
     let result = sanitize_pattern(&many_nulls);
-    assert!(result.is_err(), "Pattern with many nulls should be rejected");
+    assert!(
+        result.is_err(),
+        "Pattern with many nulls should be rejected"
+    );
 
     // These operations should not cause memory corruption or crashes
 }

@@ -90,7 +90,11 @@ pub struct Config {
 
     /// One or more directory paths to process
     /// IMPORTANT: Use `get_directories()` to access the correct input paths.
-    #[arg(value_name = "PATHS", help = "Process directories", conflicts_with = "include")]
+    #[arg(
+        value_name = "PATHS",
+        help = "Process directories",
+        conflicts_with = "include"
+    )]
     pub paths: Option<Vec<PathBuf>>,
 
     /// Include files and directories matching glob patterns
@@ -250,7 +254,10 @@ impl Config {
 
     /// Get the prompt from the explicit prompt flag
     pub fn get_prompt(&self) -> Option<String> {
-        self.prompt.as_ref().filter(|s| !s.trim().is_empty()).cloned()
+        self.prompt
+            .as_ref()
+            .filter(|s| !s.trim().is_empty())
+            .cloned()
     }
 
     /// Get all directories from paths argument
@@ -261,7 +268,10 @@ impl Config {
             // When using include patterns, use current directory as base
             vec![PathBuf::from(".")]
         } else {
-            self.paths.as_ref().cloned().unwrap_or_else(|| vec![PathBuf::from(".")])
+            self.paths
+                .as_ref()
+                .cloned()
+                .unwrap_or_else(|| vec![PathBuf::from(".")])
         }
     }
 
@@ -467,7 +477,9 @@ mod tests {
         assert_eq!(LlmTool::Gemini.command(), "gemini");
         assert_eq!(LlmTool::Codex.command(), "codex");
 
-        assert!(LlmTool::Gemini.install_instructions().contains("pip install"));
+        assert!(LlmTool::Gemini
+            .install_instructions()
+            .contains("pip install"));
         assert!(LlmTool::Codex.install_instructions().contains("github.com"));
 
         assert_eq!(LlmTool::default(), LlmTool::Gemini);
@@ -531,7 +543,10 @@ mod tests {
         let args = vec!["code-digest", "/path/one"];
         let config = Config::parse_from(args);
         assert_eq!(config.paths.as_ref().unwrap().len(), 1);
-        assert_eq!(config.paths.as_ref().unwrap()[0], PathBuf::from("/path/one"));
+        assert_eq!(
+            config.paths.as_ref().unwrap()[0],
+            PathBuf::from("/path/one")
+        );
     }
 
     #[test]
@@ -542,9 +557,18 @@ mod tests {
         let args = vec!["code-digest", "/path/one", "/path/two", "/path/three"];
         let config = Config::parse_from(args);
         assert_eq!(config.paths.as_ref().unwrap().len(), 3);
-        assert_eq!(config.paths.as_ref().unwrap()[0], PathBuf::from("/path/one"));
-        assert_eq!(config.paths.as_ref().unwrap()[1], PathBuf::from("/path/two"));
-        assert_eq!(config.paths.as_ref().unwrap()[2], PathBuf::from("/path/three"));
+        assert_eq!(
+            config.paths.as_ref().unwrap()[0],
+            PathBuf::from("/path/one")
+        );
+        assert_eq!(
+            config.paths.as_ref().unwrap()[1],
+            PathBuf::from("/path/two")
+        );
+        assert_eq!(
+            config.paths.as_ref().unwrap()[2],
+            PathBuf::from("/path/three")
+        );
 
         // Test with explicit prompt
         let args = vec!["code-digest", "--prompt", "Find duplicated patterns"];

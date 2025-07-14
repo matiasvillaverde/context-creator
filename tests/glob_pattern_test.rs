@@ -29,7 +29,11 @@ mod glob_pattern_integration_tests {
         File::create(root.join("config.toml")).unwrap();
 
         let mut cmd = Command::cargo_bin("code-digest").unwrap();
-        cmd.current_dir(root).arg("--include").arg("*.py").arg("--output-file").arg("output.md");
+        cmd.current_dir(root)
+            .arg("--include")
+            .arg("*.py")
+            .arg("--output-file")
+            .arg("output.md");
 
         cmd.assert().success();
 
@@ -57,7 +61,11 @@ mod glob_pattern_integration_tests {
         File::create(root.join("README.md")).unwrap();
 
         let mut cmd = Command::cargo_bin("code-digest").unwrap();
-        cmd.current_dir(root).arg("--include").arg("**/*.rs").arg("--output-file").arg("output.md");
+        cmd.current_dir(root)
+            .arg("--include")
+            .arg("**/*.rs")
+            .arg("--output-file")
+            .arg("output.md");
 
         cmd.assert().success();
 
@@ -203,7 +211,9 @@ mod glob_pattern_integration_tests {
             .arg("--output-file")
             .arg("output.md");
 
-        cmd.assert().failure().stderr(predicate::str::contains("Invalid include pattern"));
+        cmd.assert()
+            .failure()
+            .stderr(predicate::str::contains("Invalid include pattern"));
     }
 
     #[test]
@@ -329,7 +339,9 @@ mod edge_case_tests {
             .arg("--output-file")
             .arg("output.md");
 
-        cmd.assert().failure().stderr(predicate::str::contains("cannot be used with"));
+        cmd.assert()
+            .failure()
+            .stderr(predicate::str::contains("cannot be used with"));
     }
 
     #[test]

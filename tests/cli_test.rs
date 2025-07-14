@@ -34,20 +34,29 @@ fn test_llm_tool_command_names() {
 
 #[test]
 fn test_llm_tool_install_instructions() {
-    assert!(LlmTool::Gemini.install_instructions().contains("pip install"));
+    assert!(LlmTool::Gemini
+        .install_instructions()
+        .contains("pip install"));
     assert!(LlmTool::Codex.install_instructions().contains("github.com"));
 }
 
 #[test]
 fn test_repo_argument() {
     let config = Config::parse_from(["code-digest", "--repo", "https://github.com/owner/repo"]);
-    assert_eq!(config.repo, Some("https://github.com/owner/repo".to_string()));
+    assert_eq!(
+        config.repo,
+        Some("https://github.com/owner/repo".to_string())
+    );
 }
 
 #[test]
 fn test_repo_and_directory_mutually_exclusive() {
-    let result =
-        Config::try_parse_from(["code-digest", "--repo", "https://github.com/owner/repo", "."]);
+    let result = Config::try_parse_from([
+        "code-digest",
+        "--repo",
+        "https://github.com/owner/repo",
+        ".",
+    ]);
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(err.to_string().contains("cannot be used with"));
@@ -60,7 +69,10 @@ fn test_valid_repo_url_accepted() {
         "--repo",
         "https://github.com/matiasvillaverde/code-digest",
     ]);
-    assert_eq!(config.repo, Some("https://github.com/matiasvillaverde/code-digest".to_string()));
+    assert_eq!(
+        config.repo,
+        Some("https://github.com/matiasvillaverde/code-digest".to_string())
+    );
 }
 
 #[test]
@@ -88,7 +100,11 @@ fn test_positional_directories() {
     let config = Config::parse_from(["code-digest", "src/auth", "src/models", "tests/auth"]);
     assert_eq!(
         config.get_directories(),
-        vec![PathBuf::from("src/auth"), PathBuf::from("src/models"), PathBuf::from("tests/auth")]
+        vec![
+            PathBuf::from("src/auth"),
+            PathBuf::from("src/models"),
+            PathBuf::from("tests/auth")
+        ]
     );
 }
 
@@ -97,7 +113,11 @@ fn test_multiple_directories() {
     let config = Config::parse_from(["code-digest", "src/core", "src/utils", "tests"]);
     assert_eq!(
         config.get_directories(),
-        vec![PathBuf::from("src/core"), PathBuf::from("src/utils"), PathBuf::from("tests")]
+        vec![
+            PathBuf::from("src/core"),
+            PathBuf::from("src/utils"),
+            PathBuf::from("tests")
+        ]
     );
 }
 
@@ -144,7 +164,10 @@ fn test_copy_with_output_conflict() {
     let config = Config::parse_from(["code-digest", "src", "--copy", "-o", "out.md"]);
     let result = config.validate();
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("Cannot specify both"));
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("Cannot specify both"));
 }
 
 #[test]
@@ -192,21 +215,30 @@ fn test_include_three_paths() {
     // When using include patterns, base directory is current dir
     assert_eq!(config.get_directories(), vec![PathBuf::from(".")]);
     // The patterns themselves are accessed via get_include_patterns
-    assert_eq!(config.get_include_patterns(), vec!["src/", "tests/", "docs/"]);
+    assert_eq!(
+        config.get_include_patterns(),
+        vec!["src/", "tests/", "docs/"]
+    );
 }
 
 #[test]
 fn test_positional_and_include_conflict() {
     let result = Config::try_parse_from(["code-digest", "src/", "--include", "tests/"]);
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("cannot be used with"));
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("cannot be used with"));
 }
 
 #[test]
 fn test_include_with_prompt_conflict() {
     let result = Config::try_parse_from(["code-digest", "--prompt", "test", "--include", "src/"]);
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("cannot be used with"));
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("cannot be used with"));
 }
 
 #[test]
@@ -219,14 +251,20 @@ fn test_include_with_repo_conflict() {
         "src/",
     ]);
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("cannot be used with"));
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("cannot be used with"));
 }
 
 #[test]
 fn test_include_with_stdin_conflict() {
     let result = Config::try_parse_from(["code-digest", "--stdin", "--include", "src/"]);
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("cannot be used with"));
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("cannot be used with"));
 }
 
 #[test]
@@ -257,7 +295,10 @@ fn test_positional_with_file_path_validation_error() {
     // Should fail validation because positional path points to a file, not directory
     let result = config.validate();
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("Path is not a directory"));
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("Path is not a directory"));
 }
 
 #[test]
@@ -337,8 +378,13 @@ fn test_include_whitespace_only_pattern() {
 
 #[test]
 fn test_include_glob_pattern_simple_wildcard() {
-    let config =
-        Config::parse_from(["code-digest", "--include", "*.py", "--output-file", "test.md"]);
+    let config = Config::parse_from([
+        "code-digest",
+        "--include",
+        "*.py",
+        "--output-file",
+        "test.md",
+    ]);
 
     // Should succeed validation for simple wildcard pattern
     let result = config.validate();
@@ -378,7 +424,10 @@ fn test_include_multiple_glob_patterns() {
     ]);
     assert_eq!(
         config.include,
-        Some(vec!["**/*repository*.py".to_string(), "**/db/**".to_string()])
+        Some(vec![
+            "**/*repository*.py".to_string(),
+            "**/db/**".to_string()
+        ])
     );
 }
 
@@ -394,7 +443,10 @@ fn test_include_complex_pattern_combinations() {
     ]);
     assert_eq!(
         config.include,
-        Some(vec!["**/*{repository,service,model}*.py".to_string(), "**/db/**".to_string()])
+        Some(vec![
+            "**/*{repository,service,model}*.py".to_string(),
+            "**/db/**".to_string()
+        ])
     );
 }
 
@@ -410,7 +462,10 @@ fn test_include_pattern_validation_invalid_pattern() {
 
     // CLI validation now passes - pattern validation happens in walker.rs for better security
     let result = config.validate();
-    assert!(result.is_ok(), "CLI validation should pass, walker handles pattern validation");
+    assert!(
+        result.is_ok(),
+        "CLI validation should pass, walker handles pattern validation"
+    );
 }
 
 // === SECURITY INTEGRATION TESTS ===
@@ -449,7 +504,10 @@ fn test_cli_security_directory_traversal_rejected() {
     });
 
     std::env::set_current_dir(current_dir).unwrap();
-    assert!(result.is_ok(), "Config parsing should succeed, validation happens later");
+    assert!(
+        result.is_ok(),
+        "Config parsing should succeed, validation happens later"
+    );
 }
 
 #[test]
@@ -515,7 +573,12 @@ fn test_cli_security_multiple_suspicious_patterns() {
     let patterns = config.get_include_patterns();
     assert_eq!(
         patterns,
-        vec!["../../../etc/passwd", "/etc/shadow", "..\\..\\Windows\\System32\\*", "test\0file.py"]
+        vec![
+            "../../../etc/passwd",
+            "/etc/shadow",
+            "..\\..\\Windows\\System32\\*",
+            "test\0file.py"
+        ]
     );
 }
 
@@ -531,8 +594,13 @@ fn test_cli_security_control_character_patterns() {
     ];
 
     for pattern in patterns_with_controls {
-        let config =
-            Config::parse_from(["code-digest", "--include", pattern, "--output-file", "output.md"]);
+        let config = Config::parse_from([
+            "code-digest",
+            "--include",
+            pattern,
+            "--output-file",
+            "output.md",
+        ]);
 
         // CLI should parse these patterns
         assert!(

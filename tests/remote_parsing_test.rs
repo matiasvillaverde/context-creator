@@ -161,7 +161,9 @@ exit /b 1
     cmd.env("PATH", mock_bin_dir.display().to_string());
     cmd.arg("--repo").arg("https://github.com/fake/repo");
 
-    cmd.assert().success().stdout(predicate::str::contains("main.rs"));
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("main.rs"));
 }
 
 #[test]
@@ -169,15 +171,21 @@ fn test_invalid_repo_url() {
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
     cmd.arg("--repo").arg("https://gitlab.com/fake/repo");
 
-    cmd.assert().failure().stderr(predicate::str::contains("URL must start with"));
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("URL must start with"));
 }
 
 #[test]
 fn test_repo_and_directory_mutually_exclusive_cli() {
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg("--repo").arg("https://github.com/fake/repo").arg(".");
+    cmd.arg("--repo")
+        .arg("https://github.com/fake/repo")
+        .arg(".");
 
-    cmd.assert().failure().stderr(predicate::str::contains("cannot be used with"));
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("cannot be used with"));
 }
 
 #[test]
@@ -192,7 +200,9 @@ fn test_no_git_or_gh_available() {
     cmd.env("PATH", empty_bin_dir.display().to_string());
     cmd.arg("--repo").arg("https://github.com/fake/repo");
 
-    cmd.assert().failure().stderr(predicate::str::contains("Neither gh CLI nor git is available"));
+    cmd.assert().failure().stderr(predicate::str::contains(
+        "Neither gh CLI nor git is available",
+    ));
 }
 
 #[test]
@@ -201,7 +211,8 @@ fn test_parse_own_repository() {
     // This test requires gh or git to be available and network access
     // Use our own repository as the test case
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg("--repo").arg("https://github.com/matiasvillaverde/code-digest");
+    cmd.arg("--repo")
+        .arg("https://github.com/matiasvillaverde/code-digest");
 
     let assert = cmd.assert();
 

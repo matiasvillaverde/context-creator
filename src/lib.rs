@@ -121,7 +121,11 @@ pub fn run(mut config: Config) -> Result<()> {
 
     // Handle output based on configuration
     let resolved_prompt = config.get_prompt();
-    match (config.output_file.as_ref(), resolved_prompt.as_ref(), config.copy) {
+    match (
+        config.output_file.as_ref(),
+        resolved_prompt.as_ref(),
+        config.copy,
+    ) {
         (Some(file), None, false) => {
             // Write to file
             std::fs::write(file, output)?;
@@ -197,7 +201,11 @@ fn process_directory(
     if config.verbose {
         eprintln!("📋 File list:");
         for file in &files {
-            eprintln!("  {} ({})", file.relative_path.display(), file.file_type_display());
+            eprintln!(
+                "  {} ({})",
+                file.relative_path.display(),
+                file.file_type_display()
+            );
         }
     }
 
@@ -212,7 +220,10 @@ fn process_directory(
     };
 
     if config.progress && !config.quiet {
-        eprintln!("📝 Generating markdown from {} files...", prioritized_files.len());
+        eprintln!(
+            "📝 Generating markdown from {} files...",
+            prioritized_files.len()
+        );
     }
 
     // Generate markdown
