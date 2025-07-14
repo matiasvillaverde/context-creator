@@ -37,7 +37,10 @@ pub enum CodeDigestError {
 
     /// External tool errors
     #[error("{tool} not found. {install_instructions}")]
-    LlmToolNotFound { tool: String, install_instructions: String },
+    LlmToolNotFound {
+        tool: String,
+        install_instructions: String,
+    },
 
     #[error("Subprocess error: {0}")]
     SubprocessError(String),
@@ -92,8 +95,14 @@ mod tests {
         let err = CodeDigestError::InvalidPath("/invalid/path".to_string());
         assert_eq!(err.to_string(), "Invalid path: /invalid/path");
 
-        let err = CodeDigestError::TokenLimitExceeded { current: 200000, max: 150000 };
-        assert_eq!(err.to_string(), "Token limit exceeded: 200000 tokens (max: 150000)");
+        let err = CodeDigestError::TokenLimitExceeded {
+            current: 200000,
+            max: 150000,
+        };
+        assert_eq!(
+            err.to_string(),
+            "Token limit exceeded: 200000 tokens (max: 150000)"
+        );
     }
 
     #[test]

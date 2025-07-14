@@ -18,7 +18,10 @@ impl TokenCounter {
     /// Create a new token counter with cl100k_base encoding (GPT-4)
     pub fn new() -> Result<Self> {
         let encoder = cl100k_base()?;
-        Ok(TokenCounter { encoder: Arc::new(encoder), cache: Arc::new(Mutex::new(HashMap::new())) })
+        Ok(TokenCounter {
+            encoder: Arc::new(encoder),
+            cache: Arc::new(Mutex::new(HashMap::new())),
+        })
     }
 
     /// Count tokens in a single text
@@ -47,7 +50,10 @@ impl TokenCounter {
 
     /// Count tokens in multiple texts in parallel
     pub fn count_tokens_parallel(&self, texts: &[String]) -> Result<Vec<usize>> {
-        texts.par_iter().map(|text| self.count_tokens(text)).collect()
+        texts
+            .par_iter()
+            .map(|text| self.count_tokens(text))
+            .collect()
     }
 
     /// Count tokens for a file's content with metadata
@@ -172,15 +178,21 @@ mod tests {
         let count = counter.count_file_tokens(content, path).unwrap();
         assert!(count.content_tokens > 0);
         assert!(count.overhead_tokens > 0);
-        assert_eq!(count.total_tokens, count.content_tokens + count.overhead_tokens);
+        assert_eq!(
+            count.total_tokens,
+            count.content_tokens + count.overhead_tokens
+        );
     }
 
     #[test]
     fn test_parallel_counting() {
         let counter = TokenCounter::new().unwrap();
 
-        let texts =
-            vec!["First text".to_string(), "Second text".to_string(), "Third text".to_string()];
+        let texts = vec![
+            "First text".to_string(),
+            "Second text".to_string(),
+            "Third text".to_string(),
+        ];
 
         let counts = counter.count_tokens_parallel(&texts).unwrap();
         assert_eq!(counts.len(), 3);

@@ -119,15 +119,19 @@ fn bench_token_counting(c: &mut Criterion) {
         let files = walk_directory(&project_dir, walk_options).unwrap();
 
         group.throughput(Throughput::Bytes(file_size as u64 * 10));
-        group.bench_with_input(BenchmarkId::new("count_tokens", file_size), &files, |b, files| {
-            b.iter(|| {
-                for file in files {
-                    if let Ok(content) = fs::read_to_string(&file.path) {
-                        black_box(token_counter.count_tokens(black_box(&content)).unwrap());
+        group.bench_with_input(
+            BenchmarkId::new("count_tokens", file_size),
+            &files,
+            |b, files| {
+                b.iter(|| {
+                    for file in files {
+                        if let Ok(content) = fs::read_to_string(&file.path) {
+                            black_box(token_counter.count_tokens(black_box(&content)).unwrap());
+                        }
                     }
-                }
-            });
-        });
+                });
+            },
+        );
     }
 
     group.finish();

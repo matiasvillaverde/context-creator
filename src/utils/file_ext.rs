@@ -39,7 +39,11 @@ pub enum FileType {
 impl FileType {
     /// Determine file type from path
     pub fn from_path(path: &Path) -> Self {
-        let extension = path.extension().and_then(|ext| ext.to_str()).unwrap_or("").to_lowercase();
+        let extension = path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .unwrap_or("")
+            .to_lowercase();
 
         match extension.as_str() {
             "rs" => FileType::Rust,
@@ -67,7 +71,10 @@ impl FileType {
             "txt" | "text" => FileType::Text,
             _ => {
                 // Check if it's a text file by name
-                let filename = path.file_name().and_then(|name| name.to_str()).unwrap_or("");
+                let filename = path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("");
 
                 match filename {
                     "README" | "LICENSE" | "CHANGELOG" | "AUTHORS" | "CONTRIBUTORS" => {
@@ -212,8 +219,14 @@ mod tests {
     fn test_language_detection() {
         assert_eq!(get_language_from_extension(Path::new("test.rs")), "rust");
         assert_eq!(get_language_from_extension(Path::new("test.py")), "python");
-        assert_eq!(get_language_from_extension(Path::new("test.js")), "javascript");
-        assert_eq!(get_language_from_extension(Path::new("test.unknown")), "text");
+        assert_eq!(
+            get_language_from_extension(Path::new("test.js")),
+            "javascript"
+        );
+        assert_eq!(
+            get_language_from_extension(Path::new("test.unknown")),
+            "text"
+        );
         assert_eq!(get_language_from_extension(Path::new("Makefile")), "text");
     }
 

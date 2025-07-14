@@ -1,11 +1,1 @@
 edition = "2021"
-max_width = 100
-use_small_heuristics = "Max"
-use_field_init_shorthand = true
-use_try_shorthand = true
-reorder_imports = true
-reorder_modules = true
-remove_nested_parens = true
-match_arm_leading_pipes = "Never"
-fn_params_layout = "Tall"
-newline_style = "Auto"

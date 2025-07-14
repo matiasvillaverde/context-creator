@@ -29,7 +29,9 @@ fn test_cli_version() {
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
     cmd.arg("--version");
 
-    cmd.assert().success().stdout(predicate::str::contains("code-digest"));
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("code-digest"));
 }
 
 /// Test processing a simple directory with output to file
@@ -83,7 +85,10 @@ This is a test project for integration testing.
     let output_file = temp_dir.path().join("output.md");
 
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg(&project_dir).arg("-o").arg(&output_file).arg("--progress");
+    cmd.arg(&project_dir)
+        .arg("-o")
+        .arg(&output_file)
+        .arg("--progress");
 
     cmd.assert()
         .success()
@@ -182,7 +187,11 @@ fn test_verbose_mode() {
     let output_file = temp_dir.path().join("output.md");
 
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg(&project_dir).arg("-o").arg(&output_file).arg("--verbose").arg("--progress");
+    cmd.arg(&project_dir)
+        .arg("-o")
+        .arg(&output_file)
+        .arg("--verbose")
+        .arg("--progress");
 
     cmd.assert()
         .success()
@@ -224,9 +233,15 @@ weight = 200.0
     let output_file = temp_dir.path().join("output.md");
 
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg(&project_dir).arg("-o").arg(&output_file).arg("-c").arg(&config_file);
+    cmd.arg(&project_dir)
+        .arg("-o")
+        .arg(&output_file)
+        .arg("-c")
+        .arg(&config_file);
 
-    cmd.assert().success().stderr(predicate::str::contains("Loaded configuration"));
+    cmd.assert()
+        .success()
+        .stderr(predicate::str::contains("Loaded configuration"));
 
     let content = fs::read_to_string(&output_file).unwrap();
     assert!(content.contains("main.rs"));
@@ -246,15 +261,29 @@ fn test_llm_tool_options() {
 
     // Test with different tool options (should work even if tools aren't installed)
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg(&project_dir).arg("-o").arg(&output_file).arg("--tool").arg("gemini").arg("--verbose");
+    cmd.arg(&project_dir)
+        .arg("-o")
+        .arg(&output_file)
+        .arg("--tool")
+        .arg("gemini")
+        .arg("--verbose");
 
-    cmd.assert().success().stderr(predicate::str::contains("LLM tool: gemini"));
+    cmd.assert()
+        .success()
+        .stderr(predicate::str::contains("LLM tool: gemini"));
 
     // Test with codex option
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg(&project_dir).arg("-o").arg(&output_file).arg("--tool").arg("codex").arg("--verbose");
+    cmd.arg(&project_dir)
+        .arg("-o")
+        .arg(&output_file)
+        .arg("--tool")
+        .arg("codex")
+        .arg("--verbose");
 
-    cmd.assert().success().stderr(predicate::str::contains("LLM tool: codex"));
+    cmd.assert()
+        .success()
+        .stderr(predicate::str::contains("LLM tool: codex"));
 }
 
 /// Test error handling for invalid directory
@@ -263,7 +292,9 @@ fn test_invalid_directory_error() {
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
     cmd.arg("/nonexistent/directory");
 
-    cmd.assert().failure().stderr(predicate::str::contains("Directory does not exist"));
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("Directory does not exist"));
 }
 
 /// Test error handling for invalid output directory
@@ -276,9 +307,13 @@ fn test_invalid_output_directory_error() {
     fs::write(project_dir.join("main.rs"), "fn main() {}").unwrap();
 
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg(&project_dir).arg("-o").arg("/nonexistent/directory/output.md");
+    cmd.arg(&project_dir)
+        .arg("-o")
+        .arg("/nonexistent/directory/output.md");
 
-    cmd.assert().failure().stderr(predicate::str::contains("Output directory does not exist"));
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("Output directory does not exist"));
 }
 
 /// Test mutually exclusive options error
@@ -293,7 +328,11 @@ fn test_mutually_exclusive_options_error() {
     let output_file = temp_dir.path().join("output.md");
 
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg(&project_dir).arg("-o").arg(&output_file).arg("--prompt").arg("test prompt"); // Both output file and prompt
+    cmd.arg(&project_dir)
+        .arg("-o")
+        .arg(&output_file)
+        .arg("--prompt")
+        .arg("test prompt"); // Both output file and prompt
 
     cmd.assert().failure().stderr(
         predicate::str::contains("cannot be used with")
@@ -323,10 +362,21 @@ fn test_large_project_handling() {
     }
 
     fs::write(project_dir.join("src/core/mod.rs"), "// Core module").unwrap();
-    fs::write(project_dir.join("src/utils/helpers.rs"), "// Helper functions").unwrap();
-    fs::write(project_dir.join("tests/integration.rs"), "// Integration tests").unwrap();
-    fs::write(project_dir.join("Cargo.toml"), "[package]\nname = \"test\"\nversion = \"0.1.0\"")
-        .unwrap();
+    fs::write(
+        project_dir.join("src/utils/helpers.rs"),
+        "// Helper functions",
+    )
+    .unwrap();
+    fs::write(
+        project_dir.join("tests/integration.rs"),
+        "// Integration tests",
+    )
+    .unwrap();
+    fs::write(
+        project_dir.join("Cargo.toml"),
+        "[package]\nname = \"test\"\nversion = \"0.1.0\"",
+    )
+    .unwrap();
     fs::write(project_dir.join("README.md"), "# Large Test Project").unwrap();
 
     let output_file = temp_dir.path().join("output.md");
@@ -384,7 +434,10 @@ fn test_quiet_mode() {
     let output_file = temp_dir.path().join("output.md");
 
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg(&project_dir).arg("-o").arg(&output_file).arg("--quiet");
+    cmd.arg(&project_dir)
+        .arg("-o")
+        .arg(&output_file)
+        .arg("--quiet");
 
     cmd.assert()
         .success()
@@ -417,7 +470,9 @@ fn test_clipboard_copy() {
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
     cmd.arg(&project_dir).arg("--copy");
 
-    cmd.assert().success().stdout(predicate::str::contains("✓ Copied to clipboard"));
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("✓ Copied to clipboard"));
 }
 
 /// Test that --copy and --output are mutually exclusive
@@ -431,9 +486,12 @@ fn test_copy_output_mutually_exclusive() {
     fs::write(project_dir.join("test.rs"), "fn main() {}").unwrap();
 
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg(&project_dir).arg("--copy").arg("-o").arg(&output_file);
+    cmd.arg(&project_dir)
+        .arg("--copy")
+        .arg("-o")
+        .arg(&output_file);
 
-    cmd.assert()
-        .failure()
-        .stderr(predicate::str::contains("Cannot specify both --copy and --output"));
+    cmd.assert().failure().stderr(predicate::str::contains(
+        "Cannot specify both --copy and --output",
+    ));
 }

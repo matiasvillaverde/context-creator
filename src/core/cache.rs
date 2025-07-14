@@ -16,7 +16,9 @@ pub struct FileCache {
 impl FileCache {
     /// Create a new empty cache
     pub fn new() -> Self {
-        FileCache { cache: DashMap::new() }
+        FileCache {
+            cache: DashMap::new(),
+        }
     }
 
     /// Get file content from cache or load from disk
@@ -41,7 +43,9 @@ impl FileCache {
 
     /// Get cache statistics
     pub fn stats(&self) -> CacheStats {
-        CacheStats { entries: self.cache.len() }
+        CacheStats {
+            entries: self.cache.len(),
+        }
     }
 }
 
