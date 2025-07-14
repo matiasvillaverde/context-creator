@@ -185,20 +185,8 @@ impl Config {
             }
         }
 
-        // Validate include patterns if provided
-        for pattern in &self.get_include_patterns() {
-            // Skip empty or whitespace-only patterns
-            if pattern.trim().is_empty() {
-                continue;
-            }
-
-            // Validate pattern syntax using glob crate
-            if let Err(e) = glob::Pattern::new(pattern) {
-                return Err(CodeDigestError::InvalidConfiguration(format!(
-                    "Invalid include pattern '{pattern}': {e}"
-                )));
-            }
-        }
+        // Note: Pattern validation is handled by OverrideBuilder in walker.rs
+        // which provides better security and ReDoS protection
 
         // Validate output file parent directory exists if specified
         if let Some(output) = &self.output_file {

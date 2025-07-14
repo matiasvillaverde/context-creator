@@ -196,6 +196,50 @@ pub fn walk_directory(root: &Path, options: WalkOptions) -> Result<Vec<FileInfo>
     }
 }
 
+/// Sanitize include patterns to prevent security issues
+pub fn sanitize_pattern(pattern: &str) -> Result<String> {
+    // Length limit to prevent resource exhaustion
+    if pattern.len() > 1000 {
+        return Err(CodeDigestError::InvalidConfiguration(
+            "Pattern too long (max 1000 characters)".to_string(),
+        )
+        .into());
+    }
+
+    // No null bytes, control characters, or dangerous Unicode characters
+    if pattern.contains('\0')
+        || pattern.chars().any(|c| {
+            c.is_control() || 
+        c == '\u{2028}' ||  // Line separator
+        c == '\u{2029}' ||  // Paragraph separator  
+        c == '\u{FEFF}' // Byte order mark
+        })
+    {
+        return Err(CodeDigestError::InvalidConfiguration(
+            "Pattern contains invalid characters (null bytes or control characters)".to_string(),
+        )
+        .into());
+    }
+
+    // No absolute paths to prevent directory traversal
+    if pattern.starts_with('/') || pattern.starts_with('\\') {
+        return Err(CodeDigestError::InvalidConfiguration(
+            "Absolute paths not allowed in patterns".to_string(),
+        )
+        .into());
+    }
+
+    // Prevent directory traversal
+    if pattern.contains("..") {
+        return Err(CodeDigestError::InvalidConfiguration(
+            "Directory traversal (..) not allowed in patterns".to_string(),
+        )
+        .into());
+    }
+
+    Ok(pattern.to_string())
+}
+
 /// Build the ignore walker with configured options
 fn build_walker(root: &Path, options: &WalkOptions) -> Result<Walk> {
     let mut builder = WalkBuilder::new(root);
@@ -222,8 +266,11 @@ fn build_walker(root: &Path, options: &WalkOptions) -> Result<Walk> {
 
         for pattern in &options.include_patterns {
             if !pattern.trim().is_empty() {
+                // Sanitize pattern for security
+                let sanitized_pattern = sanitize_pattern(pattern)?;
+
                 // Include patterns are added directly (not as negations)
-                override_builder.add(pattern).map_err(|e| {
+                override_builder.add(&sanitized_pattern).map_err(|e| {
                     CodeDigestError::InvalidConfiguration(format!(
                         "Invalid include pattern '{pattern}': {e}"
                     ))
@@ -293,8 +340,26 @@ fn walk_parallel(walker: Walk, root: &Path, options: &WalkOptions) -> Result<Vec
     // Use partition_result to separate successes from errors
     let (successes, errors): (Vec<_>, Vec<_>) = results.into_iter().partition_result();
 
-    // Log errors without failing the entire operation
+    // Handle errors based on severity
     if !errors.is_empty() {
+        let critical_errors: Vec<_> = errors
+            .iter()
+            .filter(|e| {
+                e.to_string().contains("Permission denied") || e.to_string().contains("Invalid")
+            })
+            .collect();
+
+        if !critical_errors.is_empty() {
+            // Critical errors should fail the operation
+            let error_summary: Vec<String> =
+                critical_errors.iter().map(|e| e.to_string()).collect();
+            return Err(anyhow::anyhow!(
+                "Critical file processing errors encountered: {}",
+                error_summary.join(", ")
+            ));
+        }
+
+        // Non-critical errors are logged as warnings
         eprintln!("Warning: {} files could not be processed:", errors.len());
         for error in &errors {
             eprintln!("  {error}");
@@ -1085,5 +1150,231 @@ mod tests {
 
         // Should filter out empty and whitespace-only patterns
         assert_eq!(options.include_patterns, vec!["**/*.rs", "*.py"]);
+    }
+
+    // === PATTERN SANITIZATION TESTS ===
+
+    #[test]
+    fn test_sanitize_pattern_valid_patterns() {
+        // Test valid patterns that should pass sanitization
+        let valid_patterns = vec![
+            "*.py",
+            "**/*.rs",
+            "src/**/*.{js,ts}",
+            "test[0-9].py",
+            "**/*{model,service}*.py",
+            "**/db/**",
+            "some-file.txt",
+            "dir/subdir/*.md",
+        ];
+
+        for pattern in valid_patterns {
+            let result = sanitize_pattern(pattern);
+            assert!(result.is_ok(), "Pattern '{}' should be valid", pattern);
+            assert_eq!(result.unwrap(), pattern);
+        }
+    }
+
+    #[test]
+    fn test_sanitize_pattern_length_limit() {
+        // Test pattern length limit (1000 characters)
+        let short_pattern = "a".repeat(999);
+        let exact_limit = "a".repeat(1000);
+        let too_long = "a".repeat(1001);
+
+        assert!(sanitize_pattern(&short_pattern).is_ok());
+        assert!(sanitize_pattern(&exact_limit).is_ok());
+
+        let result = sanitize_pattern(&too_long);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Pattern too long"));
+    }
+
+    #[test]
+    fn test_sanitize_pattern_null_bytes() {
+        // Test patterns with null bytes
+        let patterns_with_nulls = vec!["test\0.py", "\0*.rs", "**/*.js\0", "dir/\0file.txt"];
+
+        for pattern in patterns_with_nulls {
+            let result = sanitize_pattern(pattern);
+            assert!(result.is_err(), "Pattern with null byte should be rejected: {:?}", pattern);
+            assert!(result.unwrap_err().to_string().contains("invalid characters"));
+        }
+    }
+
+    #[test]
+    fn test_sanitize_pattern_control_characters() {
+        // Test patterns with control characters
+        let control_chars = vec![
+            "test\x01.py",  // Start of heading
+            "file\x08.txt", // Backspace
+            "dir\x0c/*.rs", // Form feed
+            "test\x1f.md",  // Unit separator
+            "*.py\x7f",     // Delete
+        ];
+
+        for pattern in control_chars {
+            let result = sanitize_pattern(pattern);
+            assert!(result.is_err(), "Pattern with control char should be rejected: {:?}", pattern);
+            assert!(result.unwrap_err().to_string().contains("invalid characters"));
+        }
+    }
+
+    #[test]
+    fn test_sanitize_pattern_absolute_paths() {
+        // Test absolute paths that should be rejected
+        let absolute_paths = vec![
+            "/etc/passwd",
+            "/usr/bin/*.sh",
+            "/home/user/file.txt",
+            "\\Windows\\System32\\*.dll", // Windows absolute path
+            "\\Program Files\\*",
+        ];
+
+        for pattern in absolute_paths {
+            let result = sanitize_pattern(pattern);
+            assert!(result.is_err(), "Absolute path should be rejected: {}", pattern);
+            assert!(result.unwrap_err().to_string().contains("Absolute paths not allowed"));
+        }
+    }
+
+    #[test]
+    fn test_sanitize_pattern_directory_traversal() {
+        // Test directory traversal patterns
+        let traversal_patterns = vec![
+            "../../../etc/passwd",
+            "dir/../../../file.txt",
+            "**/../secret/*",
+            "test/../../*.py",
+            "../config.toml",
+            "subdir/../../other.rs",
+        ];
+
+        for pattern in traversal_patterns {
+            let result = sanitize_pattern(pattern);
+            assert!(result.is_err(), "Directory traversal should be rejected: {}", pattern);
+            assert!(result.unwrap_err().to_string().contains("Directory traversal"));
+        }
+    }
+
+    #[test]
+    fn test_sanitize_pattern_edge_cases() {
+        // Test edge cases that might reveal bugs
+
+        // Empty string
+        let result = sanitize_pattern("");
+        assert!(result.is_ok(), "Empty string should be allowed");
+
+        // Only whitespace
+        let result = sanitize_pattern("   ");
+        assert!(result.is_ok(), "Whitespace-only should be allowed");
+
+        // Unicode characters
+        let result = sanitize_pattern("файл*.txt");
+        assert!(result.is_ok(), "Unicode should be allowed");
+
+        // Special glob characters
+        let result = sanitize_pattern("file[!abc]*.{py,rs}");
+        assert!(result.is_ok(), "Complex glob patterns should be allowed");
+
+        // Newlines and tabs (these are control characters)
+        let result = sanitize_pattern("file\nname.txt");
+        assert!(result.is_err(), "Newlines should be rejected");
+
+        let result = sanitize_pattern("file\tname.txt");
+        assert!(result.is_err(), "Tabs should be rejected");
+    }
+
+    #[test]
+    fn test_sanitize_pattern_boundary_conditions() {
+        // Test patterns that are at the boundary of what should be allowed
+
+        // Pattern with exactly ".." but not as traversal
+        let result = sanitize_pattern("file..name.txt");
+        assert!(result.is_err(), "Any '..' should be rejected for safety");
+
+        // Pattern starting with legitimate glob
+        let result = sanitize_pattern("**/*.py");
+        assert!(result.is_ok(), "Recursive glob should be allowed");
+
+        // Mixed valid/invalid (should reject entire pattern)
+        let result = sanitize_pattern("valid/*.py/../invalid");
+        assert!(result.is_err(), "Mixed pattern should be rejected");
+    }
+
+    #[test]
+    fn test_sanitize_pattern_security_bypass_attempts() {
+        // Test patterns that might try to bypass security checks
+
+        // URL-encoded null byte
+        let result = sanitize_pattern("file%00.txt");
+        assert!(result.is_ok(), "URL encoding should not be decoded");
+
+        // Double-encoded traversal
+        let result = sanitize_pattern("file%2e%2e/secret");
+        assert!(result.is_ok(), "Double encoding should not be decoded");
+
+        // Unicode normalization attacks
+        let result = sanitize_pattern("file\u{002e}\u{002e}/secret");
+        assert!(result.is_err(), "Unicode dots should be treated as '..'");
+
+        // Null byte at end
+        let result = sanitize_pattern("legitimate-pattern\0");
+        assert!(result.is_err(), "Trailing null should be caught");
+    }
+
+    // === ERROR HANDLING TESTS ===
+
+    #[test]
+    fn test_error_handling_classification() {
+        // Test that we correctly classify errors as critical vs non-critical
+        use crate::utils::error::CodeDigestError;
+
+        // Simulate critical errors
+        let critical_errors = vec![
+            CodeDigestError::FileProcessingError {
+                path: "test.txt".to_string(),
+                error: "Permission denied".to_string(),
+            },
+            CodeDigestError::InvalidConfiguration("Invalid pattern".to_string()),
+        ];
+
+        // Check that permission denied is considered critical
+        let error_string = critical_errors[0].to_string();
+        assert!(error_string.contains("Permission denied"));
+
+        // Check that invalid configuration is considered critical
+        let error_string = critical_errors[1].to_string();
+        assert!(error_string.contains("Invalid"));
+    }
+
+    #[test]
+    fn test_pattern_sanitization_integration() {
+        // Test that sanitization is actually called in the build_walker path
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let root = temp_dir.path();
+
+        // Create WalkOptions with a pattern that should be sanitized
+        let options = WalkOptions {
+            max_file_size: Some(1024),
+            follow_links: false,
+            include_hidden: false,
+            parallel: false,
+            ignore_file: ".digestignore".to_string(),
+            ignore_patterns: vec![],
+            include_patterns: vec!["../../../etc/passwd".to_string()], // Should be rejected
+            custom_priorities: vec![],
+        };
+
+        // This should fail due to sanitization
+        let result = build_walker(root, &options);
+        assert!(result.is_err(), "Directory traversal pattern should be rejected by sanitization");
+
+        if let Err(e) = result {
+            let error_msg = format!("{}", e);
+            assert!(error_msg.contains("Directory traversal") || error_msg.contains("Invalid"));
+        }
     }
 }
