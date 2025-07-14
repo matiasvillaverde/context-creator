@@ -251,7 +251,7 @@ fn test_positional_with_file_path_validation_error() {
         "code-digest",
         file_path.to_str().unwrap(),
         "--output-file",
-        "/tmp/test.md",
+        "test.md",
     ]);
 
     // Should fail validation because positional path points to a file, not directory
@@ -274,7 +274,7 @@ fn test_include_with_file_path_validation_success() {
         "--include",
         dir_path.to_str().unwrap(),
         "--output-file",
-        "/tmp/test.md",
+        "test.md",
     ]);
 
     // Should succeed validation because include path points to a directory
@@ -293,7 +293,7 @@ fn test_include_pattern_validation_valid_patterns() {
         "--include",
         "src/**/*.js",
         "--output-file",
-        "/tmp/test.md",
+        "test.md",
     ]);
 
     // Should succeed validation for valid glob patterns
@@ -310,7 +310,7 @@ fn test_include_empty_pattern() {
         "--include",
         "*.py",
         "--output-file",
-        "/tmp/test.md",
+        "test.md",
     ]);
 
     // Should succeed validation - empty patterns are skipped
@@ -327,7 +327,7 @@ fn test_include_whitespace_only_pattern() {
         "--include",
         "*.py",
         "--output-file",
-        "/tmp/test.md",
+        "test.md",
     ]);
 
     // Should succeed validation - whitespace-only patterns are skipped
@@ -338,7 +338,7 @@ fn test_include_whitespace_only_pattern() {
 #[test]
 fn test_include_glob_pattern_simple_wildcard() {
     let config =
-        Config::parse_from(["code-digest", "--include", "*.py", "--output-file", "/tmp/test.md"]);
+        Config::parse_from(["code-digest", "--include", "*.py", "--output-file", "test.md"]);
 
     // Should succeed validation for simple wildcard pattern
     let result = config.validate();
@@ -405,7 +405,7 @@ fn test_include_pattern_validation_invalid_pattern() {
         "--include",
         "src/[", // Invalid unclosed bracket
         "--output-file",
-        "/tmp/test.md",
+        "test.md",
     ]);
 
     // Should fail validation for invalid glob pattern
