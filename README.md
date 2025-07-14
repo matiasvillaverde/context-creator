@@ -71,14 +71,29 @@ npm install -g @google/gemini-cli
 gcloud auth application-default login
 ```
 
+### More Usage Examples
+
+```bash
+# Save to file for later use
+code-digest -o context.md
+
+# Process specific directories (positional arguments)
+code-digest src/ tests/ docs/
+
+# Process specific directories (explicit include flags)
+code-digest --include src/ --include tests/ --include docs/
+
+# Process with token limit
+code-digest --include src/ --max-tokens 100000
+```
+
 ## Configuration
 
-Fine-tune how `code-digest` processes your repository.
+Fine-tune how `code-digest` processes your repository:
 
   * **`.digestignore`:** Exclude non-essential files and folders (e.g., `node_modules/`, `target/`).
   * **`.digestkeep`:** Prioritize critical files (e.g., `src/main.rs`, `Cargo.toml`). This ensures the most important code is included when you're near the token limit.
   * **`.code-digest.toml`:** For advanced configuration like setting default token limits and priority weights.
-## Configuration
 
 ### .digestignore
 
