@@ -69,6 +69,8 @@ pub struct WalkOptions {
     pub include_patterns: Vec<String>,
     /// Custom priority rules for file prioritization
     pub custom_priorities: Vec<CompiledPriority>,
+    /// Filter out binary files by extension
+    pub filter_binary_files: bool,
 }
 
 impl WalkOptions {
@@ -105,6 +107,7 @@ impl WalkOptions {
             ignore_patterns: vec![],
             include_patterns,
             custom_priorities,
+            filter_binary_files: config.get_prompt().is_some(),
         })
     }
 }
@@ -120,6 +123,7 @@ impl Default for WalkOptions {
             ignore_patterns: vec![],
             include_patterns: vec![],
             custom_priorities: vec![],
+            filter_binary_files: false,
         }
     }
 }
@@ -1469,6 +1473,7 @@ mod tests {
             ignore_patterns: vec![],
             include_patterns: vec!["../../../etc/passwd".to_string()], // Should be rejected
             custom_priorities: vec![],
+            filter_binary_files: false,
         };
 
         // This should fail due to sanitization
@@ -1482,5 +1487,57 @@ mod tests {
             let error_msg = e.to_string();
             assert!(error_msg.contains("Directory traversal") || error_msg.contains("Invalid"));
         }
+    }
+
+    #[test]
+    fn test_walk_options_filters_binary_files_with_prompt() {
+        use crate::cli::Config;
+
+        let config = Config {
+            prompt: Some("test prompt".to_string()),
+            paths: Some(vec![PathBuf::from(".")]),
+            include: None,
+            repo: None,
+            read_stdin: false,
+            output_file: None,
+            max_tokens: None,
+            llm_tool: crate::cli::LlmTool::Gemini,
+            quiet: false,
+            verbose: false,
+            config: None,
+            progress: false,
+            copy: false,
+            enhanced_context: false,
+            custom_priorities: vec![],
+        };
+
+        let options = WalkOptions::from_config(&config).unwrap();
+        assert!(options.filter_binary_files);
+    }
+
+    #[test]
+    fn test_walk_options_no_binary_filter_without_prompt() {
+        use crate::cli::Config;
+
+        let config = Config {
+            prompt: None,
+            paths: Some(vec![PathBuf::from(".")]),
+            include: None,
+            repo: None,
+            read_stdin: false,
+            output_file: None,
+            max_tokens: None,
+            llm_tool: crate::cli::LlmTool::Gemini,
+            quiet: false,
+            verbose: false,
+            config: None,
+            progress: false,
+            copy: false,
+            enhanced_context: false,
+            custom_priorities: vec![],
+        };
+
+        let options = WalkOptions::from_config(&config).unwrap();
+        assert!(!options.filter_binary_files);
     }
 }
