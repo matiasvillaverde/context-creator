@@ -36,6 +36,15 @@ USAGE EXAMPLES:
   # Process specific file types across all directories
   code-digest --include \"**/*repository*.py\" --include \"**/test[0-9].py\"
   
+  # Combine prompt with include patterns for targeted analysis
+  code-digest --prompt \"Review security\" --include \"src/auth/**\" --include \"src/security/**\"
+  
+  # Use ignore patterns to exclude unwanted files
+  code-digest --include \"**/*.rs\" --ignore \"target/**\" --ignore \"**/*_test.rs\"
+  
+  # Combine prompt with ignore patterns
+  code-digest --prompt \"Analyze core logic\" --ignore \"tests/**\" --ignore \"docs/**\"
+  
   # Process a GitHub repository
   code-digest --repo https://github.com/owner/repo
   
@@ -102,9 +111,10 @@ impl LlmTool {
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None, after_help = AFTER_HELP_MSG)]
 #[command(group(
-    clap::ArgGroup::new("input_source")
-        .required(true)
-        .args(&["prompt", "paths", "repo", "read_stdin", "include"]),
+    clap::ArgGroup::new("exclusive_inputs")
+        .required(false)
+        .args(&["paths", "repo", "read_stdin"])
+        .multiple(false),
 ))]
 pub struct Config {
     /// The prompt to send to the LLM for processing
@@ -127,6 +137,13 @@ pub struct Config {
         help = "Include files and directories matching the given glob pattern.\nPatterns use gitignore-style syntax. To prevent shell expansion,\nquote patterns: --include \"*.py\" --include \"src/**/*.{rs,toml}\""
     )]
     pub include: Option<Vec<String>>,
+
+    /// Ignore files and directories matching glob patterns
+    #[arg(
+        long,
+        help = "Ignore files and directories matching the given glob pattern.\nPatterns use gitignore-style syntax. To prevent shell expansion,\nquote patterns: --ignore \"node_modules/**\" --ignore \"target/**\""
+    )]
+    pub ignore: Option<Vec<String>>,
 
     /// GitHub repository URL to analyze (e.g., <https://github.com/owner/repo>)
     #[arg(long, help = "Process a GitHub repository")]
@@ -189,6 +206,45 @@ impl Config {
     /// Validate the configuration
     pub fn validate(&self) -> Result<(), crate::utils::error::CodeDigestError> {
         use crate::utils::error::CodeDigestError;
+
+        // Validate that at least one input source is provided
+        let has_input_source = self.get_prompt().is_some()
+            || self.paths.is_some()
+            || self.include.is_some()
+            || self.repo.is_some()
+            || self.read_stdin;
+
+        if !has_input_source {
+            return Err(CodeDigestError::InvalidConfiguration(
+                "At least one input source must be provided: --prompt, paths, --include, --repo, or --stdin".to_string(),
+            ));
+        }
+
+        // Validate mutual exclusivity - prompt cannot be used with paths or repo
+        if self.get_prompt().is_some() && self.paths.is_some() {
+            return Err(CodeDigestError::InvalidConfiguration(
+                "--prompt cannot be used with directory paths".to_string(),
+            ));
+        }
+
+        if self.get_prompt().is_some() && self.repo.is_some() {
+            return Err(CodeDigestError::InvalidConfiguration(
+                "--prompt cannot be used with --repo".to_string(),
+            ));
+        }
+
+        // Validate include conflicts - include cannot be used with repo or stdin
+        if self.include.is_some() && self.repo.is_some() {
+            return Err(CodeDigestError::InvalidConfiguration(
+                "--include cannot be used with --repo".to_string(),
+            ));
+        }
+
+        if self.include.is_some() && self.read_stdin {
+            return Err(CodeDigestError::InvalidConfiguration(
+                "--include cannot be used with --stdin".to_string(),
+            ));
+        }
 
         // Validate repo URL if provided
         if let Some(repo_url) = &self.repo {
@@ -314,6 +370,11 @@ impl Config {
         self.include.as_ref().cloned().unwrap_or_default()
     }
 
+    /// Get ignore patterns if specified
+    pub fn get_ignore_patterns(&self) -> Vec<String> {
+        self.ignore.as_ref().cloned().unwrap_or_default()
+    }
+
     /// Get effective max tokens with precedence: explicit CLI > token limits (if prompt) > config defaults > hard-coded defaults (if prompt) > None
     pub fn get_effective_max_tokens(&self) -> Option<usize> {
         // 1. Explicit CLI value always takes precedence
@@ -415,6 +476,7 @@ mod tests {
                 prompt: None,
                 paths,
                 include: None,
+                ignore: None,
                 repo: None,
                 read_stdin: false,
                 output_file: None,
@@ -439,6 +501,7 @@ mod tests {
                 prompt: None,
                 paths: None,
                 include,
+                ignore: None,
                 repo: None,
                 read_stdin: false,
                 output_file: None,
@@ -464,6 +527,7 @@ mod tests {
             prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
             include: None,
+            ignore: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -489,6 +553,7 @@ mod tests {
             prompt: None,
             paths: Some(vec![PathBuf::from("/nonexistent/directory")]),
             include: None,
+            ignore: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -518,6 +583,7 @@ mod tests {
             prompt: None,
             paths: Some(vec![file_path]),
             include: None,
+            ignore: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -544,6 +610,7 @@ mod tests {
             prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
             include: None,
+            ignore: None,
             repo: None,
             read_stdin: false,
             output_file: Some(PathBuf::from("/nonexistent/directory/output.md")),
@@ -570,6 +637,7 @@ mod tests {
             prompt: Some("test prompt".to_string()),
             paths: Some(vec![temp_dir.path().to_path_buf()]),
             include: None,
+            ignore: None,
             repo: None,
             read_stdin: false,
             output_file: Some(temp_dir.path().join("output.md")),
@@ -865,6 +933,7 @@ mod tests {
             prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
             include: None,
+            ignore: None,
             repo: None,
             read_stdin: false,
             output_file: Some(PathBuf::from("output.md")),
@@ -892,6 +961,7 @@ mod tests {
             prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
             include: None,
+            ignore: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -966,6 +1036,7 @@ mod tests {
             prompt: None,
             paths: Some(vec![dir1.clone(), dir2.clone()]),
             include: None,
+            ignore: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -988,6 +1059,7 @@ mod tests {
             prompt: None,
             paths: Some(vec![dir1, PathBuf::from("/nonexistent/dir")]),
             include: None,
+            ignore: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -1019,6 +1091,7 @@ mod tests {
             prompt: None,
             paths: Some(vec![dir1, file1]),
             include: None,
+            ignore: None,
             repo: None,
             read_stdin: false,
             output_file: None,

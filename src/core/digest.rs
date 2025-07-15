@@ -653,6 +653,7 @@ mod tests {
             prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
             include: None,
+            ignore: None,
             repo: None,
             read_stdin: false,
             output_file: None,
