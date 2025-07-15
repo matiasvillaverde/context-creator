@@ -1249,7 +1249,7 @@ mod tests {
 
         for pattern in valid_patterns {
             let result = sanitize_pattern(pattern);
-            assert!(result.is_ok(), "Pattern '{}' should be valid", pattern);
+            assert!(result.is_ok(), "Pattern '{pattern}' should be valid");
             assert_eq!(result.unwrap(), pattern);
         }
     }
@@ -1278,8 +1278,7 @@ mod tests {
             let result = sanitize_pattern(pattern);
             assert!(
                 result.is_err(),
-                "Pattern with null byte should be rejected: {:?}",
-                pattern
+                "Pattern with null byte should be rejected: {pattern:?}"
             );
             assert!(result
                 .unwrap_err()
