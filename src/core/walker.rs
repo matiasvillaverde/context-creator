@@ -98,13 +98,20 @@ impl WalkOptions {
             .filter(|pattern| !pattern.trim().is_empty())
             .collect();
 
+        // Get ignore patterns from CLI config and filter out empty/whitespace patterns
+        let ignore_patterns = config
+            .get_ignore_patterns()
+            .into_iter()
+            .filter(|pattern| !pattern.trim().is_empty())
+            .collect();
+
         Ok(WalkOptions {
             max_file_size: Some(10 * 1024 * 1024), // 10MB default
             follow_links: false,
             include_hidden: false,
             parallel: true,
             ignore_file: ".digestignore".to_string(),
-            ignore_patterns: vec![],
+            ignore_patterns,
             include_patterns,
             custom_priorities,
             filter_binary_files: config.get_prompt().is_some(),
@@ -263,9 +270,20 @@ fn build_walker(root: &Path, options: &WalkOptions) -> Result<Walk> {
         .parents(true)
         .add_custom_ignore_filename(&options.ignore_file);
 
-    // Add custom ignore patterns
+    // Add custom ignore patterns (with sanitization for security)
     for pattern in &options.ignore_patterns {
-        let _ = builder.add_ignore(pattern);
+        if !pattern.trim().is_empty() {
+            // Sanitize pattern for security
+            let sanitized_pattern = sanitize_pattern(pattern)?;
+
+            // Add the sanitized pattern to the walker
+            if builder.add_ignore(&sanitized_pattern).is_none() {
+                return Err(CodeDigestError::InvalidConfiguration(format!(
+                    "Invalid ignore pattern '{pattern}': pattern could not be added"
+                ))
+                .into());
+            }
+        }
     }
 
     // Handle include patterns using OverrideBuilder for proper filtering
@@ -598,6 +616,7 @@ mod tests {
             prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
             include: None,
+            ignore: None,
             output_file: None,
             max_tokens: None,
             llm_tool: crate::cli::LlmTool::default(),
@@ -889,6 +908,7 @@ mod tests {
             prompt: None,
             paths: Some(vec![root.to_path_buf()]),
             include: None,
+            ignore: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -965,6 +985,7 @@ mod tests {
             prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
             include: None,
+            ignore: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -1008,6 +1029,7 @@ mod tests {
             prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
             include: None,
+            ignore: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -1053,6 +1075,7 @@ mod tests {
             prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
             include: None,
+            ignore: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -1113,6 +1136,7 @@ mod tests {
             prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
             include: None,
+            ignore: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -1170,6 +1194,7 @@ mod tests {
             prompt: None,
             paths: None,
             include: Some(vec!["**/*.rs".to_string(), "**/test[0-9].py".to_string()]),
+            ignore: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -1199,6 +1224,7 @@ mod tests {
             prompt: None,
             paths: None,
             include: None,
+            ignore: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -1231,6 +1257,7 @@ mod tests {
                 "   ".to_string(),
                 "*.py".to_string(),
             ]),
+            ignore: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -1515,6 +1542,7 @@ mod tests {
             prompt: Some("test prompt".to_string()),
             paths: Some(vec![PathBuf::from(".")]),
             include: None,
+            ignore: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -1543,6 +1571,7 @@ mod tests {
             prompt: None,
             paths: Some(vec![PathBuf::from(".")]),
             include: None,
+            ignore: None,
             repo: None,
             read_stdin: false,
             output_file: None,
