@@ -35,7 +35,7 @@ impl DigestOptions {
     /// Create DigestOptions from CLI config
     pub fn from_config(config: &crate::cli::Config) -> Result<Self> {
         Ok(DigestOptions {
-            max_tokens: config.max_tokens,
+            max_tokens: config.get_effective_context_tokens(),
             include_tree: true,
             include_stats: true,
             group_by_type: false,
@@ -665,6 +665,8 @@ mod tests {
             copy: false,
             enhanced_context: false,
             custom_priorities: vec![],
+            config_token_limits: None,
+            config_defaults_max_tokens: None,
         };
 
         let options = DigestOptions::from_config(&config).unwrap();
