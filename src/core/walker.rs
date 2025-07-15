@@ -1303,8 +1303,7 @@ mod tests {
             let result = sanitize_pattern(pattern);
             assert!(
                 result.is_err(),
-                "Pattern with control char should be rejected: {:?}",
-                pattern
+                "Pattern with control char should be rejected: {pattern:?}"
             );
             assert!(result
                 .unwrap_err()
