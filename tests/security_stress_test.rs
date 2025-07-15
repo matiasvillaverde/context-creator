@@ -69,8 +69,7 @@ fn test_sanitization_stress_mixed_attacks() {
     for pattern in mixed_attacks {
         assert!(
             sanitize_pattern(pattern).is_err(),
-            "Mixed attack pattern should be rejected: {:?}",
-            pattern
+            "Mixed attack pattern should be rejected: {pattern:?}"
         );
     }
 }
@@ -103,7 +102,7 @@ fn test_parallel_error_handling_stress() {
     let result = walk_directory(root, malicious_options);
     assert!(result.is_err(), "Malicious patterns should be rejected");
 
-    let error_msg = format!("{}", result.unwrap_err());
+    let error_msg = format!("{result:?}");
     assert!(error_msg.contains("Directory traversal") || error_msg.contains("Invalid"));
 }
 
