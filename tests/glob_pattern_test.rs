@@ -38,11 +38,17 @@ mod glob_pattern_integration_tests {
         // Run command and capture output for debugging
         let output = cmd.output().unwrap();
         if !output.status.success() {
-            panic!("Command failed with stderr: {}", String::from_utf8_lossy(&output.stderr));
+            panic!(
+                "Command failed with stderr: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
         }
 
         // Ensure output file exists before reading
-        assert!(root.join("output.md").exists(), "Output file was not created");
+        assert!(
+            root.join("output.md").exists(),
+            "Output file was not created"
+        );
 
         // Check that output file was created and contains only Python files
         let output_content = fs::read_to_string(root.join("output.md")).unwrap();
