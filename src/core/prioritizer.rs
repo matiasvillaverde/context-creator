@@ -56,12 +56,17 @@ pub fn prioritize_files(
             // Count tokens for this file
             let file_tokens = counter
                 .count_file_tokens(&content, &file.relative_path.to_string_lossy())
-                .map_err(|e| crate::utils::error::CodeDigestError::TokenCountingError {
-                    path: file.path.display().to_string(),
-                    error: e.to_string(),
-                })?;
+                .map_err(
+                    |e| crate::utils::error::CodeDigestError::TokenCountingError {
+                        path: file.path.display().to_string(),
+                        error: e.to_string(),
+                    },
+                )?;
 
-            Ok(FileWithTokens { file, token_count: file_tokens.total_tokens })
+            Ok(FileWithTokens {
+                file,
+                token_count: file_tokens.total_tokens,
+            })
         })
         .collect();
 
@@ -71,7 +76,10 @@ pub fn prioritize_files(
 
     // Log errors without failing the entire operation
     if !errors.is_empty() {
-        eprintln!("Warning: {} files could not be processed for token counting:", errors.len());
+        eprintln!(
+            "Warning: {} files could not be processed for token counting:",
+            errors.len()
+        );
         for error in &errors {
             eprintln!("  {error}");
         }
@@ -423,13 +431,17 @@ mod tests {
         // Check that files are correctly grouped by directory
         let has_root_or_main = grouped.iter().any(|(dir, files)| {
             (dir == "." || dir.is_empty())
-                && files.iter().any(|f| f.relative_path == PathBuf::from("main.rs"))
+                && files
+                    .iter()
+                    .any(|f| f.relative_path == PathBuf::from("main.rs"))
         });
         assert!(has_root_or_main);
 
         let has_src_core = grouped.iter().any(|(dir, files)| {
             dir == "src/core"
-                && files.iter().any(|f| f.relative_path == PathBuf::from("src/core/mod.rs"))
+                && files
+                    .iter()
+                    .any(|f| f.relative_path == PathBuf::from("src/core/mod.rs"))
         });
         assert!(has_src_core);
     }
