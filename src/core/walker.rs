@@ -1328,8 +1328,7 @@ mod tests {
             let result = sanitize_pattern(pattern);
             assert!(
                 result.is_err(),
-                "Absolute path should be rejected: {}",
-                pattern
+                "Absolute path should be rejected: {pattern}"
             );
             assert!(result
                 .unwrap_err()
@@ -1354,8 +1353,7 @@ mod tests {
             let result = sanitize_pattern(pattern);
             assert!(
                 result.is_err(),
-                "Directory traversal should be rejected: {}",
-                pattern
+                "Directory traversal should be rejected: {pattern}"
             );
             assert!(result
                 .unwrap_err()
@@ -1483,7 +1481,7 @@ mod tests {
         );
 
         if let Err(e) = result {
-            let error_msg = format!("{}", e);
+            let error_msg = e.to_string();
             assert!(error_msg.contains("Directory traversal") || error_msg.contains("Invalid"));
         }
     }
