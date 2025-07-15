@@ -96,6 +96,7 @@ fn test_parallel_error_handling_stress() {
         ignore_patterns: vec![],
         include_patterns: vec!["../../../etc/passwd".to_string()],
         custom_priorities: vec![],
+        filter_binary_files: false,
     };
 
     // This should fail due to sanitization
