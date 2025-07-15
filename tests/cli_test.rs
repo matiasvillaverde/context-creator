@@ -605,8 +605,7 @@ fn test_cli_security_control_character_patterns() {
         // CLI should parse these patterns
         assert!(
             config.validate().is_ok(),
-            "CLI should parse pattern with control chars: {:?}",
-            pattern
+            "CLI should parse pattern with control chars: {pattern:?}"
         );
 
         let parsed_patterns = config.get_include_patterns();
