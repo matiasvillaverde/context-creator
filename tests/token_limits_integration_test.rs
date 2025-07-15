@@ -1,5 +1,5 @@
-use code_digest::cli::Config;
 use clap::Parser;
+use code_digest::cli::Config;
 use std::fs;
 use tempfile::TempDir;
 
@@ -173,7 +173,7 @@ codex = 1800000
     fs::write(&config_path, config_content).unwrap();
 
     // Test precedence: explicit > config tokens > defaults.max_tokens
-    
+
     // 1. Explicit should win
     let mut config = Config::parse_from([
         "code-digest",
