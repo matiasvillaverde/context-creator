@@ -167,7 +167,7 @@ fn test_copy_with_output_conflict() {
     assert!(result
         .unwrap_err()
         .to_string()
-        .contains("Cannot specify both"));
+        .contains("Cannot specify both --copy and --output"));
 }
 
 #[test]
