@@ -208,10 +208,10 @@ impl Config {
         use crate::utils::error::CodeDigestError;
 
         // Validate that at least one input source is provided
-        let has_input_source = self.get_prompt().is_some() 
-            || self.paths.is_some() 
-            || self.include.is_some() 
-            || self.repo.is_some() 
+        let has_input_source = self.get_prompt().is_some()
+            || self.paths.is_some()
+            || self.include.is_some()
+            || self.repo.is_some()
             || self.read_stdin;
 
         if !has_input_source {
