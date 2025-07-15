@@ -1,5 +1,5 @@
-use code_digest::cli::Config;
 use clap::Parser;
+use code_digest::cli::Config;
 use std::fs;
 use tempfile::TempDir;
 
@@ -34,8 +34,14 @@ gemini = 10000
 
     // The effective context tokens should be less due to prompt reservation
     let context_tokens = config.get_effective_context_tokens().unwrap();
-    assert!(context_tokens < 10000, "Context tokens should be less than max due to prompt reservation");
-    assert!(context_tokens > 8000, "Context tokens should still be most of the budget");
+    assert!(
+        context_tokens < 10000,
+        "Context tokens should be less than max due to prompt reservation"
+    );
+    assert!(
+        context_tokens > 8000,
+        "Context tokens should still be most of the budget"
+    );
 
     // The difference should account for prompt tokens + safety buffer
     let reserved = 10000 - context_tokens;
