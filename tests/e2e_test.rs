@@ -893,7 +893,10 @@ fn test_e2e_basic_markdown_generation() {
     let output_file = temp_dir.path().join("output.md");
 
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg(&project_dir).arg("-o").arg(&output_file).arg("--progress");
+    cmd.arg(&project_dir)
+        .arg("-o")
+        .arg(&output_file)
+        .arg("--progress");
 
     cmd.assert()
         .success()
@@ -944,7 +947,7 @@ fn test_e2e_with_token_limits() {
         .arg("-o")
         .arg(&output_file)
         .arg("--max-tokens")
-        .arg("5000")  // Small limit to force prioritization
+        .arg("5000") // Small limit to force prioritization
         .arg("--verbose");
 
     cmd.assert()
@@ -994,9 +997,15 @@ weight = 150.0
     let output_file = temp_dir.path().join("config_output.md");
 
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg(&project_dir).arg("-o").arg(&output_file).arg("-c").arg(&config_file);
+    cmd.arg(&project_dir)
+        .arg("-o")
+        .arg(&output_file)
+        .arg("-c")
+        .arg(&config_file);
 
-    cmd.assert().success().stderr(predicate::str::contains("Loaded configuration"));
+    cmd.assert()
+        .success()
+        .stderr(predicate::str::contains("Loaded configuration"));
 
     assert!(output_file.exists());
     let content = fs::read_to_string(&output_file).unwrap();
@@ -1047,7 +1056,10 @@ fn test_e2e_multi_language_project() {
     let output_file = temp_dir.path().join("mixed_output.md");
 
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg(&mixed_dir).arg("-o").arg(&output_file).arg("--progress");
+    cmd.arg(&mixed_dir)
+        .arg("-o")
+        .arg(&output_file)
+        .arg("--progress");
 
     cmd.assert()
         .success()
@@ -1076,16 +1088,22 @@ fn test_e2e_error_handling() {
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
     cmd.arg("/nonexistent/directory/path");
 
-    cmd.assert().failure().stderr(predicate::str::contains("Directory does not exist"));
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("Directory does not exist"));
 
     // Test with invalid output directory
     let temp_dir = TempDir::new().unwrap();
     let project_dir = create_realistic_rust_project(temp_dir.path());
 
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg(&project_dir).arg("-o").arg("/nonexistent/path/output.md");
+    cmd.arg(&project_dir)
+        .arg("-o")
+        .arg("/nonexistent/path/output.md");
 
-    cmd.assert().failure().stderr(predicate::str::contains("Output directory does not exist"));
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("Output directory does not exist"));
 }
 
 /// Test end-to-end with large project (performance test)
@@ -1180,7 +1198,10 @@ fn test_e2e_stdout_output() {
     let project_dir = create_realistic_rust_project(temp_dir.path());
 
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg(&project_dir).arg("--max-tokens").arg("10000").arg("--quiet"); // Suppress progress output to avoid contaminating stdout
+    cmd.arg(&project_dir)
+        .arg("--max-tokens")
+        .arg("10000")
+        .arg("--quiet"); // Suppress progress output to avoid contaminating stdout
 
     let output = cmd.assert().success().get_output().stdout.clone();
     let output_str = String::from_utf8(output).unwrap();
@@ -1212,7 +1233,10 @@ src/handlers/
     let output_file = temp_dir.path().join("ignored_output.md");
 
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg(&project_dir).arg("-o").arg(&output_file).arg("--verbose");
+    cmd.arg(&project_dir)
+        .arg("-o")
+        .arg(&output_file)
+        .arg("--verbose");
 
     cmd.assert().success();
 
@@ -1237,7 +1261,11 @@ fn test_e2e_verbose_debugging() {
     let output_file = temp_dir.path().join("verbose_output.md");
 
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg(&project_dir).arg("-o").arg(&output_file).arg("--verbose").arg("--progress");
+    cmd.arg(&project_dir)
+        .arg("-o")
+        .arg(&output_file)
+        .arg("--verbose")
+        .arg("--progress");
 
     cmd.assert()
         .success()
@@ -1261,15 +1289,29 @@ fn test_e2e_llm_tool_selection() {
 
     // Test with gemini
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg(&project_dir).arg("-o").arg(&output_file).arg("--tool").arg("gemini").arg("--verbose");
+    cmd.arg(&project_dir)
+        .arg("-o")
+        .arg(&output_file)
+        .arg("--tool")
+        .arg("gemini")
+        .arg("--verbose");
 
-    cmd.assert().success().stderr(predicate::str::contains("LLM tool: gemini"));
+    cmd.assert()
+        .success()
+        .stderr(predicate::str::contains("LLM tool: gemini"));
 
     // Test with codex
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg(&project_dir).arg("-o").arg(&output_file).arg("--tool").arg("codex").arg("--verbose");
+    cmd.arg(&project_dir)
+        .arg("-o")
+        .arg(&output_file)
+        .arg("--tool")
+        .arg("codex")
+        .arg("--verbose");
 
-    cmd.assert().success().stderr(predicate::str::contains("LLM tool: codex"));
+    cmd.assert()
+        .success()
+        .stderr(predicate::str::contains("LLM tool: codex"));
 }
 
 /// Test end-to-end with multiple directories
@@ -1284,7 +1326,11 @@ fn test_e2e_multiple_directories() {
     let output_file = temp_dir.path().join("multiple_dirs_output.md");
 
     let mut cmd = Command::cargo_bin("code-digest").unwrap();
-    cmd.arg(&rust_dir).arg(&python_dir).arg("-o").arg(&output_file).arg("--progress");
+    cmd.arg(&rust_dir)
+        .arg(&python_dir)
+        .arg("-o")
+        .arg(&output_file)
+        .arg("--progress");
 
     cmd.assert()
         .success()

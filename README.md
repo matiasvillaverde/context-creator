@@ -83,8 +83,61 @@ code-digest src/ tests/ docs/
 # Process specific directories (explicit include flags)
 code-digest --include src/ --include tests/ --include docs/
 
+# Process files matching glob patterns (QUOTE patterns to prevent shell expansion)
+code-digest --include "**/*.py" --include "src/**/*.{rs,toml}"
+
+# Process specific file types across all directories
+code-digest --include "**/*repository*.py" --include "**/test[0-9].py"
+
 # Process with token limit
 code-digest --include src/ --max-tokens 100000
+```
+
+## Glob Patterns
+
+The `--include` flag supports powerful glob patterns for precise file filtering:
+
+### Supported Pattern Syntax
+
+- `*` - matches any characters except `/`
+- `?` - matches any single character except `/`
+- `**` - recursive directory matching
+- `[abc]` - character sets and ranges `[a-z]`
+- `{a,b}` - brace expansion (alternatives)
+- `[!abc]` - negated character sets
+
+### Pattern Examples
+
+```bash
+# Include all Python files
+code-digest --include "*.py"
+
+# Include all Rust files recursively
+code-digest --include "**/*.rs"
+
+# Include multiple file types in src directory
+code-digest --include "src/**/*.{py,js,ts}"
+
+# Include specific patterns (repositories, services, models)
+code-digest --include "**/*{repository,service,model}*.py"
+
+# Include numbered test files
+code-digest --include "**/test[0-9].py"
+
+# Include all files in database directories
+code-digest --include "**/db/**"
+```
+
+### ⚠️ Important: Shell Expansion Prevention
+
+**Always quote your glob patterns** to prevent shell expansion:
+
+```bash
+# ✅ CORRECT - quoted pattern
+code-digest --include "**/*.py"
+
+# ❌ WRONG - shell may expand before reaching application
+code-digest --include **/*.py
 ```
 
 ## Configuration
@@ -144,3 +197,4 @@ weight = 100
 pattern = "tests/**/*.rs"
 weight = 50
 ```
+# Security fixes applied

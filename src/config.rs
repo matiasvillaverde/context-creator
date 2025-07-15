@@ -184,12 +184,30 @@ pub fn create_example_config() -> String {
             output_file: None,
         },
         priorities: vec![
-            Priority { pattern: "src/**/*.rs".to_string(), weight: 100.0 },
-            Priority { pattern: "src/main.rs".to_string(), weight: 150.0 },
-            Priority { pattern: "tests/**/*.rs".to_string(), weight: 50.0 },
-            Priority { pattern: "docs/**/*.md".to_string(), weight: 30.0 },
-            Priority { pattern: "*.toml".to_string(), weight: 80.0 },
-            Priority { pattern: "*.json".to_string(), weight: 60.0 },
+            Priority {
+                pattern: "src/**/*.rs".to_string(),
+                weight: 100.0,
+            },
+            Priority {
+                pattern: "src/main.rs".to_string(),
+                weight: 150.0,
+            },
+            Priority {
+                pattern: "tests/**/*.rs".to_string(),
+                weight: 50.0,
+            },
+            Priority {
+                pattern: "docs/**/*.md".to_string(),
+                weight: 30.0,
+            },
+            Priority {
+                pattern: "*.toml".to_string(),
+                weight: 80.0,
+            },
+            Priority {
+                pattern: "*.json".to_string(),
+                weight: 60.0,
+            },
         ],
         ignore: vec![
             "target/**".to_string(),

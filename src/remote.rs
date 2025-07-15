@@ -101,7 +101,9 @@ pub fn fetch_repository(repo_url: &str, verbose: bool) -> Result<TempDir, CodeDi
     };
 
     if !success {
-        return Err(CodeDigestError::RemoteFetchError("Failed to clone repository".to_string()));
+        return Err(CodeDigestError::RemoteFetchError(
+            "Failed to clone repository".to_string(),
+        ));
     }
 
     if verbose {
@@ -150,7 +152,11 @@ fn clone_with_git(
     })?;
 
     let mut cmd = Command::new("git");
-    cmd.arg("clone").arg("--depth").arg("1").arg(repo_url).arg(target_dir.join(repo_name));
+    cmd.arg("clone")
+        .arg("--depth")
+        .arg("1")
+        .arg(repo_url)
+        .arg(target_dir.join(repo_name));
 
     if verbose {
         eprintln!("🔄 Running: git clone --depth 1 {repo_url}");
