@@ -610,6 +610,8 @@ mod tests {
             copy: false,
             enhanced_context: false,
             custom_priorities: vec![],
+            config_token_limits: None,
+            config_defaults_max_tokens: None,
         };
 
         let options = WalkOptions::from_config(&config).unwrap();
@@ -899,6 +901,8 @@ mod tests {
             copy: false,
             enhanced_context: false,
             custom_priorities: vec![],
+            config_token_limits: None,
+            config_defaults_max_tokens: None,
         };
         config_file.apply_to_cli_config(&mut config);
 
@@ -973,6 +977,8 @@ mod tests {
             copy: false,
             enhanced_context: false,
             custom_priorities: vec![],
+            config_token_limits: None,
+            config_defaults_max_tokens: None,
         };
         config_file.apply_to_cli_config(&mut config);
 
@@ -1014,6 +1020,8 @@ mod tests {
             copy: false,
             enhanced_context: false,
             custom_priorities: vec![],
+            config_token_limits: None,
+            config_defaults_max_tokens: None,
         };
         config_file.apply_to_cli_config(&mut config);
 
@@ -1057,6 +1065,8 @@ mod tests {
             copy: false,
             enhanced_context: false,
             custom_priorities: vec![],
+            config_token_limits: None,
+            config_defaults_max_tokens: None,
         };
         config_file.apply_to_cli_config(&mut config);
 
@@ -1115,6 +1125,8 @@ mod tests {
             copy: false,
             enhanced_context: false,
             custom_priorities: vec![],
+            config_token_limits: None,
+            config_defaults_max_tokens: None,
         };
         config_file.apply_to_cli_config(&mut config);
 
@@ -1170,6 +1182,8 @@ mod tests {
             copy: false,
             enhanced_context: false,
             custom_priorities: vec![],
+            config_token_limits: None,
+            config_defaults_max_tokens: None,
         };
 
         let options = WalkOptions::from_config(&config).unwrap();
@@ -1197,6 +1211,8 @@ mod tests {
             copy: false,
             enhanced_context: false,
             custom_priorities: vec![],
+            config_token_limits: None,
+            config_defaults_max_tokens: None,
         };
 
         let options = WalkOptions::from_config(&config).unwrap();
@@ -1227,6 +1243,8 @@ mod tests {
             copy: false,
             enhanced_context: false,
             custom_priorities: vec![],
+            config_token_limits: None,
+            config_defaults_max_tokens: None,
         };
 
         let options = WalkOptions::from_config(&config).unwrap();
@@ -1509,6 +1527,8 @@ mod tests {
             copy: false,
             enhanced_context: false,
             custom_priorities: vec![],
+            config_token_limits: None,
+            config_defaults_max_tokens: None,
         };
 
         let options = WalkOptions::from_config(&config).unwrap();
@@ -1535,6 +1555,8 @@ mod tests {
             copy: false,
             enhanced_context: false,
             custom_priorities: vec![],
+            config_token_limits: None,
+            config_defaults_max_tokens: None,
         };
 
         let options = WalkOptions::from_config(&config).unwrap();

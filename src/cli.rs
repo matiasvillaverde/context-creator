@@ -81,6 +81,21 @@ impl LlmTool {
             LlmTool::Codex => 1_000_000,
         }
     }
+
+    /// Get the default maximum tokens for the tool with optional config override
+    pub fn default_max_tokens_with_config(
+        &self,
+        config_token_limits: Option<&crate::config::TokenLimits>,
+    ) -> usize {
+        if let Some(token_limits) = config_token_limits {
+            match self {
+                LlmTool::Gemini => token_limits.gemini.unwrap_or(1_000_000),
+                LlmTool::Codex => token_limits.codex.unwrap_or(1_000_000),
+            }
+        } else {
+            self.default_max_tokens()
+        }
+    }
 }
 
 /// High-performance CLI tool to convert codebases to Markdown for LLM context
@@ -160,6 +175,14 @@ pub struct Config {
     /// Custom priority rules loaded from config file (not a CLI argument)
     #[clap(skip)]
     pub custom_priorities: Vec<crate::config::Priority>,
+
+    /// Token limits loaded from config file (not a CLI argument)
+    #[clap(skip)]
+    pub config_token_limits: Option<crate::config::TokenLimits>,
+
+    /// Maximum tokens from config defaults (not a CLI argument)
+    #[clap(skip)]
+    pub config_defaults_max_tokens: Option<usize>,
 }
 
 impl Config {
@@ -246,6 +269,9 @@ impl Config {
             // Store custom priorities for the walker
             self.custom_priorities = config_file.priorities.clone();
 
+            // Store token limits for token resolution
+            self.config_token_limits = Some(config_file.tokens.clone());
+
             config_file.apply_to_cli_config(self);
 
             if self.verbose {
@@ -288,12 +314,73 @@ impl Config {
         self.include.as_ref().cloned().unwrap_or_default()
     }
 
-    /// Get effective max tokens with precedence: explicit > default (if prompt) > None
+    /// Get effective max tokens with precedence: explicit CLI > token limits (if prompt) > config defaults > hard-coded defaults (if prompt) > None
     pub fn get_effective_max_tokens(&self) -> Option<usize> {
-        self.max_tokens.or_else(|| {
-            self.get_prompt()
-                .map(|_| self.llm_tool.default_max_tokens())
-        })
+        // 1. Explicit CLI value always takes precedence
+        if let Some(explicit_tokens) = self.max_tokens {
+            return Some(explicit_tokens);
+        }
+
+        // 2. If using prompt, check token limits from config first
+        if let Some(_prompt) = self.get_prompt() {
+            // Check if we have config token limits for this tool
+            if let Some(token_limits) = &self.config_token_limits {
+                let config_limit = match self.llm_tool {
+                    LlmTool::Gemini => token_limits.gemini,
+                    LlmTool::Codex => token_limits.codex,
+                };
+
+                if let Some(limit) = config_limit {
+                    return Some(limit);
+                }
+            }
+
+            // 3. Fall back to config defaults if available
+            if let Some(defaults_tokens) = self.config_defaults_max_tokens {
+                return Some(defaults_tokens);
+            }
+
+            // 4. Fall back to hard-coded defaults for prompts
+            return Some(self.llm_tool.default_max_tokens());
+        }
+
+        // 5. For non-prompt usage, check config defaults
+        if let Some(defaults_tokens) = self.config_defaults_max_tokens {
+            return Some(defaults_tokens);
+        }
+
+        // 6. No automatic token limits for non-prompt usage
+        None
+    }
+
+    /// Get effective context tokens with prompt reservation
+    /// This accounts for prompt tokens when calculating available space for codebase context
+    pub fn get_effective_context_tokens(&self) -> Option<usize> {
+        if let Some(max_tokens) = self.get_effective_max_tokens() {
+            if let Some(prompt) = self.get_prompt() {
+                // Create token counter to measure prompt
+                if let Ok(counter) = crate::core::token::TokenCounter::new() {
+                    if let Ok(prompt_tokens) = counter.count_tokens(&prompt) {
+                        // Reserve space for prompt + safety buffer for response
+                        let safety_buffer = 1000; // Reserve for LLM response
+                        let reserved = prompt_tokens + safety_buffer;
+                        let available = max_tokens.saturating_sub(reserved);
+                        return Some(available);
+                    }
+                }
+                // Fallback: rough estimation if tiktoken fails
+                let estimated_prompt_tokens = prompt.len().div_ceil(4); // ~4 chars per token
+                let safety_buffer = 1000;
+                let reserved = estimated_prompt_tokens + safety_buffer;
+                let available = max_tokens.saturating_sub(reserved);
+                Some(available)
+            } else {
+                // No prompt, use full token budget
+                Some(max_tokens)
+            }
+        } else {
+            None
+        }
     }
 
     /// Check if we should read from stdin
@@ -340,6 +427,8 @@ mod tests {
                 copy: false,
                 enhanced_context: false,
                 custom_priorities: vec![],
+                config_token_limits: None,
+                config_defaults_max_tokens: None,
             }
         }
 
@@ -362,6 +451,8 @@ mod tests {
                 copy: false,
                 enhanced_context: false,
                 custom_priorities: vec![],
+                config_token_limits: None,
+                config_defaults_max_tokens: None,
             }
         }
     }
@@ -385,6 +476,8 @@ mod tests {
             copy: false,
             enhanced_context: false,
             custom_priorities: vec![],
+            config_token_limits: None,
+            config_defaults_max_tokens: None,
         };
 
         assert!(config.validate().is_ok());
@@ -408,6 +501,8 @@ mod tests {
             copy: false,
             enhanced_context: false,
             custom_priorities: vec![],
+            config_token_limits: None,
+            config_defaults_max_tokens: None,
         };
 
         assert!(config.validate().is_err());
@@ -435,6 +530,8 @@ mod tests {
             copy: false,
             enhanced_context: false,
             custom_priorities: vec![],
+            config_token_limits: None,
+            config_defaults_max_tokens: None,
         };
 
         assert!(config.validate().is_err());
@@ -459,6 +556,8 @@ mod tests {
             copy: false,
             enhanced_context: false,
             custom_priorities: vec![],
+            config_token_limits: None,
+            config_defaults_max_tokens: None,
         };
 
         assert!(config.validate().is_err());
@@ -483,6 +582,8 @@ mod tests {
             copy: false,
             enhanced_context: false,
             custom_priorities: vec![],
+            config_token_limits: None,
+            config_defaults_max_tokens: None,
         };
 
         assert!(config.validate().is_err());
@@ -541,6 +642,223 @@ mod tests {
     }
 
     #[test]
+    fn test_config_get_effective_max_tokens_with_config_gemini() {
+        use crate::config::TokenLimits;
+
+        let config = Config {
+            prompt: Some("test prompt".to_string()),
+            max_tokens: None,
+            llm_tool: LlmTool::Gemini,
+            config_token_limits: Some(TokenLimits {
+                gemini: Some(2_500_000),
+                codex: Some(1_800_000),
+            }),
+            ..Config::new_for_test(None)
+        };
+        assert_eq!(config.get_effective_max_tokens(), Some(2_500_000));
+    }
+
+    #[test]
+    fn test_config_get_effective_max_tokens_with_config_codex() {
+        use crate::config::TokenLimits;
+
+        let config = Config {
+            prompt: Some("test prompt".to_string()),
+            max_tokens: None,
+            llm_tool: LlmTool::Codex,
+            config_token_limits: Some(TokenLimits {
+                gemini: Some(2_500_000),
+                codex: Some(1_800_000),
+            }),
+            ..Config::new_for_test(None)
+        };
+        assert_eq!(config.get_effective_max_tokens(), Some(1_800_000));
+    }
+
+    #[test]
+    fn test_config_get_effective_max_tokens_explicit_overrides_config() {
+        use crate::config::TokenLimits;
+
+        let config = Config {
+            prompt: Some("test prompt".to_string()),
+            max_tokens: Some(500_000), // Explicit value should override config
+            llm_tool: LlmTool::Gemini,
+            config_token_limits: Some(TokenLimits {
+                gemini: Some(2_500_000),
+                codex: Some(1_800_000),
+            }),
+            ..Config::new_for_test(None)
+        };
+        assert_eq!(config.get_effective_max_tokens(), Some(500_000));
+    }
+
+    #[test]
+    fn test_config_get_effective_max_tokens_config_partial_gemini() {
+        use crate::config::TokenLimits;
+
+        let config = Config {
+            prompt: Some("test prompt".to_string()),
+            max_tokens: None,
+            llm_tool: LlmTool::Gemini,
+            config_token_limits: Some(TokenLimits {
+                gemini: Some(3_000_000),
+                codex: None, // Codex not configured
+            }),
+            ..Config::new_for_test(None)
+        };
+        assert_eq!(config.get_effective_max_tokens(), Some(3_000_000));
+    }
+
+    #[test]
+    fn test_config_get_effective_max_tokens_config_partial_codex() {
+        use crate::config::TokenLimits;
+
+        let config = Config {
+            prompt: Some("test prompt".to_string()),
+            max_tokens: None,
+            llm_tool: LlmTool::Codex,
+            config_token_limits: Some(TokenLimits {
+                gemini: None, // Gemini not configured
+                codex: Some(1_200_000),
+            }),
+            ..Config::new_for_test(None)
+        };
+        assert_eq!(config.get_effective_max_tokens(), Some(1_200_000));
+    }
+
+    #[test]
+    fn test_config_get_effective_max_tokens_config_fallback_to_default() {
+        use crate::config::TokenLimits;
+
+        let config = Config {
+            prompt: Some("test prompt".to_string()),
+            max_tokens: None,
+            llm_tool: LlmTool::Gemini,
+            config_token_limits: Some(TokenLimits {
+                gemini: None, // No limit configured for Gemini
+                codex: Some(1_800_000),
+            }),
+            ..Config::new_for_test(None)
+        };
+        // Should fall back to hard-coded default
+        assert_eq!(config.get_effective_max_tokens(), Some(1_000_000));
+    }
+
+    #[test]
+    fn test_llm_tool_default_max_tokens_with_config() {
+        use crate::config::TokenLimits;
+
+        let token_limits = TokenLimits {
+            gemini: Some(2_500_000),
+            codex: Some(1_800_000),
+        };
+
+        assert_eq!(
+            LlmTool::Gemini.default_max_tokens_with_config(Some(&token_limits)),
+            2_500_000
+        );
+        assert_eq!(
+            LlmTool::Codex.default_max_tokens_with_config(Some(&token_limits)),
+            1_800_000
+        );
+    }
+
+    #[test]
+    fn test_llm_tool_default_max_tokens_with_config_partial() {
+        use crate::config::TokenLimits;
+
+        let token_limits = TokenLimits {
+            gemini: Some(3_000_000),
+            codex: None, // Codex not configured
+        };
+
+        assert_eq!(
+            LlmTool::Gemini.default_max_tokens_with_config(Some(&token_limits)),
+            3_000_000
+        );
+        // Should fall back to hard-coded default
+        assert_eq!(
+            LlmTool::Codex.default_max_tokens_with_config(Some(&token_limits)),
+            1_000_000
+        );
+    }
+
+    #[test]
+    fn test_llm_tool_default_max_tokens_with_no_config() {
+        assert_eq!(
+            LlmTool::Gemini.default_max_tokens_with_config(None),
+            1_000_000
+        );
+        assert_eq!(
+            LlmTool::Codex.default_max_tokens_with_config(None),
+            1_000_000
+        );
+    }
+
+    #[test]
+    fn test_get_effective_context_tokens_with_prompt() {
+        let config = Config {
+            prompt: Some("This is a test prompt".to_string()),
+            max_tokens: Some(10000),
+            llm_tool: LlmTool::Gemini,
+            ..Config::new_for_test(None)
+        };
+
+        let context_tokens = config.get_effective_context_tokens().unwrap();
+        // Should be less than max_tokens due to prompt + safety buffer reservation
+        assert!(context_tokens < 10000);
+        // Should be at least max_tokens - 1000 (safety buffer) - prompt tokens
+        assert!(context_tokens > 8000); // Conservative estimate
+    }
+
+    #[test]
+    fn test_get_effective_context_tokens_no_prompt() {
+        let config = Config {
+            prompt: None,
+            max_tokens: Some(10000),
+            llm_tool: LlmTool::Gemini,
+            ..Config::new_for_test(None)
+        };
+
+        // Without prompt, should use full token budget
+        assert_eq!(config.get_effective_context_tokens(), Some(10000));
+    }
+
+    #[test]
+    fn test_get_effective_context_tokens_no_limit() {
+        let config = Config {
+            prompt: None, // No prompt means no auto-limits
+            max_tokens: None,
+            llm_tool: LlmTool::Gemini,
+            ..Config::new_for_test(None)
+        };
+
+        // No max tokens configured and no prompt, should return None
+        assert_eq!(config.get_effective_context_tokens(), None);
+    }
+
+    #[test]
+    fn test_get_effective_context_tokens_with_config_limits() {
+        use crate::config::TokenLimits;
+
+        let config = Config {
+            prompt: Some("This is a longer test prompt for token counting".to_string()),
+            max_tokens: None, // Use config limits instead
+            llm_tool: LlmTool::Gemini,
+            config_token_limits: Some(TokenLimits {
+                gemini: Some(50000),
+                codex: Some(40000),
+            }),
+            ..Config::new_for_test(None)
+        };
+
+        let context_tokens = config.get_effective_context_tokens().unwrap();
+        // Should be less than config limit due to prompt reservation
+        assert!(context_tokens < 50000);
+        assert!(context_tokens > 45000); // Should be most of the budget
+    }
+
+    #[test]
     fn test_config_validation_output_file_in_current_dir() {
         let temp_dir = TempDir::new().unwrap();
         let config = Config {
@@ -559,6 +877,8 @@ mod tests {
             copy: false,
             enhanced_context: false,
             custom_priorities: vec![],
+            config_token_limits: None,
+            config_defaults_max_tokens: None,
         };
 
         // Should not error for files in current directory
@@ -584,6 +904,8 @@ mod tests {
             copy: false,
             enhanced_context: false,
             custom_priorities: vec![],
+            config_token_limits: None,
+            config_defaults_max_tokens: None,
         };
 
         // Should not error when no config file is found
@@ -656,6 +978,8 @@ mod tests {
             copy: false,
             enhanced_context: false,
             custom_priorities: vec![],
+            config_token_limits: None,
+            config_defaults_max_tokens: None,
         };
         assert!(config.validate().is_ok());
 
@@ -676,6 +1000,8 @@ mod tests {
             copy: false,
             enhanced_context: false,
             custom_priorities: vec![],
+            config_token_limits: None,
+            config_defaults_max_tokens: None,
         };
         assert!(config.validate().is_err());
     }
@@ -705,6 +1031,8 @@ mod tests {
             copy: false,
             enhanced_context: false,
             custom_priorities: vec![],
+            config_token_limits: None,
+            config_defaults_max_tokens: None,
         };
         assert!(config.validate().is_err());
     }
