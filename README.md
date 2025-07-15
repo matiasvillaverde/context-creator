@@ -189,6 +189,10 @@ package.json
 max_tokens = 150000
 progress = true
 
+[tokens]
+gemini = 2000000
+codex = 1500000
+
 [[priorities]]
 pattern = "src/**/*.rs"
 weight = 100
@@ -196,5 +200,51 @@ weight = 100
 [[priorities]]
 pattern = "tests/**/*.rs"
 weight = 50
+```
+
+### Token Limits Configuration
+
+`code-digest` now supports LLM-specific token limits via the `[tokens]` section in your configuration file. This feature provides smart defaults when using the `--prompt` flag:
+
+**Token Limit Precedence:**
+1. **Explicit CLI** (`--max-tokens 500000`) - Always takes precedence
+2. **Config Token Limits** (`[tokens]` section) - Used when prompts are provided
+3. **Config Defaults** (`[defaults].max_tokens`) - Used for non-prompt operations
+4. **Hard-coded Defaults** (1,000,000 tokens) - Fallback for prompts when no config
+
+```toml
+# Example: Configure different limits per LLM
+[tokens]
+gemini = 2000000    # 2M tokens for Gemini
+codex = 1500000     # 1.5M tokens for Codex
+
+[defaults]
+max_tokens = 150000  # For non-prompt operations
+```
+
+**Usage Examples:**
+```bash
+# Uses config token limits (2M for Gemini, with prompt reservation)
+code-digest --prompt "Analyze this codebase" --tool gemini
+
+# Explicit override (500K total, with prompt reservation)
+code-digest --prompt "Quick review" --max-tokens 500000
+
+# Uses config defaults (150K for file output, no reservation needed)
+code-digest --output-file context.md
+```
+
+### Smart Prompt Token Reservation
+
+When using prompts, `code-digest` automatically reserves tokens for:
+- **Prompt tokens** (measured using tiktoken)
+- **Safety buffer** (1000 tokens for LLM response)
+
+This ensures the total input (prompt + codebase context) fits within the LLM's context window:
+
+```bash
+# Example: 2M token limit with 50-token prompt
+# Available for codebase: 2,000,000 - 50 - 1,000 = 1,998,950 tokens
+code-digest --prompt "Analyze this code" --tool gemini
 ```
 # Security fixes applied

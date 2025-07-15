@@ -27,6 +27,10 @@ pub struct ConfigFile {
     /// Include patterns to force inclusion
     #[serde(default)]
     pub include: Vec<String>,
+
+    /// Token limits for different LLM tools
+    #[serde(default)]
+    pub tokens: TokenLimits,
 }
 
 /// Default configuration settings
@@ -65,6 +69,15 @@ pub struct Priority {
     pub pattern: String,
     /// Priority weight (higher = more important)
     pub weight: f32,
+}
+
+/// Token limits configuration for different LLM tools
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TokenLimits {
+    /// Maximum tokens for Gemini
+    pub gemini: Option<usize>,
+    /// Maximum tokens for Codex
+    pub codex: Option<usize>,
 }
 
 impl ConfigFile {
@@ -126,9 +139,12 @@ impl ConfigFile {
         // Apply custom priorities from config file
         cli_config.custom_priorities = self.priorities.clone();
 
-        // Only apply defaults if CLI didn't specify them
+        // Apply token limits from config file
+        cli_config.config_token_limits = Some(self.tokens.clone());
+
+        // Store defaults.max_tokens separately to distinguish from explicit CLI values
         if cli_config.max_tokens.is_none() && self.defaults.max_tokens.is_some() {
-            cli_config.max_tokens = self.defaults.max_tokens;
+            cli_config.config_defaults_max_tokens = self.defaults.max_tokens;
         }
 
         if let Some(ref tool_str) = self.defaults.llm_tool {
@@ -182,6 +198,10 @@ pub fn create_example_config() -> String {
             quiet: false,
             directory: None,
             output_file: None,
+        },
+        tokens: TokenLimits {
+            gemini: Some(2_000_000),
+            codex: Some(1_500_000),
         },
         priorities: vec![
             Priority {
@@ -296,6 +316,7 @@ progress = true
                 directory: Some(PathBuf::from("/tmp")),
                 output_file: Some(PathBuf::from("output.md")),
             },
+            tokens: TokenLimits::default(),
             priorities: vec![],
             ignore: vec![],
             include: vec![],
@@ -317,11 +338,13 @@ progress = true
             copy: false,
             enhanced_context: false,
             custom_priorities: vec![],
+            config_token_limits: None,
+            config_defaults_max_tokens: None,
         };
 
         config_file.apply_to_cli_config(&mut cli_config);
 
-        assert_eq!(cli_config.max_tokens, Some(75000));
+        assert_eq!(cli_config.config_defaults_max_tokens, Some(75000));
         assert_eq!(cli_config.llm_tool, LlmTool::Codex);
         assert!(cli_config.progress);
         assert!(cli_config.verbose);
@@ -334,8 +357,110 @@ progress = true
         let example = create_example_config();
         assert!(example.contains("[defaults]"));
         assert!(example.contains("max_tokens"));
+        assert!(example.contains("[tokens]"));
+        assert!(example.contains("gemini"));
+        assert!(example.contains("codex"));
         assert!(example.contains("[[priorities]]"));
         assert!(example.contains("pattern"));
         assert!(example.contains("weight"));
+    }
+
+    #[test]
+    fn test_token_limits_parsing() {
+        let config_content = r#"
+[tokens]
+gemini = 2000000
+codex = 1500000
+
+[defaults]
+max_tokens = 100000
+"#;
+
+        let config: ConfigFile = toml::from_str(config_content).unwrap();
+        assert_eq!(config.tokens.gemini, Some(2_000_000));
+        assert_eq!(config.tokens.codex, Some(1_500_000));
+        assert_eq!(config.defaults.max_tokens, Some(100_000));
+    }
+
+    #[test]
+    fn test_token_limits_partial_parsing() {
+        let config_content = r#"
+[tokens]
+gemini = 3000000
+# codex not specified, should use default
+
+[defaults]
+max_tokens = 150000
+"#;
+
+        let config: ConfigFile = toml::from_str(config_content).unwrap();
+        assert_eq!(config.tokens.gemini, Some(3_000_000));
+        assert_eq!(config.tokens.codex, None);
+    }
+
+    #[test]
+    fn test_token_limits_empty_section() {
+        let config_content = r#"
+[tokens]
+# No limits specified
+
+[defaults]
+max_tokens = 200000
+"#;
+
+        let config: ConfigFile = toml::from_str(config_content).unwrap();
+        assert_eq!(config.tokens.gemini, None);
+        assert_eq!(config.tokens.codex, None);
+    }
+
+    #[test]
+    fn test_apply_to_cli_config_with_token_limits() {
+        let config_file = ConfigFile {
+            defaults: Defaults {
+                max_tokens: Some(75000),
+                llm_tool: Some("gemini".to_string()),
+                progress: true,
+                verbose: false,
+                quiet: false,
+                directory: None,
+                output_file: None,
+            },
+            tokens: TokenLimits {
+                gemini: Some(2_500_000),
+                codex: Some(1_800_000),
+            },
+            priorities: vec![],
+            ignore: vec![],
+            include: vec![],
+        };
+
+        let mut cli_config = CliConfig {
+            prompt: None,
+            paths: Some(vec![PathBuf::from(".")]),
+            include: None,
+            repo: None,
+            read_stdin: false,
+            output_file: None,
+            max_tokens: None,
+            llm_tool: LlmTool::default(),
+            quiet: false,
+            verbose: false,
+            config: None,
+            progress: false,
+            copy: false,
+            enhanced_context: false,
+            custom_priorities: vec![],
+            config_token_limits: None,
+            config_defaults_max_tokens: None,
+        };
+
+        config_file.apply_to_cli_config(&mut cli_config);
+
+        // Token limits should be stored but not directly applied to max_tokens
+        assert_eq!(cli_config.config_defaults_max_tokens, Some(75000)); // From defaults
+        assert!(cli_config.config_token_limits.is_some());
+        let token_limits = cli_config.config_token_limits.as_ref().unwrap();
+        assert_eq!(token_limits.gemini, Some(2_500_000));
+        assert_eq!(token_limits.codex, Some(1_800_000));
     }
 }
