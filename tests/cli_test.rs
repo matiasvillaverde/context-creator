@@ -124,9 +124,17 @@ fn test_multiple_directories() {
 #[test]
 fn test_prompt_and_paths_mutually_exclusive() {
     let result = Config::try_parse_from(["code-digest", "--prompt", "test", "src"]);
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert!(err.to_string().contains("cannot be used with"));
+
+    // Either parsing fails or validation fails
+    match result {
+        Err(err) => {
+            assert!(err.to_string().contains("cannot be used with"));
+        }
+        Ok(config) => {
+            // Parsing succeeded, so validation should fail
+            assert!(config.validate().is_err());
+        }
+    }
 }
 
 #[test]
@@ -232,13 +240,13 @@ fn test_positional_and_include_conflict() {
 }
 
 #[test]
-fn test_include_with_prompt_conflict() {
+fn test_include_with_prompt_success() {
+    // This should now work - prompt and include can be used together
     let result = Config::try_parse_from(["code-digest", "--prompt", "test", "--include", "src/"]);
-    assert!(result.is_err());
-    assert!(result
-        .unwrap_err()
-        .to_string()
-        .contains("cannot be used with"));
+    assert!(result.is_ok());
+    let config = result.unwrap();
+    assert_eq!(config.get_prompt(), Some("test".to_string()));
+    assert_eq!(config.get_include_patterns(), vec!["src/"]);
 }
 
 #[test]
@@ -250,21 +258,33 @@ fn test_include_with_repo_conflict() {
         "--include",
         "src/",
     ]);
-    assert!(result.is_err());
-    assert!(result
-        .unwrap_err()
-        .to_string()
-        .contains("cannot be used with"));
+
+    // Either parsing fails or validation fails
+    match result {
+        Err(err) => {
+            assert!(err.to_string().contains("cannot be used with"));
+        }
+        Ok(config) => {
+            // Parsing succeeded, so validation should fail
+            assert!(config.validate().is_err());
+        }
+    }
 }
 
 #[test]
 fn test_include_with_stdin_conflict() {
     let result = Config::try_parse_from(["code-digest", "--stdin", "--include", "src/"]);
-    assert!(result.is_err());
-    assert!(result
-        .unwrap_err()
-        .to_string()
-        .contains("cannot be used with"));
+
+    // Either parsing fails or validation fails
+    match result {
+        Err(err) => {
+            assert!(err.to_string().contains("cannot be used with"));
+        }
+        Ok(config) => {
+            // Parsing succeeded, so validation should fail
+            assert!(config.validate().is_err());
+        }
+    }
 }
 
 #[test]

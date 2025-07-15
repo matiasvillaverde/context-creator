@@ -184,6 +184,18 @@ impl ConfigFile {
         if cli_config.output_file.is_none() && self.defaults.output_file.is_some() {
             cli_config.output_file = self.defaults.output_file.clone();
         }
+
+        // Apply ignore patterns from config file if no CLI ignore patterns provided
+        // CLI ignore patterns always take precedence over config file patterns
+        if cli_config.ignore.is_none() && !self.ignore.is_empty() {
+            cli_config.ignore = Some(self.ignore.clone());
+        }
+
+        // Apply include patterns from config file if no CLI include patterns provided
+        // CLI include patterns always take precedence over config file patterns
+        if cli_config.include.is_none() && !self.include.is_empty() {
+            cli_config.include = Some(self.include.clone());
+        }
     }
 }
 
@@ -326,6 +338,7 @@ progress = true
             prompt: None,
             paths: Some(vec![PathBuf::from(".")]),
             include: None,
+            ignore: None,
             repo: None,
             read_stdin: false,
             output_file: None,
@@ -438,6 +451,7 @@ max_tokens = 200000
             prompt: None,
             paths: Some(vec![PathBuf::from(".")]),
             include: None,
+            ignore: None,
             repo: None,
             read_stdin: false,
             output_file: None,
