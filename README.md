@@ -89,13 +89,22 @@ code-digest --include "**/*.py" --include "src/**/*.{rs,toml}"
 # Process specific file types across all directories
 code-digest --include "**/*repository*.py" --include "**/test[0-9].py"
 
+# Combine prompt with include patterns for targeted analysis
+code-digest --prompt "Review security" --include "src/auth/**" --include "src/security/**"
+
+# Use ignore patterns to exclude unwanted files
+code-digest --include "**/*.rs" --ignore "target/**" --ignore "**/*_test.rs"
+
+# Combine prompt with ignore patterns
+code-digest --prompt "Analyze core logic" --ignore "tests/**" --ignore "docs/**"
+
 # Process with token limit
 code-digest --include src/ --max-tokens 100000
 ```
 
 ## Glob Patterns
 
-The `--include` flag supports powerful glob patterns for precise file filtering:
+Both `--include` and `--ignore` flags support powerful glob patterns for precise file filtering:
 
 ### Supported Pattern Syntax
 
@@ -109,23 +118,23 @@ The `--include` flag supports powerful glob patterns for precise file filtering:
 ### Pattern Examples
 
 ```bash
-# Include all Python files
-code-digest --include "*.py"
+# Include patterns
+code-digest --include "*.py"                              # All Python files
+code-digest --include "**/*.rs"                           # All Rust files recursively
+code-digest --include "src/**/*.{py,js,ts}"              # Multiple file types in src
+code-digest --include "**/*{repository,service,model}*.py" # Specific patterns
+code-digest --include "**/test[0-9].py"                  # Numbered test files
+code-digest --include "**/db/**"                         # All files in database directories
 
-# Include all Rust files recursively
-code-digest --include "**/*.rs"
+# Ignore patterns
+code-digest --ignore "target/**"                         # Ignore Rust build artifacts
+code-digest --ignore "node_modules/**"                   # Ignore Node.js dependencies
+code-digest --ignore "**/*_test.rs"                      # Ignore test files
+code-digest --ignore "*.{log,tmp,bak}"                   # Ignore temporary files
+code-digest --ignore "docs/**"                           # Ignore documentation
 
-# Include multiple file types in src directory
-code-digest --include "src/**/*.{py,js,ts}"
-
-# Include specific patterns (repositories, services, models)
-code-digest --include "**/*{repository,service,model}*.py"
-
-# Include numbered test files
-code-digest --include "**/test[0-9].py"
-
-# Include all files in database directories
-code-digest --include "**/db/**"
+# Combined patterns
+code-digest --include "**/*.rs" --ignore "target/**" --ignore "**/*_test.rs"
 ```
 
 ### ⚠️ Important: Shell Expansion Prevention
