@@ -28,8 +28,7 @@ pub fn validate_import_path(
     // 3. Reject if decoded path differs (indicates encoding was present)
     if decoded != path_str {
         return Err(CodeDigestError::SecurityError(format!(
-            "URL-encoded paths are not allowed: {}",
-            path_str
+            "URL-encoded paths are not allowed: {path_str}"
         )));
     }
 
@@ -54,7 +53,7 @@ pub fn validate_import_path(
     })?;
 
     let canonical_base = base_dir.canonicalize().map_err(|e| {
-        CodeDigestError::SecurityError(format!("Cannot canonicalize base directory: {}", e))
+        CodeDigestError::SecurityError(format!("Cannot canonicalize base directory: {e}"))
     })?;
 
     // 7. Verify the canonical path is within base directory
@@ -94,8 +93,7 @@ pub fn validate_module_name(module_name: &str) -> Result<(), CodeDigestError> {
     // Simple check for path traversal
     if module_name.contains("..") {
         return Err(CodeDigestError::SecurityError(format!(
-            "Invalid module name: {}",
-            module_name
+            "Invalid module name: {module_name}"
         )));
     }
 
@@ -107,8 +105,7 @@ pub fn validate_module_name(module_name: &str) -> Result<(), CodeDigestError> {
 
     if !valid_chars {
         return Err(CodeDigestError::SecurityError(format!(
-            "Module name contains invalid characters: {}",
-            module_name
+            "Module name contains invalid characters: {module_name}"
         )));
     }
 
@@ -194,7 +191,7 @@ mod tests {
 
         for path in encoded_paths {
             let result = validate_import_path(base, &PathBuf::from(path));
-            assert!(result.is_err(), "Should block: {}", path);
+            assert!(result.is_err(), "Should block: {path}");
         }
     }
 
