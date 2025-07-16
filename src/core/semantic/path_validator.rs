@@ -70,11 +70,8 @@ pub fn validate_import_path(
     }
 
     // Convert Windows-style path separators to Unix style for consistent checking
-    let normalized_path = if cfg!(windows) {
-        PathBuf::from(import_str.replace('\\', "/"))
-    } else {
-        import_path.to_path_buf()
-    };
+    // Always normalize backslashes to detect Windows-style attacks on any platform
+    let normalized_path = PathBuf::from(import_str.replace('\\', "/"));
 
     // Check for obvious path traversal patterns
     let path_str = normalized_path.to_string_lossy();
