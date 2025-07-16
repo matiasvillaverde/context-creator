@@ -1307,10 +1307,7 @@ pub const API_URL: &str = "http://localhost:8000";
     println!("TypeScript app imports: {:?}", app_ts.imports.len());
 
     // Check Rust imports
-    let main_rs = files
-        .iter()
-        .find(|f| f.relative_path.to_string_lossy().contains("cli/main.rs"))
-        .expect("cli/main.rs should be found");
+    let main_rs = find_file(&files, "cli/main.rs").expect("cli/main.rs should be found");
     assert!(!main_rs.imports.is_empty(), "Rust main should have imports");
 
     // Debug imports to see what's happening
