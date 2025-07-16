@@ -104,15 +104,14 @@ fn test_concurrent_analysis_stress_test() {
                 let content = format!(
                     r#"
 import React from 'react';
-import {{ Component{} }} from './components';
+import {{ Component{i} }} from './components';
 
-function App{}() {{
-    return <Component{} />;
+function App{i}() {{
+    return <Component{i} />;
 }}
 
-export default App{};
-"#,
-                    i, i, i, i
+export default App{i};
+"#
                 );
 
                 // Parse the file
@@ -153,14 +152,13 @@ fn test_memory_bounded_caching() {
             let path = PathBuf::from(format!("file_{i}.py"));
             let content = format!(
                 r#"
-def function_{}():
-    return "Result {}"
+def function_{i}():
+    return "Result {i}"
     
-class Class{}:
+class Class{i}:
     def method(self):
-        return {}
-"#,
-                i, i, i, i
+        return {i}
+"#
             );
 
             let result = cache.get_or_parse(&path, &content, "python").await;
