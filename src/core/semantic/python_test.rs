@@ -38,10 +38,16 @@ def main():
             "Should find 'from collections import defaultdict'"
         );
         // Check for relative imports - they might just have the module name
-        let has_utils_import = result.imports.iter().any(|i| i.module == "utils" && i.is_relative);
+        let has_utils_import = result
+            .imports
+            .iter()
+            .any(|i| i.module == "utils" && i.is_relative);
         assert!(has_utils_import, "Should find 'from . import utils'");
-        
-        let has_lib_import = result.imports.iter().any(|i| i.module == "lib" && i.is_relative);
+
+        let has_lib_import = result
+            .imports
+            .iter()
+            .any(|i| i.module == "lib" && i.is_relative);
         assert!(has_lib_import, "Should find 'from ..lib import helper'");
     }
 

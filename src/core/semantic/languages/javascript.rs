@@ -93,7 +93,7 @@ fn extract_semantic_info(cursor: &mut TreeCursor, source: &str, result: &mut Ana
                     result.type_references.push(type_ref);
                 }
             }
-            
+
             // JSX element handling - treat component names as type references
             "jsx_element" | "jsx_self_closing_element" => {
                 if let Some(type_ref) = parse_jsx_element(&node, source) {
@@ -248,12 +248,12 @@ fn parse_require_call(node: &Node, source: &str) -> Option<Import> {
     }
 
     let function_node = cursor.node();
-    
+
     // Check if the function being called is "require"
     if function_node.kind() != "identifier" {
         return None;
     }
-    
+
     if let Ok(func_name) = function_node.utf8_text(source.as_bytes()) {
         if func_name != "require" {
             return None;
@@ -285,9 +285,9 @@ fn parse_require_call(node: &Node, source: &str) -> Option<Import> {
                 let module_path = path
                     .trim_matches(|c| c == '"' || c == '\'' || c == '`')
                     .to_string();
-                
+
                 let is_relative = module_path.starts_with('.') || module_path.starts_with('/');
-                
+
                 return Some(Import {
                     module: module_path,
                     items: vec!["default".to_string()], // CommonJS imports are always default
@@ -296,7 +296,7 @@ fn parse_require_call(node: &Node, source: &str) -> Option<Import> {
                 });
             }
         }
-        
+
         if !args_cursor.goto_next_sibling() {
             break;
         }
@@ -430,7 +430,7 @@ fn parse_jsx_element(node: &Node, source: &str) -> Option<TypeReference> {
                             if elem_child.kind() == "identifier" {
                                 if let Ok(name) = elem_child.utf8_text(source.as_bytes()) {
                                     // Only track capitalized identifiers (React components)
-                                    if name.chars().next().map_or(false, |c| c.is_uppercase()) {
+                                    if name.chars().next().is_some_and(|c| c.is_uppercase()) {
                                         return Some(TypeReference {
                                             name: name.to_string(),
                                             module: None,

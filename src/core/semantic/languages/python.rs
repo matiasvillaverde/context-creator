@@ -92,12 +92,12 @@ fn extract_semantic_info(cursor: &mut TreeCursor, source: &str, result: &mut Ana
                     result.type_references.push(type_ref);
                 }
             }
-            
+
             // Function definitions with return types
             "function_definition" => {
                 extract_function_types(&node, source, result);
             }
-            
+
             // Annotated assignments (e.g., name: str)
             "annotated_assignment" => {
                 extract_annotated_assignment_types(&node, source, result);
