@@ -321,7 +321,7 @@ pub fn func9() {
             .to_string()
         };
 
-        fs::write(root.join(format!("mod{}.rs", i)), content).unwrap();
+        fs::write(root.join(format!("mod{i}.rs")), content).unwrap();
     }
 
     // Test with shallow depth
