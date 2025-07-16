@@ -192,10 +192,23 @@ fn process_directory(
     if config.progress && !config.quiet {
         eprintln!("🔍 Scanning directory: {}", path.display());
     }
-    let files = core::walker::walk_directory(path, walk_options)?;
+    let mut files = core::walker::walk_directory(path, walk_options)?;
 
     if config.progress && !config.quiet {
         eprintln!("📁 Found {} files", files.len());
+    }
+
+    // Perform semantic analysis if requested
+    if config.trace_imports || config.include_callers || config.include_types {
+        if config.progress && !config.quiet {
+            eprintln!("🔗 Analyzing semantic dependencies...");
+        }
+        core::walker::perform_semantic_analysis(&mut files, config, &cache)?;
+
+        if config.progress && !config.quiet {
+            let import_count: usize = files.iter().map(|f| f.imports.len()).sum();
+            eprintln!("✅ Found {import_count} import relationships");
+        }
     }
 
     if config.verbose {
