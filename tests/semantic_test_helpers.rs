@@ -25,14 +25,15 @@ impl TestProjectBuilder {
 
     /// Add a file to the test project
     pub fn add_file<P: AsRef<Path>>(mut self, path: P, content: &str) -> Self {
-        self.files.push((path.as_ref().to_path_buf(), content.to_string()));
+        self.files
+            .push((path.as_ref().to_path_buf(), content.to_string()));
         self
     }
 
     /// Build the test project and return the root path
     pub fn build(self) -> (TempDir, PathBuf) {
         let root = self.temp_dir.path().to_path_buf();
-        
+
         for (path, content) in self.files {
             let full_path = root.join(&path);
             if let Some(parent) = full_path.parent() {
@@ -40,7 +41,7 @@ impl TestProjectBuilder {
             }
             fs::write(full_path, content).unwrap();
         }
-        
+
         (self.temp_dir, root)
     }
 }
@@ -67,13 +68,13 @@ pub fn analyze_project_with_options(
         semantic_depth,
         ..Config::default()
     };
-    
+
     let walk_options = WalkOptions::from_config(&config).unwrap();
     let cache = Arc::new(FileCache::new());
-    
+
     let mut files = walk_directory(root, walk_options).unwrap();
     code_digest::core::walker::perform_semantic_analysis(&mut files, &config, &cache).unwrap();
-    
+
     files
 }
 
@@ -108,7 +109,8 @@ pub fn find_file_by_name<'a>(files: &'a [FileInfo], name: &str) -> Option<&'a Fi
 pub fn assert_has_imports(file: &FileInfo, expected_imports: &[&str]) {
     for expected in expected_imports {
         let found = file.imports.iter().any(|import| {
-            import.file_name()
+            import
+                .file_name()
                 .and_then(|n| n.to_str())
                 .map(|n| n == *expected)
                 .unwrap_or(false)
@@ -118,7 +120,8 @@ pub fn assert_has_imports(file: &FileInfo, expected_imports: &[&str]) {
             "Expected import '{}' not found in {:?}. Actual imports: {:?}",
             expected,
             file.relative_path,
-            file.imports.iter()
+            file.imports
+                .iter()
                 .filter_map(|p| p.file_name())
                 .filter_map(|n| n.to_str())
                 .collect::<Vec<_>>()
@@ -130,7 +133,8 @@ pub fn assert_has_imports(file: &FileInfo, expected_imports: &[&str]) {
 pub fn assert_imported_by(file: &FileInfo, expected_importers: &[&str]) {
     for expected in expected_importers {
         let found = file.imported_by.iter().any(|importer| {
-            importer.file_name()
+            importer
+                .file_name()
                 .and_then(|n| n.to_str())
                 .map(|n| n == *expected)
                 .unwrap_or(false)
@@ -139,7 +143,8 @@ pub fn assert_imported_by(file: &FileInfo, expected_importers: &[&str]) {
             found,
             "Expected to be imported by '{}' but wasn't. Actual importers: {:?}",
             expected,
-            file.imported_by.iter()
+            file.imported_by
+                .iter()
                 .filter_map(|p| p.file_name())
                 .filter_map(|n| n.to_str())
                 .collect::<Vec<_>>()
@@ -150,7 +155,9 @@ pub fn assert_imported_by(file: &FileInfo, expected_importers: &[&str]) {
 /// Create a simple Rust project for testing
 pub fn create_rust_test_project() -> (TempDir, PathBuf) {
     TestProjectBuilder::new()
-        .add_file("main.rs", r#"
+        .add_file(
+            "main.rs",
+            r#"
 mod lib;
 mod utils;
 
@@ -162,8 +169,11 @@ fn main() {
     let user = lib::User::new("Alice");
     println!("{}", user.name);
 }
-"#)
-        .add_file("lib.rs", r#"
+"#,
+        )
+        .add_file(
+            "lib.rs",
+            r#"
 pub struct User {
     pub name: String,
 }
@@ -177,8 +187,11 @@ impl User {
 pub fn greet(name: &str) {
     println!("Hello, {}!", name);
 }
-"#)
-        .add_file("utils.rs", r#"
+"#,
+        )
+        .add_file(
+            "utils.rs",
+            r#"
 pub fn helper() {
     println!("Helper function");
 }
@@ -186,7 +199,8 @@ pub fn helper() {
 pub fn unused() {
     println!("This function is not called");
 }
-"#)
+"#,
+        )
         .build()
 }
 
@@ -194,7 +208,9 @@ pub fn unused() {
 #[allow(dead_code)]
 pub fn create_python_test_project() -> (TempDir, PathBuf) {
     TestProjectBuilder::new()
-        .add_file("main.py", r#"
+        .add_file(
+            "main.py",
+            r#"
 import os
 from lib import greet, User
 from utils import helper
@@ -207,22 +223,29 @@ def main():
 
 if __name__ == "__main__":
     main()
-"#)
-        .add_file("lib.py", r#"
+"#,
+        )
+        .add_file(
+            "lib.py",
+            r#"
 class User:
     def __init__(self, name):
         self.name = name
 
 def greet(name):
     print(f"Hello, {name}!")
-"#)
-        .add_file("utils.py", r#"
+"#,
+        )
+        .add_file(
+            "utils.py",
+            r#"
 def helper():
     print("Helper function")
 
 def unused():
     print("This function is not called")
-"#)
+"#,
+        )
         .build()
 }
 
@@ -230,7 +253,9 @@ def unused():
 #[allow(dead_code)]
 pub fn create_javascript_test_project() -> (TempDir, PathBuf) {
     TestProjectBuilder::new()
-        .add_file("main.js", r#"
+        .add_file(
+            "main.js",
+            r#"
 import { greet, User } from './lib.js';
 import { helper } from './utils.js';
 
@@ -242,8 +267,11 @@ function main() {
 }
 
 main();
-"#)
-        .add_file("lib.js", r#"
+"#,
+        )
+        .add_file(
+            "lib.js",
+            r#"
 export class User {
     constructor(name) {
         this.name = name;
@@ -253,8 +281,11 @@ export class User {
 export function greet(name) {
     console.log(`Hello, ${name}!`);
 }
-"#)
-        .add_file("utils.js", r#"
+"#,
+        )
+        .add_file(
+            "utils.js",
+            r#"
 export function helper() {
     console.log("Helper function");
 }
@@ -262,14 +293,17 @@ export function helper() {
 export function unused() {
     console.log("This function is not called");
 }
-"#)
+"#,
+        )
         .build()
 }
 
 /// Create a TypeScript test project
 pub fn create_typescript_test_project() -> (TempDir, PathBuf) {
     TestProjectBuilder::new()
-        .add_file("main.ts", r#"
+        .add_file(
+            "main.ts",
+            r#"
 import { greet, User } from './lib';
 import { helper } from './utils';
 import type { Config } from './types';
@@ -287,8 +321,11 @@ function main(): void {
 }
 
 main();
-"#)
-        .add_file("lib.ts", r#"
+"#,
+        )
+        .add_file(
+            "lib.ts",
+            r#"
 export class User {
     constructor(public name: string) {}
 }
@@ -296,8 +333,11 @@ export class User {
 export function greet(name: string): void {
     console.log(`Hello, ${name}!`);
 }
-"#)
-        .add_file("utils.ts", r#"
+"#,
+        )
+        .add_file(
+            "utils.ts",
+            r#"
 export function helper(): void {
     console.log("Helper function");
 }
@@ -305,22 +345,28 @@ export function helper(): void {
 export function unused(): void {
     console.log("This function is not called");
 }
-"#)
-        .add_file("types.ts", r#"
+"#,
+        )
+        .add_file(
+            "types.ts",
+            r#"
 export interface Config {
     debug: boolean;
     name: string;
 }
 
 export type Status = 'active' | 'inactive';
-"#)
+"#,
+        )
         .build()
 }
 
 /// Create a project with circular dependencies
 pub fn create_circular_deps_project() -> (TempDir, PathBuf) {
     TestProjectBuilder::new()
-        .add_file("a.rs", r#"
+        .add_file(
+            "a.rs",
+            r#"
 mod b;
 use crate::b::func_b;
 
@@ -328,8 +374,11 @@ pub fn func_a() {
     println!("In func_a");
     func_b();
 }
-"#)
-        .add_file("b.rs", r#"
+"#,
+        )
+        .add_file(
+            "b.rs",
+            r#"
 mod c;
 use crate::c::func_c;
 
@@ -337,8 +386,11 @@ pub fn func_b() {
     println!("In func_b");
     func_c();
 }
-"#)
-        .add_file("c.rs", r#"
+"#,
+        )
+        .add_file(
+            "c.rs",
+            r#"
 mod a;
 use crate::a::func_a;
 
@@ -347,14 +399,15 @@ pub fn func_c() {
     // Would cause infinite recursion if called
     // func_a();
 }
-"#)
+"#,
+        )
         .build()
 }
 
 /// Create a deep dependency chain project
 pub fn create_deep_dependency_chain(depth: usize) -> (TempDir, PathBuf) {
     let mut builder = TestProjectBuilder::new();
-    
+
     for i in 0..depth {
         let content = if i == 0 {
             r#"
@@ -364,26 +417,37 @@ use crate::mod1::func1;
 fn main() {
     func1();
 }
-"#.to_string()
+"#
+            .to_string()
         } else if i < depth - 1 {
-            format!(r#"
+            format!(
+                r#"
 mod mod{};
 use crate::mod{}::func{};
 
 pub fn func{}() {{
     func{}();
 }}
-"#, i + 1, i + 1, i + 1, i, i + 1)
+"#,
+                i + 1,
+                i + 1,
+                i + 1,
+                i,
+                i + 1
+            )
         } else {
-            format!(r#"
+            format!(
+                r#"
 pub fn func{}() {{
     println!("End of chain at depth {i}");
 }}
-"#, i)
+"#,
+                i
+            )
         };
-        
+
         builder = builder.add_file(format!("mod{i}.rs"), &content);
     }
-    
+
     builder.build()
 }
