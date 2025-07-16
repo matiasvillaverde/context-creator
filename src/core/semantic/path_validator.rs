@@ -101,8 +101,7 @@ pub fn validate_import_path(
         Ok(path) => path,
         Err(e) => {
             return Err(CodeDigestError::SecurityError(format!(
-                "Failed to canonicalize base directory: {}",
-                e
+                "Failed to canonicalize base directory: {e}"
             )));
         }
     };
@@ -179,8 +178,7 @@ pub fn validate_module_name(module_name: &str) -> Result<(), CodeDigestError> {
     // Check for path traversal in module name
     if module_name.contains("..") {
         return Err(CodeDigestError::SecurityError(format!(
-            "Invalid module name: {}",
-            module_name
+            "Invalid module name: {module_name}"
         )));
     }
 
@@ -188,8 +186,7 @@ pub fn validate_module_name(module_name: &str) -> Result<(), CodeDigestError> {
     // but not backslashes which could be Windows path separators
     if module_name.contains("\\") {
         return Err(CodeDigestError::SecurityError(format!(
-            "Invalid module name: {}",
-            module_name
+            "Invalid module name: {module_name}"
         )));
     }
 
@@ -199,8 +196,7 @@ pub fn validate_module_name(module_name: &str) -> Result<(), CodeDigestError> {
         !c.is_alphanumeric() && c != '_' && c != '-' && c != '.' && c != '@' && c != '/'
     }) {
         return Err(CodeDigestError::SecurityError(format!(
-            "Module name contains invalid characters: {}",
-            module_name
+            "Module name contains invalid characters: {module_name}"
         )));
     }
 

@@ -141,14 +141,11 @@ impl ParserPoolManager {
     /// Get a parser from the pool for the specified language
     pub async fn get_parser(&self, language: &str) -> Result<PooledParser, CodeDigestError> {
         let pool = self.pools.get(language).ok_or_else(|| {
-            CodeDigestError::ParseError(format!("Unsupported language: {}", language))
+            CodeDigestError::ParseError(format!("Unsupported language: {language}"))
         })?;
 
         pool.get().await.map_err(|e| {
-            CodeDigestError::ParseError(format!(
-                "Failed to get {} parser from pool: {}",
-                language, e
-            ))
+            CodeDigestError::ParseError(format!("Failed to get {language} parser from pool: {e}"))
         })
     }
 

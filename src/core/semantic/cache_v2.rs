@@ -137,7 +137,7 @@ impl AstCacheV2 {
             })
             .await
             .map_err(|e| {
-                CodeDigestError::ParseError(format!("Failed to cache parse result: {}", e))
+                CodeDigestError::ParseError(format!("Failed to cache parse result: {e}"))
             })?;
 
         Ok(entry.tree.clone())
