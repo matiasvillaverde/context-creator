@@ -87,15 +87,20 @@ fn extract_semantic_info(cursor: &mut TreeCursor, source: &str, result: &mut Ana
             }
 
             // Type reference handling - Python type hints
-            "type" => {
+            "type" | "generic_type" => {
                 if let Some(type_ref) = parse_type_annotation(&node, source) {
                     result.type_references.push(type_ref);
                 }
             }
-            "annotation" => {
-                if let Some(type_ref) = parse_type_annotation(&node, source) {
-                    result.type_references.push(type_ref);
-                }
+            
+            // Function definitions with return types
+            "function_definition" => {
+                extract_function_types(&node, source, result);
+            }
+            
+            // Annotated assignments (e.g., name: str)
+            "annotated_assignment" => {
+                extract_annotated_assignment_types(&node, source, result);
             }
 
             _ => {}
@@ -389,7 +394,7 @@ fn parse_type_annotation(node: &Node, source: &str) -> Option<TypeReference> {
 /// Extract type name from a type node
 fn extract_type_name(node: &Node, source: &str) -> Option<String> {
     match node.kind() {
-        "type" | "annotation" => {
+        "type" | "annotation" | "expression" | "generic_type" => {
             // Look for the actual type identifier within
             let mut cursor = node.walk();
             if cursor.goto_first_child() {
@@ -412,13 +417,105 @@ fn extract_type_name(node: &Node, source: &str) -> Option<String> {
         }
         "subscript" => {
             // Handle generic types like List[str]
+            // First try to extract the base type
             if let Some(value_node) = node.child(0) {
-                return extract_type_name(&value_node, source);
+                let base_type = extract_type_name(&value_node, source);
+                // Also extract type parameters
+                let mut cursor = node.walk();
+                if cursor.goto_first_child() {
+                    loop {
+                        let child = cursor.node();
+                        if child.kind() == "subscript" || child.kind() == "identifier" {
+                            if let Some(_param_type) = extract_type_name(&child, source) {
+                                // We could collect these but for now just return base
+                                return base_type;
+                            }
+                        }
+                        if !cursor.goto_next_sibling() {
+                            break;
+                        }
+                    }
+                }
+                return base_type;
             }
         }
         _ => {}
     }
     None
+}
+
+/// Extract types from function definitions
+fn extract_function_types(node: &Node, source: &str, result: &mut AnalysisResult) {
+    let mut cursor = node.walk();
+    if cursor.goto_first_child() {
+        loop {
+            let child = cursor.node();
+            match child.kind() {
+                "parameters" => {
+                    // Extract parameter types
+                    extract_parameter_types(&child, source, result);
+                }
+                "type" => {
+                    // Return type annotation
+                    if let Some(type_ref) = parse_type_annotation(&child, source) {
+                        result.type_references.push(type_ref);
+                    }
+                }
+                _ => {}
+            }
+            if !cursor.goto_next_sibling() {
+                break;
+            }
+        }
+    }
+}
+
+/// Extract types from function parameters
+fn extract_parameter_types(node: &Node, source: &str, result: &mut AnalysisResult) {
+    let mut cursor = node.walk();
+    if cursor.goto_first_child() {
+        loop {
+            let child = cursor.node();
+            if child.kind() == "typed_parameter" || child.kind() == "typed_default_parameter" {
+                // Find the type annotation within
+                let mut param_cursor = child.walk();
+                if param_cursor.goto_first_child() {
+                    loop {
+                        let param_child = param_cursor.node();
+                        if param_child.kind() == "type" {
+                            if let Some(type_ref) = parse_type_annotation(&param_child, source) {
+                                result.type_references.push(type_ref);
+                            }
+                        }
+                        if !param_cursor.goto_next_sibling() {
+                            break;
+                        }
+                    }
+                }
+            }
+            if !cursor.goto_next_sibling() {
+                break;
+            }
+        }
+    }
+}
+
+/// Extract types from annotated assignments
+fn extract_annotated_assignment_types(node: &Node, source: &str, result: &mut AnalysisResult) {
+    let mut cursor = node.walk();
+    if cursor.goto_first_child() {
+        loop {
+            let child = cursor.node();
+            if child.kind() == "type" {
+                if let Some(type_ref) = parse_type_annotation(&child, source) {
+                    result.type_references.push(type_ref);
+                }
+            }
+            if !cursor.goto_next_sibling() {
+                break;
+            }
+        }
+    }
 }
 
 pub struct PythonModuleResolver;
