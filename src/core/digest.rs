@@ -224,6 +224,74 @@ fn append_file_content(
     output.push_str(&header);
     output.push_str("\n\n");
 
+    // Add semantic information if available
+    if !file.imports.is_empty() {
+        output.push_str("Imports: ");
+        let import_names: Vec<String> = file
+            .imports
+            .iter()
+            .map(|p| {
+                // Get the file name without extension for cleaner output
+                p.file_name()
+                    .and_then(|n| n.to_str())
+                    .map(|name| {
+                        // Remove .rs extension if present
+                        name.strip_suffix(".rs").unwrap_or(name)
+                    })
+                    .unwrap_or_else(|| p.to_str().unwrap_or("unknown"))
+                    .to_string()
+            })
+            .collect();
+        output.push_str(&format!("{}\n\n", import_names.join(", ")));
+    }
+
+    if !file.imported_by.is_empty() {
+        output.push_str("Imported by: ");
+        let imported_by_names: Vec<String> = file
+            .imported_by
+            .iter()
+            .map(|p| {
+                p.file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or_else(|| p.to_str().unwrap_or("unknown"))
+                    .to_string()
+            })
+            .collect();
+        output.push_str(&format!("{}\n\n", imported_by_names.join(", ")));
+    }
+
+    if !file.function_calls.is_empty() {
+        output.push_str("Function calls: ");
+        let function_names: Vec<String> = file
+            .function_calls
+            .iter()
+            .map(|fc| {
+                if let Some(module) = &fc.module {
+                    format!("{}.{}()", module, fc.name)
+                } else {
+                    format!("{}()", fc.name)
+                }
+            })
+            .collect();
+        output.push_str(&format!("{}\n\n", function_names.join(", ")));
+    }
+
+    if !file.type_references.is_empty() {
+        output.push_str("Type references: ");
+        let type_names: Vec<String> = file
+            .type_references
+            .iter()
+            .map(|tr| {
+                if let Some(module) = &tr.module {
+                    format!("{}.{}", module, tr.name)
+                } else {
+                    tr.name.clone()
+                }
+            })
+            .collect();
+        output.push_str(&format!("{}\n\n", type_names.join(", ")));
+    }
+
     // Add language hint for syntax highlighting
     let language = get_language_hint(&file.file_type);
     output.push_str(&format!("```{language}\n"));
