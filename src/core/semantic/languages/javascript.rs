@@ -78,6 +78,10 @@ fn extract_semantic_info(cursor: &mut TreeCursor, source: &str, result: &mut Ana
 
             // Function call handling
             "call_expression" => {
+                // Check if it's a require() call
+                if let Some(import) = parse_require_call(&node, source) {
+                    result.imports.push(import);
+                }
                 if let Some(call) = parse_function_call(&node, source) {
                     result.function_calls.push(call);
                 }
@@ -86,6 +90,13 @@ fn extract_semantic_info(cursor: &mut TreeCursor, source: &str, result: &mut Ana
             // Type reference handling - JSDoc type annotations
             "type_annotation" => {
                 if let Some(type_ref) = parse_type_annotation(&node, source) {
+                    result.type_references.push(type_ref);
+                }
+            }
+            
+            // JSX element handling - treat component names as type references
+            "jsx_element" | "jsx_self_closing_element" => {
+                if let Some(type_ref) = parse_jsx_element(&node, source) {
                     result.type_references.push(type_ref);
                 }
             }
@@ -225,6 +236,75 @@ fn extract_named_imports(node: &Node, source: &str) -> Vec<String> {
     items
 }
 
+/// Parse a require() call as an import
+fn parse_require_call(node: &Node, source: &str) -> Option<Import> {
+    let start = node.start_position();
+    let line = start.row + 1;
+
+    // Check if it's a require call
+    let mut cursor = node.walk();
+    if !cursor.goto_first_child() {
+        return None;
+    }
+
+    let function_node = cursor.node();
+    
+    // Check if the function being called is "require"
+    if function_node.kind() != "identifier" {
+        return None;
+    }
+    
+    if let Ok(func_name) = function_node.utf8_text(source.as_bytes()) {
+        if func_name != "require" {
+            return None;
+        }
+    } else {
+        return None;
+    }
+
+    // Get the argument (module path)
+    if !cursor.goto_next_sibling() {
+        return None;
+    }
+
+    let args_node = cursor.node();
+    if args_node.kind() != "arguments" {
+        return None;
+    }
+
+    // Parse the first argument as the module path
+    let mut args_cursor = args_node.walk();
+    if !args_cursor.goto_first_child() {
+        return None;
+    }
+
+    loop {
+        let arg_node = args_cursor.node();
+        if arg_node.kind() == "string" {
+            if let Ok(path) = arg_node.utf8_text(source.as_bytes()) {
+                let module_path = path
+                    .trim_matches(|c| c == '"' || c == '\'' || c == '`')
+                    .to_string();
+                
+                let is_relative = module_path.starts_with('.') || module_path.starts_with('/');
+                
+                return Some(Import {
+                    module: module_path,
+                    items: vec!["default".to_string()], // CommonJS imports are always default
+                    is_relative,
+                    line,
+                });
+            }
+        }
+        
+        if !args_cursor.goto_next_sibling() {
+            break;
+        }
+    }
+
+    None
+}
+
 /// Parse a function call
 fn parse_function_call(node: &Node, source: &str) -> Option<FunctionCall> {
     let start = node.start_position();
@@ -328,6 +408,52 @@ fn parse_type_annotation(node: &Node, source: &str) -> Option<TypeReference> {
     } else {
         None
     }
+}
+
+/// Parse JSX element as a type reference
+fn parse_jsx_element(node: &Node, source: &str) -> Option<TypeReference> {
+    let start = node.start_position();
+    let line = start.row + 1;
+
+    // Find the opening element or self-closing element
+    let mut cursor = node.walk();
+    if cursor.goto_first_child() {
+        loop {
+            let child = cursor.node();
+            match child.kind() {
+                "jsx_opening_element" | "jsx_self_closing_element" => {
+                    // Find the identifier (component name)
+                    let mut elem_cursor = child.walk();
+                    if elem_cursor.goto_first_child() {
+                        loop {
+                            let elem_child = elem_cursor.node();
+                            if elem_child.kind() == "identifier" {
+                                if let Ok(name) = elem_child.utf8_text(source.as_bytes()) {
+                                    // Only track capitalized identifiers (React components)
+                                    if name.chars().next().map_or(false, |c| c.is_uppercase()) {
+                                        return Some(TypeReference {
+                                            name: name.to_string(),
+                                            module: None,
+                                            line,
+                                        });
+                                    }
+                                }
+                            }
+                            if !elem_cursor.goto_next_sibling() {
+                                break;
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+            if !cursor.goto_next_sibling() {
+                break;
+            }
+        }
+    }
+
+    None
 }
 
 pub struct JavaScriptModuleResolver;
