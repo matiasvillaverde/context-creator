@@ -198,18 +198,24 @@ mod tests {
     #[test]
     fn test_symlink_blocked() {
         let temp_dir = TempDir::new().unwrap();
-        let base = temp_dir.path();
 
         #[cfg(unix)]
         {
             use std::os::unix::fs::symlink;
 
+            let base = temp_dir.path();
             // Create a symlink to /etc/passwd
             let link_path = base.join("evil_link");
             symlink("/etc/passwd", &link_path).unwrap();
 
             let result = validate_import_path(base, &link_path);
             assert!(result.is_err());
+        }
+
+        #[cfg(not(unix))]
+        {
+            // Symlink test is Unix-specific
+            // Windows symlinks require admin privileges
         }
     }
 
