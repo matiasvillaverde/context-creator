@@ -1,0 +1,134 @@
+#[cfg(test)]
+mod tests {
+    use crate::core::semantic::{analyzer::*, languages::python::PythonAnalyzer};
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_python_import_parsing() {
+        let analyzer = PythonAnalyzer::new();
+        let content = r#"
+import os
+import sys
+from pathlib import Path
+from collections import defaultdict
+from . import utils
+from ..lib import helper
+
+def main():
+    print("Hello World")
+"#;
+        let path = PathBuf::from("main.py");
+        let context = SemanticContext::new(path.clone(), PathBuf::from("."), 3);
+
+        let result = analyzer.analyze_file(&path, content, &context).unwrap();
+
+        assert!(!result.imports.is_empty(), "Should find imports");
+        assert_eq!(result.imports.len(), 6, "Should find 6 imports");
+
+        // Check that we found the different import types
+        let modules: Vec<&str> = result.imports.iter().map(|i| i.module.as_str()).collect();
+        assert!(modules.contains(&"os"), "Should find 'import os'");
+        assert!(modules.contains(&"sys"), "Should find 'import sys'");
+        assert!(
+            modules.contains(&"pathlib.Path"),
+            "Should find 'from pathlib import Path'"
+        );
+        assert!(
+            modules.contains(&"collections.defaultdict"),
+            "Should find 'from collections import defaultdict'"
+        );
+        assert!(
+            modules.contains(&".utils"),
+            "Should find 'from . import utils'"
+        );
+        assert!(
+            modules.contains(&"..lib.helper"),
+            "Should find 'from ..lib import helper'"
+        );
+    }
+
+    #[test]
+    fn test_python_function_call_parsing() {
+        let analyzer = PythonAnalyzer::new();
+        let content = r#"
+import os
+
+def greet(name):
+    return f"Hello, {name}!"
+
+def main():
+    print(greet("World"))
+    os.path.join("a", "b")
+    len([1, 2, 3])
+"#;
+        let path = PathBuf::from("main.py");
+        let context = SemanticContext::new(path.clone(), PathBuf::from("."), 3);
+
+        let result = analyzer.analyze_file(&path, content, &context).unwrap();
+
+        assert!(
+            !result.function_calls.is_empty(),
+            "Should find function calls"
+        );
+
+        let func_names: Vec<&str> = result
+            .function_calls
+            .iter()
+            .map(|f| f.name.as_str())
+            .collect();
+        assert!(func_names.contains(&"print"), "Should find 'print' call");
+        assert!(func_names.contains(&"greet"), "Should find 'greet' call");
+        assert!(
+            func_names.contains(&"join"),
+            "Should find 'join' method call"
+        );
+        assert!(func_names.contains(&"len"), "Should find 'len' call");
+    }
+
+    #[test]
+    fn test_python_type_reference_parsing() {
+        let analyzer = PythonAnalyzer::new();
+        let content = r#"
+from typing import List, Dict, Optional
+from dataclasses import dataclass
+
+@dataclass
+class Person:
+    name: str
+    age: int
+
+def get_people() -> List[Person]:
+    return []
+
+def process_data(data: Dict[str, Person]) -> Optional[str]:
+    return None
+"#;
+        let path = PathBuf::from("types.py");
+        let context = SemanticContext::new(path.clone(), PathBuf::from("."), 3);
+
+        let result = analyzer.analyze_file(&path, content, &context).unwrap();
+
+        assert!(
+            !result.type_references.is_empty(),
+            "Should find type references"
+        );
+
+        let type_names: Vec<&str> = result
+            .type_references
+            .iter()
+            .map(|t| t.name.as_str())
+            .collect();
+        assert!(type_names.contains(&"List"), "Should find 'List' type");
+        assert!(type_names.contains(&"Dict"), "Should find 'Dict' type");
+        assert!(
+            type_names.contains(&"Optional"),
+            "Should find 'Optional' type"
+        );
+        assert!(
+            type_names.contains(&"Person"),
+            "Should find 'Person' type reference"
+        );
+        assert!(type_names.contains(&"str"), "Should find 'str' type");
+        assert!(type_names.contains(&"int"), "Should find 'int' type");
+    }
+}
