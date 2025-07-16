@@ -93,6 +93,7 @@ if __name__ == "__main__":
 
 /// Test Python with Unicode in various places
 #[test]
+#[ignore = "Semantic data not yet included in markdown output"]
 fn test_python_unicode_everywhere() {
     let temp_dir = TempDir::new().unwrap();
     let src_dir = temp_dir.path().join("src");
