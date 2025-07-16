@@ -2,10 +2,20 @@
 
 use code_digest::cli::Config;
 use code_digest::core::cache::FileCache;
-use code_digest::core::walker::{walk_directory, WalkOptions};
+use code_digest::core::walker::{walk_directory, FileInfo, WalkOptions};
 use std::fs;
 use std::sync::Arc;
 use tempfile::TempDir;
+
+// Helper to find files cross-platform
+fn find_file<'a>(files: &'a [FileInfo], path_parts: &[&str]) -> Option<&'a FileInfo> {
+    files.iter().find(|f| {
+        let path_str = f.relative_path.to_str().unwrap();
+        let expected_unix = path_parts.join("/");
+        let expected_windows = path_parts.join("\\");
+        path_str == expected_unix || path_str == expected_windows
+    })
+}
 
 #[test]
 fn test_multi_language_project_semantic_analysis() {
@@ -147,59 +157,41 @@ pub fn process_name(name: &str) -> String {
     code_digest::core::walker::perform_semantic_analysis(&mut files, &config, &cache).unwrap();
 
     // Verify Python imports
-    let py_main = files
-        .iter()
-        .find(|f| f.relative_path.to_str().unwrap() == "python/main.py")
-        .unwrap();
+    let py_main = find_file(&files, &["python", "main.py"]).expect("Python main.py not found");
     assert!(
         !py_main.imports.is_empty(),
         "Python main should have imports"
     );
 
-    let py_utils = files
-        .iter()
-        .find(|f| f.relative_path.to_str().unwrap() == "python/utils.py")
-        .unwrap();
+    let py_utils = find_file(&files, &["python", "utils.py"]).expect("Python utils.py not found");
     assert!(
         !py_utils.imported_by.is_empty(),
         "Python utils should be imported by main"
     );
 
     // Verify JavaScript imports
-    let js_index = files
-        .iter()
-        .find(|f| f.relative_path.to_str().unwrap() == "js/index.js")
-        .unwrap();
+    let js_index = find_file(&files, &["js", "index.js"]).expect("JS index.js not found");
     assert!(!js_index.imports.is_empty(), "JS index should have imports");
     assert!(
         !js_index.function_calls.is_empty(),
         "JS index should have function calls"
     );
 
-    let js_api = files
-        .iter()
-        .find(|f| f.relative_path.to_str().unwrap() == "js/api.js")
-        .unwrap();
+    let js_api = find_file(&files, &["js", "api.js"]).expect("JS api.js not found");
     assert!(
         !js_api.imported_by.is_empty(),
         "JS api should be imported by index"
     );
 
     // Verify Rust imports
-    let rs_main = files
-        .iter()
-        .find(|f| f.relative_path.to_str().unwrap() == "rust/main.rs")
-        .unwrap();
+    let rs_main = find_file(&files, &["rust", "main.rs"]).expect("Rust main.rs not found");
     assert!(!rs_main.imports.is_empty(), "Rust main should have imports");
     assert!(
         !rs_main.function_calls.is_empty(),
         "Rust main should have function calls"
     );
 
-    let rs_lib = files
-        .iter()
-        .find(|f| f.relative_path.to_str().unwrap() == "rust/lib.rs")
-        .unwrap();
+    let rs_lib = find_file(&files, &["rust", "lib.rs"]).expect("Rust lib.rs not found");
     assert!(
         !rs_lib.imported_by.is_empty(),
         "Rust lib should be imported by main"
