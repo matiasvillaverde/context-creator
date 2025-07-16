@@ -1084,21 +1084,12 @@ pub mod api;
 
     // Check that imports were detected and priorities adjusted
     // Need to look for files in their subdirectories
-    let utils_file = files
-        .iter()
-        .find(|f| f.relative_path.to_string_lossy().ends_with("core/utils.rs"))
-        .expect("core/utils.rs should be found");
+    let utils_file = find_file(&files, "core/utils.rs").expect("core/utils.rs should be found");
     let config_file = find_file(&files, "config.rs").expect("config.rs should be found");
     let standalone_file =
         find_file(&files, "standalone.rs").expect("standalone.rs should be found");
-    let logger_file = files
-        .iter()
-        .find(|f| {
-            f.relative_path
-                .to_string_lossy()
-                .ends_with("helpers/logger.rs")
-        })
-        .expect("helpers/logger.rs should be found");
+    let logger_file =
+        find_file(&files, "helpers/logger.rs").expect("helpers/logger.rs should be found");
 
     // Files imported by many should have higher priority indicators
     println!(
@@ -1306,26 +1297,13 @@ pub const API_URL: &str = "http://localhost:8000";
     assert!(!rs_files.is_empty(), "Should find Rust files");
 
     // Check Python imports - need to look in backend directory
-    let server_py = files
-        .iter()
-        .find(|f| {
-            f.relative_path
-                .to_string_lossy()
-                .ends_with("backend/server.py")
-        })
-        .expect("backend/server.py should be found");
+    let server_py =
+        find_file(&files, "backend/server.py").expect("backend/server.py should be found");
     // Python import detection might be limited
     println!("Python server imports: {:?}", server_py.imports.len());
 
     // Check TypeScript imports - need to look in frontend directory
-    let app_ts = files
-        .iter()
-        .find(|f| {
-            f.relative_path
-                .to_string_lossy()
-                .ends_with("frontend/app.ts")
-        })
-        .expect("frontend/app.ts should be found");
+    let app_ts = find_file(&files, "frontend/app.ts").expect("frontend/app.ts should be found");
     println!("TypeScript app imports: {:?}", app_ts.imports.len());
 
     // Check Rust imports
