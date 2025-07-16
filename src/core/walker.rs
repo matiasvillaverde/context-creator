@@ -148,6 +148,14 @@ pub struct FileInfo {
     pub file_type: FileType,
     /// Priority score (higher is more important)
     pub priority: f32,
+    /// Files that this file imports/depends on (for semantic analysis)
+    pub imports: Vec<PathBuf>,
+    /// Files that import this file (reverse dependencies)
+    pub imported_by: Vec<PathBuf>,
+    /// Function calls made by this file (for --include-callers analysis)
+    pub function_calls: Vec<crate::core::semantic::analyzer::FunctionCall>,
+    /// Type references used by this file (for --include-types analysis)
+    pub type_references: Vec<crate::core::semantic::analyzer::TypeReference>,
 }
 
 impl FileInfo {
@@ -170,6 +178,12 @@ impl FileInfo {
             FileType::Kotlin => "Kotlin",
             FileType::Scala => "Scala",
             FileType::Haskell => "Haskell",
+            FileType::Dart => "Dart",
+            FileType::Lua => "Lua",
+            FileType::R => "R",
+            FileType::Julia => "Julia",
+            FileType::Elixir => "Elixir",
+            FileType::Elm => "Elm",
             FileType::Markdown => "Markdown",
             FileType::Json => "JSON",
             FileType::Yaml => "YAML",
@@ -432,6 +446,10 @@ fn process_file(path: &Path, root: &Path, options: &WalkOptions) -> Result<Optio
         size,
         file_type,
         priority,
+        imports: Vec::new(),         // Will be populated by semantic analysis
+        imported_by: Vec::new(),     // Will be populated by semantic analysis
+        function_calls: Vec::new(),  // Will be populated by semantic analysis
+        type_references: Vec::new(), // Will be populated by semantic analysis
     }))
 }
 
@@ -473,6 +491,12 @@ fn calculate_base_priority(file_type: &FileType, relative_path: &Path) -> f32 {
         FileType::Kotlin => 0.85,
         FileType::Scala => 0.8,
         FileType::Haskell => 0.75,
+        FileType::Dart => 0.85,
+        FileType::Lua => 0.7,
+        FileType::R => 0.75,
+        FileType::Julia => 0.8,
+        FileType::Elixir => 0.8,
+        FileType::Elm => 0.75,
         FileType::Markdown => 0.6,
         FileType::Json => 0.5,
         FileType::Yaml => 0.5,
@@ -508,6 +532,37 @@ fn calculate_base_priority(file_type: &FileType, relative_path: &Path) -> f32 {
     }
 
     score.min(2.0) // Cap maximum score
+}
+
+/// Perform semantic analysis on collected files
+///
+/// This function analyzes the collected files to populate import relationships
+/// based on the semantic analysis options provided in the CLI configuration.
+///
+/// # Arguments
+/// * `files` - Mutable reference to the vector of FileInfo to analyze
+/// * `config` - CLI configuration containing semantic analysis flags
+/// * `cache` - File cache for reading file contents
+///
+/// # Returns
+/// Result indicating success or failure of the analysis
+pub fn perform_semantic_analysis(
+    files: &mut [FileInfo],
+    config: &crate::cli::Config,
+    cache: &crate::core::cache::FileCache,
+) -> Result<()> {
+    // Use the new graph-based semantic analysis
+    crate::core::semantic_graph::perform_semantic_analysis_graph(files, config, cache)
+}
+
+/// Capitalize the first letter of a string
+#[allow(dead_code)]
+fn capitalize_first(s: &str) -> String {
+    let mut chars = s.chars();
+    match chars.next() {
+        None => String::new(),
+        Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+    }
 }
 
 #[cfg(test)]
@@ -613,24 +668,8 @@ mod tests {
 
         let temp_dir = TempDir::new().unwrap();
         let config = Config {
-            prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
-            include: None,
-            ignore: None,
-            output_file: None,
-            max_tokens: None,
-            llm_tool: crate::cli::LlmTool::default(),
-            quiet: false,
-            verbose: false,
-            config: None,
-            progress: false,
-            repo: None,
-            read_stdin: false,
-            copy: false,
-            enhanced_context: false,
-            custom_priorities: vec![],
-            config_token_limits: None,
-            config_defaults_max_tokens: None,
+            ..Config::default()
         };
 
         let options = WalkOptions::from_config(&config).unwrap();
@@ -920,6 +959,10 @@ mod tests {
             progress: false,
             copy: false,
             enhanced_context: false,
+            trace_imports: false,
+            include_callers: false,
+            include_types: false,
+            semantic_depth: 3,
             custom_priorities: vec![],
             config_token_limits: None,
             config_defaults_max_tokens: None,
@@ -997,6 +1040,10 @@ mod tests {
             progress: false,
             copy: false,
             enhanced_context: false,
+            trace_imports: false,
+            include_callers: false,
+            include_types: false,
+            semantic_depth: 3,
             custom_priorities: vec![],
             config_token_limits: None,
             config_defaults_max_tokens: None,
@@ -1041,6 +1088,10 @@ mod tests {
             progress: false,
             copy: false,
             enhanced_context: false,
+            trace_imports: false,
+            include_callers: false,
+            include_types: false,
+            semantic_depth: 3,
             custom_priorities: vec![],
             config_token_limits: None,
             config_defaults_max_tokens: None,
@@ -1087,6 +1138,10 @@ mod tests {
             progress: false,
             copy: false,
             enhanced_context: false,
+            trace_imports: false,
+            include_callers: false,
+            include_types: false,
+            semantic_depth: 3,
             custom_priorities: vec![],
             config_token_limits: None,
             config_defaults_max_tokens: None,
@@ -1148,6 +1203,10 @@ mod tests {
             progress: false,
             copy: false,
             enhanced_context: false,
+            trace_imports: false,
+            include_callers: false,
+            include_types: false,
+            semantic_depth: 3,
             custom_priorities: vec![],
             config_token_limits: None,
             config_defaults_max_tokens: None,
@@ -1170,6 +1229,10 @@ mod tests {
             size: 1000,
             file_type: FileType::Rust,
             priority: 1.0,
+            imports: Vec::new(),
+            imported_by: Vec::new(),
+            function_calls: Vec::new(),
+            type_references: Vec::new(),
         };
 
         assert_eq!(file_info.file_type_display(), "Rust");
@@ -1180,6 +1243,10 @@ mod tests {
             size: 500,
             file_type: FileType::Markdown,
             priority: 0.6,
+            imports: Vec::new(),
+            imported_by: Vec::new(),
+            function_calls: Vec::new(),
+            type_references: Vec::new(),
         };
 
         assert_eq!(file_info_md.file_type_display(), "Markdown");
@@ -1206,6 +1273,10 @@ mod tests {
             progress: false,
             copy: false,
             enhanced_context: false,
+            trace_imports: false,
+            include_callers: false,
+            include_types: false,
+            semantic_depth: 3,
             custom_priorities: vec![],
             config_token_limits: None,
             config_defaults_max_tokens: None,
@@ -1236,6 +1307,10 @@ mod tests {
             progress: false,
             copy: false,
             enhanced_context: false,
+            trace_imports: false,
+            include_callers: false,
+            include_types: false,
+            semantic_depth: 3,
             custom_priorities: vec![],
             config_token_limits: None,
             config_defaults_max_tokens: None,
@@ -1269,6 +1344,10 @@ mod tests {
             progress: false,
             copy: false,
             enhanced_context: false,
+            trace_imports: false,
+            include_callers: false,
+            include_types: false,
+            semantic_depth: 3,
             custom_priorities: vec![],
             config_token_limits: None,
             config_defaults_max_tokens: None,
@@ -1554,6 +1633,10 @@ mod tests {
             progress: false,
             copy: false,
             enhanced_context: false,
+            trace_imports: false,
+            include_callers: false,
+            include_types: false,
+            semantic_depth: 3,
             custom_priorities: vec![],
             config_token_limits: None,
             config_defaults_max_tokens: None,
@@ -1583,6 +1666,10 @@ mod tests {
             progress: false,
             copy: false,
             enhanced_context: false,
+            trace_imports: false,
+            include_callers: false,
+            include_types: false,
+            semantic_depth: 3,
             custom_priorities: vec![],
             config_token_limits: None,
             config_defaults_max_tokens: None,
