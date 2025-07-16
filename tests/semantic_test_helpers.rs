@@ -438,11 +438,10 @@ pub fn func{}() {{
         } else {
             format!(
                 r#"
-pub fn func{}() {{
+pub fn func{i}() {{
     println!("End of chain at depth {i}");
 }}
-"#,
-                i
+"#
             )
         };
 

@@ -609,8 +609,7 @@ pub const SECRET: &str = "should not be accessible";
                         && !import_str.contains("C:\\Windows")
                         && !import_str.contains("..\\..\\..")
                         && !import_str.contains("../../.."),
-                    "Import {:?} appears to reference system paths",
-                    import
+                    "Import {import:?} appears to reference system paths"
                 );
             }
         }
@@ -745,7 +744,7 @@ VERSION = "3.11"
         .map(|s| s.to_string())
         .collect();
 
-    println!("Python imports found: {:?}", import_names);
+    println!("Python imports found: {import_names:?}");
 
     // At minimum, we should detect the sibling module
     assert!(
@@ -769,7 +768,7 @@ VERSION = "3.11"
         .map(|fc| fc.name.as_str())
         .collect();
 
-    println!("Python function calls found: {:?}", function_names);
+    println!("Python function calls found: {function_names:?}");
 
     // Should detect at least some function calls
     assert!(
@@ -927,7 +926,7 @@ export function createUser(name: string): User {
         .map(|s| s.to_string())
         .collect();
 
-    println!("JavaScript imports found: {:?}", js_import_names);
+    println!("JavaScript imports found: {js_import_names:?}");
 
     assert!(
         js_import_names.contains(&"utils.js".to_string())
@@ -953,7 +952,7 @@ export function createUser(name: string): User {
             .map(|tr| tr.name.as_str())
             .collect();
 
-        println!("TypeScript type references found: {:?}", type_names);
+        println!("TypeScript type references found: {type_names:?}");
 
         // Should detect type usage
         assert!(
@@ -1381,9 +1380,9 @@ pub const API_URL: &str = "http://localhost:8000";
         ext == Some("rs") || ext.is_none() // mod.rs imports
     });
 
-    println!("Python imports valid: {}", py_imports_valid);
-    println!("TypeScript imports valid: {}", ts_imports_valid);
-    println!("Rust imports valid: {}", rs_imports_valid);
+    println!("Python imports valid: {py_imports_valid}");
+    println!("TypeScript imports valid: {ts_imports_valid}");
+    println!("Rust imports valid: {rs_imports_valid}");
 
     // Cross-language imports might happen due to simple resolution
     // This is a known limitation where the resolver might match files
