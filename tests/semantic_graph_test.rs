@@ -109,12 +109,13 @@ fn test_performance_with_large_graph() {
         // Each file imports the next 3 files (if they exist)
         for j in 1..=3 {
             if i + j < 1000 {
-                imports.push(PathBuf::from(format!("file_{}.rs", i + j)));
+                let file_num = i + j;
+                imports.push(PathBuf::from(format!("file_{file_num}.rs")));
             }
         }
 
         files.push(FileNode {
-            path: PathBuf::from(format!("file_{}.rs", i)),
+            path: PathBuf::from(format!("file_{i}.rs")),
             imports,
             imported_by: vec![],
         });

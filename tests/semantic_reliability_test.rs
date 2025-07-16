@@ -89,7 +89,7 @@ fn test_parser_pool_concurrent_access() {
                 tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
 
                 // Parser is automatically returned to pool when dropped
-                format!("Task {} completed", i)
+                format!("Task {i} completed")
             });
             handles.push(handle);
         }
@@ -217,8 +217,7 @@ fn test_path_traversal_attack_prevention() {
         let path = base_dir.join(attack);
         assert!(
             validate_import_path(base_dir, &path).is_err(),
-            "Path traversal attack should be blocked: {}",
-            attack
+            "Path traversal attack should be blocked: {attack}"
         );
     }
 }

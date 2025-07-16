@@ -100,7 +100,7 @@ fn test_concurrent_analysis_stress_test() {
         for i in 0..50 {
             let cache_clone = cache.clone();
             let handle = tokio::spawn(async move {
-                let path = PathBuf::from(format!("test_{}.js", i));
+                let path = PathBuf::from(format!("test_{i}.js"));
                 let content = format!(
                     r#"
 import React from 'react';
@@ -127,7 +127,7 @@ export default App{};
                     .await;
                 assert!(result2.is_ok());
 
-                format!("Task {} completed", i)
+                format!("Task {i} completed")
             });
             handles.push(handle);
         }
@@ -150,7 +150,7 @@ fn test_memory_bounded_caching() {
 
         // Add more files than capacity
         for i in 0..10 {
-            let path = PathBuf::from(format!("file_{}.py", i));
+            let path = PathBuf::from(format!("file_{i}.py"));
             let content = format!(
                 r#"
 def function_{}():
@@ -187,7 +187,7 @@ fn test_timeout_protection_integration() {
         // Create a very large file that might take time to parse
         let mut large_content = String::new();
         for i in 0..10000 {
-            large_content.push_str(&format!("function func_{}() {{ return {}; }}\n", i, i));
+            large_content.push_str(&format!("function func_{i}() {{ return {i}; }}\n"));
         }
 
         let path = PathBuf::from("large_file.js");
@@ -218,11 +218,11 @@ fn test_graph_performance_with_large_codebase() {
         // Each file imports 5 other files
         for j in 1..=5 {
             let target = (i + j) % 500;
-            imports.push(PathBuf::from(format!("src/file_{}.rs", target)));
+            imports.push(PathBuf::from(format!("src/file_{target}.rs")));
         }
 
         files.push(FileNode {
-            path: PathBuf::from(format!("src/file_{}.rs", i)),
+            path: PathBuf::from(format!("src/file_{i}.rs")),
             imports,
             imported_by: vec![],
         });
