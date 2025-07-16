@@ -421,6 +421,12 @@ fn file_type_display(file_type: &FileType) -> &'static str {
         FileType::Kotlin => "Kotlin",
         FileType::Scala => "Scala",
         FileType::Haskell => "Haskell",
+        FileType::Dart => "Dart",
+        FileType::Lua => "Lua",
+        FileType::R => "R",
+        FileType::Julia => "Julia",
+        FileType::Elixir => "Elixir",
+        FileType::Elm => "Elm",
         FileType::Markdown => "Markdown",
         FileType::Json => "JSON",
         FileType::Yaml => "YAML",
@@ -451,6 +457,12 @@ fn get_language_hint(file_type: &FileType) -> &'static str {
         FileType::Kotlin => "kotlin",
         FileType::Scala => "scala",
         FileType::Haskell => "haskell",
+        FileType::Dart => "dart",
+        FileType::Lua => "lua",
+        FileType::R => "r",
+        FileType::Julia => "julia",
+        FileType::Elixir => "elixir",
+        FileType::Elm => "elm",
         FileType::Markdown => "markdown",
         FileType::Json => "json",
         FileType::Yaml => "yaml",
@@ -481,15 +493,21 @@ fn file_type_priority(file_type: &FileType) -> u8 {
         FileType::Kotlin => 12,
         FileType::Scala => 13,
         FileType::Haskell => 14,
-        FileType::Markdown => 15,
-        FileType::Json => 16,
-        FileType::Yaml => 17,
-        FileType::Toml => 18,
-        FileType::Xml => 19,
-        FileType::Html => 20,
-        FileType::Css => 21,
-        FileType::Text => 22,
-        FileType::Other => 23,
+        FileType::Dart => 15,
+        FileType::Lua => 16,
+        FileType::R => 17,
+        FileType::Julia => 18,
+        FileType::Elixir => 19,
+        FileType::Elm => 20,
+        FileType::Markdown => 21,
+        FileType::Json => 22,
+        FileType::Yaml => 23,
+        FileType::Toml => 24,
+        FileType::Xml => 25,
+        FileType::Html => 26,
+        FileType::Css => 27,
+        FileType::Text => 28,
+        FileType::Other => 29,
     }
 }
 
@@ -557,6 +575,10 @@ mod tests {
                 size: 100,
                 file_type: FileType::Rust,
                 priority: 1.0,
+                imports: Vec::new(),
+                imported_by: Vec::new(),
+                function_calls: Vec::new(),
+                type_references: Vec::new(),
             },
             FileInfo {
                 path: PathBuf::from("test2.py"),
@@ -564,6 +586,10 @@ mod tests {
                 size: 200,
                 file_type: FileType::Python,
                 priority: 0.9,
+                imports: Vec::new(),
+                imported_by: Vec::new(),
+                function_calls: Vec::new(),
+                type_references: Vec::new(),
             },
         ];
 
@@ -591,6 +617,10 @@ mod tests {
                 size: 2_000_000, // 2MB
                 file_type: FileType::Rust,
                 priority: 1.0,
+                imports: Vec::new(),
+                imported_by: Vec::new(),
+                function_calls: Vec::new(),
+                type_references: Vec::new(),
             },
             FileInfo {
                 path: PathBuf::from("huge.py"),
@@ -598,6 +628,10 @@ mod tests {
                 size: 50_000_000, // 50MB
                 file_type: FileType::Python,
                 priority: 0.9,
+                imports: Vec::new(),
+                imported_by: Vec::new(),
+                function_calls: Vec::new(),
+                type_references: Vec::new(),
             },
         ];
 
@@ -617,6 +651,10 @@ mod tests {
                 size: 1000,
                 file_type: FileType::Rust,
                 priority: 1.5,
+                imports: Vec::new(),
+                imported_by: Vec::new(),
+                function_calls: Vec::new(),
+                type_references: Vec::new(),
             },
             FileInfo {
                 path: PathBuf::from("src/lib.rs"),
@@ -624,6 +662,10 @@ mod tests {
                 size: 2000,
                 file_type: FileType::Rust,
                 priority: 1.2,
+                imports: Vec::new(),
+                imported_by: Vec::new(),
+                function_calls: Vec::new(),
+                type_references: Vec::new(),
             },
             FileInfo {
                 path: PathBuf::from("tests/test.rs"),
@@ -631,6 +673,10 @@ mod tests {
                 size: 500,
                 file_type: FileType::Rust,
                 priority: 0.8,
+                imports: Vec::new(),
+                imported_by: Vec::new(),
+                function_calls: Vec::new(),
+                type_references: Vec::new(),
             },
         ];
 
@@ -650,24 +696,9 @@ mod tests {
 
         let temp_dir = TempDir::new().unwrap();
         let config = Config {
-            prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
-            include: None,
-            ignore: None,
-            repo: None,
-            read_stdin: false,
-            output_file: None,
             max_tokens: Some(100000),
-            llm_tool: crate::cli::LlmTool::default(),
-            quiet: false,
-            verbose: false,
-            config: None,
-            progress: false,
-            copy: false,
-            enhanced_context: false,
-            custom_priorities: vec![],
-            config_token_limits: None,
-            config_defaults_max_tokens: None,
+            ..Config::default()
         };
 
         let options = DigestOptions::from_config(&config).unwrap();
@@ -714,6 +745,10 @@ mod tests {
                 size: 145,
                 file_type: FileType::Rust,
                 priority: 1.5,
+                imports: Vec::new(),
+                imported_by: Vec::new(),
+                function_calls: Vec::new(),
+                type_references: Vec::new(),
             },
             FileInfo {
                 path: PathBuf::from("src/lib.rs"),
@@ -721,6 +756,10 @@ mod tests {
                 size: 89,
                 file_type: FileType::Rust,
                 priority: 1.2,
+                imports: Vec::new(),
+                imported_by: Vec::new(),
+                function_calls: Vec::new(),
+                type_references: Vec::new(),
             },
         ];
 
@@ -756,6 +795,10 @@ mod tests {
             size: 145,
             file_type: FileType::Rust,
             priority: 1.5,
+            imports: Vec::new(),
+            imported_by: Vec::new(),
+            function_calls: Vec::new(),
+            type_references: Vec::new(),
         }];
 
         let options = DigestOptions {
@@ -789,6 +832,10 @@ mod tests {
             size: 145,
             file_type: FileType::Rust,
             priority: 1.5,
+            imports: Vec::new(),
+            imported_by: Vec::new(),
+            function_calls: Vec::new(),
+            type_references: Vec::new(),
         }];
 
         let options = DigestOptions {
