@@ -21,6 +21,9 @@ pub fn prioritize_files(
     options: &DigestOptions,
     cache: Arc<FileCache>,
 ) -> Result<Vec<FileInfo>> {
+    // Adjust priorities based on semantic dependencies
+    adjust_priorities_for_dependencies(&mut files);
+
     // If no token limit, return all files sorted by priority
     let max_tokens = match options.max_tokens {
         Some(limit) => limit,
@@ -200,6 +203,47 @@ pub fn group_by_directory(files: Vec<FileInfo>) -> Vec<(String, Vec<FileInfo>)> 
     result
 }
 
+/// Adjust file priorities based on semantic dependencies
+///
+/// Files that are imported by high-priority files get a priority boost.
+/// The boost is proportional to the priority of the importing file.
+fn adjust_priorities_for_dependencies(files: &mut [FileInfo]) {
+    use std::collections::HashMap;
+
+    // Create a map from path to index for quick lookups
+    let mut path_to_index: HashMap<std::path::PathBuf, usize> = HashMap::new();
+    for (index, file) in files.iter().enumerate() {
+        path_to_index.insert(file.path.clone(), index);
+    }
+
+    // Calculate priority boosts based on who imports each file
+    let mut priority_boosts: Vec<f32> = vec![0.0; files.len()];
+
+    for file in files.iter() {
+        // For each file that imports other files
+        if !file.imports.is_empty() {
+            let importer_priority = file.priority;
+
+            // Give a boost to imported files based on the importer's priority
+            for imported_path in &file.imports {
+                if let Some(&imported_idx) = path_to_index.get(imported_path) {
+                    // Boost is 20% of the importer's priority
+                    priority_boosts[imported_idx] += importer_priority * 0.2;
+                }
+            }
+        }
+    }
+
+    // Apply the priority boosts
+    for (index, boost) in priority_boosts.iter().enumerate() {
+        if *boost > 0.0 {
+            files[index].priority += boost;
+            // Cap maximum priority
+            files[index].priority = files[index].priority.min(5.0);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -231,6 +275,10 @@ mod tests {
                 size: 100,
                 file_type: FileType::Text,
                 priority: 0.3,
+                imports: Vec::new(),
+                imported_by: Vec::new(),
+                function_calls: Vec::new(),
+                type_references: Vec::new(),
             },
             FileInfo {
                 path: temp_dir.path().join("high.rs"),
@@ -238,6 +286,10 @@ mod tests {
                 size: 100,
                 file_type: FileType::Rust,
                 priority: 1.0,
+                imports: Vec::new(),
+                imported_by: Vec::new(),
+                function_calls: Vec::new(),
+                type_references: Vec::new(),
             },
         ];
 
@@ -260,6 +312,10 @@ mod tests {
                 size: 100,
                 file_type: FileType::Rust,
                 priority: 1.0,
+                imports: Vec::new(),
+                imported_by: Vec::new(),
+                function_calls: Vec::new(),
+                type_references: Vec::new(),
             },
             FileInfo {
                 path: PathBuf::from("src/lib.rs"),
@@ -267,6 +323,10 @@ mod tests {
                 size: 100,
                 file_type: FileType::Rust,
                 priority: 1.0,
+                imports: Vec::new(),
+                imported_by: Vec::new(),
+                function_calls: Vec::new(),
+                type_references: Vec::new(),
             },
             FileInfo {
                 path: PathBuf::from("tests/test.rs"),
@@ -274,6 +334,10 @@ mod tests {
                 size: 100,
                 file_type: FileType::Rust,
                 priority: 0.8,
+                imports: Vec::new(),
+                imported_by: Vec::new(),
+                function_calls: Vec::new(),
+                type_references: Vec::new(),
             },
         ];
 
@@ -296,6 +360,10 @@ mod tests {
                 size: 500,
                 file_type: FileType::Rust,
                 priority: 0.8,
+                imports: Vec::new(),
+                imported_by: Vec::new(),
+                function_calls: Vec::new(),
+                type_references: Vec::new(),
             },
             FileInfo {
                 path: temp_dir.path().join("main.rs"),
@@ -303,6 +371,10 @@ mod tests {
                 size: 1000,
                 file_type: FileType::Rust,
                 priority: 1.5,
+                imports: Vec::new(),
+                imported_by: Vec::new(),
+                function_calls: Vec::new(),
+                type_references: Vec::new(),
             },
             FileInfo {
                 path: temp_dir.path().join("lib.rs"),
@@ -310,6 +382,10 @@ mod tests {
                 size: 800,
                 file_type: FileType::Rust,
                 priority: 1.2,
+                imports: Vec::new(),
+                imported_by: Vec::new(),
+                function_calls: Vec::new(),
+                type_references: Vec::new(),
             },
         ];
 
@@ -335,6 +411,10 @@ mod tests {
             size: 1000,
             file_type: FileType::Rust,
             priority: 1.5,
+            imports: Vec::new(),
+            imported_by: Vec::new(),
+            function_calls: Vec::new(),
+            type_references: Vec::new(),
         }];
 
         let options = DigestOptions {
@@ -365,6 +445,10 @@ mod tests {
                 size: 500,
                 file_type: FileType::Rust,
                 priority: 0.8,
+                imports: Vec::new(),
+                imported_by: Vec::new(),
+                function_calls: Vec::new(),
+                type_references: Vec::new(),
             },
             FileInfo {
                 path: PathBuf::from("main.rs"),
@@ -372,6 +456,10 @@ mod tests {
                 size: 1000,
                 file_type: FileType::Rust,
                 priority: 1.5,
+                imports: Vec::new(),
+                imported_by: Vec::new(),
+                function_calls: Vec::new(),
+                type_references: Vec::new(),
             },
             FileInfo {
                 path: PathBuf::from("lib.rs"),
@@ -379,6 +467,10 @@ mod tests {
                 size: 800,
                 file_type: FileType::Rust,
                 priority: 1.2,
+                imports: Vec::new(),
+                imported_by: Vec::new(),
+                function_calls: Vec::new(),
+                type_references: Vec::new(),
             },
         ];
 
@@ -399,6 +491,10 @@ mod tests {
                 size: 500,
                 file_type: FileType::Rust,
                 priority: 1.0,
+                imports: Vec::new(),
+                imported_by: Vec::new(),
+                function_calls: Vec::new(),
+                type_references: Vec::new(),
             },
             FileInfo {
                 path: PathBuf::from("src/utils/helpers.rs"),
@@ -406,6 +502,10 @@ mod tests {
                 size: 300,
                 file_type: FileType::Rust,
                 priority: 0.9,
+                imports: Vec::new(),
+                imported_by: Vec::new(),
+                function_calls: Vec::new(),
+                type_references: Vec::new(),
             },
             FileInfo {
                 path: PathBuf::from("tests/integration.rs"),
@@ -413,6 +513,10 @@ mod tests {
                 size: 200,
                 file_type: FileType::Rust,
                 priority: 0.8,
+                imports: Vec::new(),
+                imported_by: Vec::new(),
+                function_calls: Vec::new(),
+                type_references: Vec::new(),
             },
             FileInfo {
                 path: PathBuf::from("main.rs"),
@@ -420,6 +524,10 @@ mod tests {
                 size: 1000,
                 file_type: FileType::Rust,
                 priority: 1.5,
+                imports: Vec::new(),
+                imported_by: Vec::new(),
+                function_calls: Vec::new(),
+                type_references: Vec::new(),
             },
         ];
 
@@ -444,5 +552,73 @@ mod tests {
                     .any(|f| f.relative_path == PathBuf::from("src/core/mod.rs"))
         });
         assert!(has_src_core);
+    }
+
+    #[test]
+    fn test_adjust_priorities_for_dependencies() {
+        let mut files = vec![
+            FileInfo {
+                path: PathBuf::from("main.rs"),
+                relative_path: PathBuf::from("main.rs"),
+                size: 1000,
+                file_type: FileType::Rust,
+                priority: 2.0,
+                imports: vec![PathBuf::from("lib.rs"), PathBuf::from("utils.rs")],
+                imported_by: vec![],
+                function_calls: vec![],
+                type_references: vec![],
+            },
+            FileInfo {
+                path: PathBuf::from("lib.rs"),
+                relative_path: PathBuf::from("lib.rs"),
+                size: 800,
+                file_type: FileType::Rust,
+                priority: 1.0,
+                imports: vec![],
+                imported_by: vec![PathBuf::from("main.rs")],
+                function_calls: vec![],
+                type_references: vec![],
+            },
+            FileInfo {
+                path: PathBuf::from("utils.rs"),
+                relative_path: PathBuf::from("utils.rs"),
+                size: 500,
+                file_type: FileType::Rust,
+                priority: 0.8,
+                imports: vec![],
+                imported_by: vec![PathBuf::from("main.rs")],
+                function_calls: vec![],
+                type_references: vec![],
+            },
+            FileInfo {
+                path: PathBuf::from("unused.rs"),
+                relative_path: PathBuf::from("unused.rs"),
+                size: 300,
+                file_type: FileType::Rust,
+                priority: 0.5,
+                imports: vec![],
+                imported_by: vec![],
+                function_calls: vec![],
+                type_references: vec![],
+            },
+        ];
+
+        let original_priorities: Vec<f32> = files.iter().map(|f| f.priority).collect();
+
+        adjust_priorities_for_dependencies(&mut files);
+
+        // main.rs priority should remain unchanged (it's not imported by anything)
+        assert_eq!(files[0].priority, original_priorities[0]);
+
+        // lib.rs should get a boost (imported by main.rs with priority 2.0)
+        assert!(files[1].priority > original_priorities[1]);
+        assert_eq!(files[1].priority, original_priorities[1] + 2.0 * 0.2);
+
+        // utils.rs should also get a boost
+        assert!(files[2].priority > original_priorities[2]);
+        assert_eq!(files[2].priority, original_priorities[2] + 2.0 * 0.2);
+
+        // unused.rs should remain unchanged (not imported by anything)
+        assert_eq!(files[3].priority, original_priorities[3]);
     }
 }

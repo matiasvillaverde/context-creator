@@ -169,7 +169,15 @@ fn test_copy_default_false() {
 
 #[test]
 fn test_copy_with_output_conflict() {
-    let config = Config::parse_from(["code-digest", "src", "--copy", "-o", "out.md"]);
+    use tempfile::TempDir;
+    let temp_dir = TempDir::new().unwrap();
+    let config = Config::parse_from([
+        "code-digest",
+        temp_dir.path().to_str().unwrap(),
+        "--copy",
+        "-o",
+        "out.md",
+    ]);
     let result = config.validate();
     assert!(result.is_err());
     assert!(result

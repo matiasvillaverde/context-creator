@@ -52,6 +52,10 @@ pub enum CodeDigestError {
     #[error("Token limit exceeded: {current} tokens (max: {max})")]
     TokenLimitExceeded { current: usize, max: usize },
 
+    /// Parsing errors
+    #[error("Parse error: {0}")]
+    ParseError(String),
+
     /// Pattern matching errors
     #[error("Invalid glob pattern: {0}")]
     InvalidGlobPattern(String),
