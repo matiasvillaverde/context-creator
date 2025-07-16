@@ -5,6 +5,7 @@ use crate::core::semantic::{
         AnalysisResult, FunctionCall, Import, LanguageAnalyzer, SemanticContext, SemanticResult,
         TypeReference,
     },
+    path_validator::{validate_import_path, validate_module_name},
     resolver::{ModuleResolver, ResolvedPath, ResolverUtils},
 };
 use crate::utils::error::CodeDigestError;
@@ -527,6 +528,9 @@ impl ModuleResolver for PythonModuleResolver {
         from_file: &Path,
         base_dir: &Path,
     ) -> Result<ResolvedPath, CodeDigestError> {
+        // Validate module name for security
+        validate_module_name(module_path)?;
+
         // Handle standard library imports
         if self.is_external_module(module_path) {
             return Ok(ResolvedPath {
@@ -565,8 +569,9 @@ impl ModuleResolver for PythonModuleResolver {
                     // Try as a Python file
                     if let Some(resolved) = ResolverUtils::find_with_extensions(&full_path, &["py"])
                     {
+                        let validated_path = validate_import_path(base_dir, &resolved)?;
                         return Ok(ResolvedPath {
-                            path: resolved,
+                            path: validated_path,
                             is_external: false,
                             confidence: 0.9,
                         });
@@ -575,8 +580,9 @@ impl ModuleResolver for PythonModuleResolver {
                     // Try as a package directory with __init__.py
                     let init_path = full_path.join("__init__.py");
                     if init_path.exists() {
+                        let validated_path = validate_import_path(base_dir, &init_path)?;
                         return Ok(ResolvedPath {
-                            path: init_path,
+                            path: validated_path,
                             is_external: false,
                             confidence: 0.9,
                         });
@@ -606,8 +612,9 @@ impl ModuleResolver for PythonModuleResolver {
                     // Try as a Python file
                     let py_file = current_path.with_extension("py");
                     if py_file.exists() {
+                        let validated_path = validate_import_path(base_dir, &py_file)?;
                         return Ok(ResolvedPath {
-                            path: py_file,
+                            path: validated_path,
                             is_external: false,
                             confidence: 0.8,
                         });
@@ -616,8 +623,9 @@ impl ModuleResolver for PythonModuleResolver {
                     // Try as a package directory
                     let init_path = current_path.join("__init__.py");
                     if init_path.exists() {
+                        let validated_path = validate_import_path(base_dir, &init_path)?;
                         return Ok(ResolvedPath {
-                            path: init_path,
+                            path: validated_path,
                             is_external: false,
                             confidence: 0.8,
                         });
