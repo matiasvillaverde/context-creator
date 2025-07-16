@@ -14,18 +14,17 @@ fn test_python_massive_imports() {
     let module_count = 200;
     for i in 0..module_count {
         fs::write(
-            src_dir.join(format!("module_{}.py", i)),
+            src_dir.join(format!("module_{i}.py")),
             format!(
                 r#"
-def function_{}():
-    return {}
+def function_{i}():
+    return {i}
 
-class Class{}:
-    value = {}
+class Class{i}:
+    value = {i}
 
-CONSTANT_{} = {}
-"#,
-                i, i, i, i, i, i
+CONSTANT_{i} = {i}
+"#
             ),
         )
         .unwrap();
@@ -37,17 +36,16 @@ CONSTANT_{} = {}
     // Add imports
     for i in 0..module_count {
         content.push_str(&format!(
-            "from module_{} import function_{}, Class{}, CONSTANT_{}\n",
-            i, i, i, i
+            "from module_{i} import function_{i}, Class{i}, CONSTANT_{i}\n"
         ));
     }
 
     // Add main function that uses some imports
     content.push_str("\ndef main():\n    total = 0\n");
     for i in 0..10 {
-        content.push_str(&format!("    total += function_{}()\n", i));
-        content.push_str(&format!("    obj = Class{}()\n", i));
-        content.push_str(&format!("    total += CONSTANT_{}\n", i));
+        content.push_str(&format!("    total += function_{i}()\n"));
+        content.push_str(&format!("    obj = Class{i}()\n"));
+        content.push_str(&format!("    total += CONSTANT_{i}\n"));
     }
     content.push_str("    return total\n\nif __name__ == '__main__':\n    print(main())\n");
 
@@ -83,11 +81,10 @@ fn test_python_deep_call_chain() {
             // Last function in chain
             format!(
                 r#"
-def function_{}(n):
-    print(f"Reached depth {}")
-    return n + {}
-"#,
-                i, i, i
+def function_{i}(n):
+    print(f"Reached depth {i}")
+    return n + {i}
+"#
             )
         } else {
             // Function that imports and calls the next one
@@ -95,18 +92,16 @@ def function_{}(n):
                 r#"
 from level_{} import function_{}
 
-def function_{}(n):
-    return function_{}(n + {})
+def function_{i}(n):
+    return function_{}(n + {i})
 "#,
                 i + 1,
                 i + 1,
-                i,
-                i + 1,
-                i
+                i + 1
             )
         };
 
-        fs::write(src_dir.join(format!("level_{}.py", i)), content).unwrap();
+        fs::write(src_dir.join(format!("level_{i}.py")), content).unwrap();
     }
 
     // Create entry point
@@ -339,19 +334,18 @@ fn test_python_many_functions() {
     for i in 0..function_count {
         content.push_str(&format!(
             r#"
-def func_{}(x):
-    """Function number {}"""
-    return x + {}
+def func_{i}(x):
+    """Function number {i}"""
+    return x + {i}
 
-"#,
-            i, i, i
+"#
         ));
     }
 
     // Add a main function that calls some of them
     content.push_str("def main():\n    total = 0\n");
     for i in 0..20 {
-        content.push_str(&format!("    total += func_{}({})\n", i, i));
+        content.push_str(&format!("    total += func_{i}({i})\n"));
     }
     content.push_str("    return total\n\n");
     content.push_str("if __name__ == '__main__':\n    print(main())\n");
@@ -384,12 +378,11 @@ fn test_python_large_classes() {
     // Add 500 methods
     for i in 0..500 {
         content.push_str(&format!(
-            r#"    def method_{}(self):
-        """Method number {}"""
-        return {}
+            r#"    def method_{i}(self):
+        """Method number {i}"""
+        return {i}
 
-"#,
-            i, i, i
+"#
         ));
     }
 
@@ -397,12 +390,11 @@ fn test_python_large_classes() {
     for i in 0..500 {
         content.push_str(&format!(
             r#"    @classmethod
-    def class_method_{}(cls):
-        """Class method number {}"""
-        return {}
+    def class_method_{i}(cls):
+        """Class method number {i}"""
+        return {i}
 
-"#,
-            i, i, i
+"#
         ));
     }
 
@@ -410,8 +402,8 @@ fn test_python_large_classes() {
     content.push_str("\n\ndef test_mega_class():\n");
     content.push_str("    obj = MegaClass()\n");
     for i in 0..10 {
-        content.push_str(&format!("    obj.method_{}()\n", i));
-        content.push_str(&format!("    MegaClass.class_method_{}()\n", i));
+        content.push_str(&format!("    obj.method_{i}()\n"));
+        content.push_str(&format!("    MegaClass.class_method_{i}()\n"));
     }
 
     fs::write(src_dir.join("large_classes.py"), content).unwrap();
@@ -436,7 +428,7 @@ fn test_python_deep_nesting() {
     let depth = 20;
 
     for i in 0..depth {
-        current_dir = current_dir.join(format!("level{}", i));
+        current_dir = current_dir.join(format!("level{i}"));
         fs::create_dir_all(&current_dir).unwrap();
 
         // Add __init__.py
@@ -444,10 +436,9 @@ fn test_python_deep_nesting() {
             current_dir.join("__init__.py"),
             format!(
                 r#"
-"""Level {} package"""
-from .module import func_{}
-"#,
-                i, i
+"""Level {i} package"""
+from .module import func_{i}
+"#
             ),
         )
         .unwrap();
@@ -457,11 +448,10 @@ from .module import func_{}
             current_dir.join("module.py"),
             format!(
                 r#"
-def func_{}():
-    """Function at level {}"""
-    return {}
-"#,
-                i, i, i
+def func_{i}():
+    """Function at level {i}"""
+    return {i}
+"#
             ),
         )
         .unwrap();

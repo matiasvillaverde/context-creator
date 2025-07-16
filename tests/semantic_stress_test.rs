@@ -15,11 +15,11 @@ fn test_massive_imports() {
     let mut modules = Vec::new();
 
     for i in 0..module_count {
-        let module_name = format!("mod_{:03}", i);
+        let module_name = format!("mod_{i:03}");
         modules.push(module_name.clone());
 
         fs::write(
-            src_dir.join(format!("{}.rs", module_name)),
+            src_dir.join(format!("{module_name}.rs")),
             format!(
                 r#"
 pub fn function_{i}() -> i32 {{
@@ -31,8 +31,7 @@ pub const CONST_{i}: i32 = {i};
 pub struct Type{i} {{
     value: i32,
 }}
-"#,
-                i = i
+"#
             ),
         )
         .unwrap();
@@ -43,13 +42,13 @@ pub struct Type{i} {{
 
     // Add module declarations
     for module in &modules {
-        main_content.push_str(&format!("mod {};\n", module));
+        main_content.push_str(&format!("mod {module};\n"));
     }
 
     // Add use statements
     main_content.push('\n');
     for module in &modules {
-        main_content.push_str(&format!("use {}::*;\n", module));
+        main_content.push_str(&format!("use {module}::*;\n"));
     }
 
     // Add a main function that uses some imports
@@ -59,7 +58,7 @@ pub struct Type{i} {{
         if i > 0 {
             main_content.push_str(" + ");
         }
-        main_content.push_str(&format!("function_{}()", i));
+        main_content.push_str(&format!("function_{i}()"));
     }
     main_content.push_str(";\n    println!(\"Sum: {}\", sum);\n}\n");
 
@@ -103,26 +102,27 @@ pub fn function_{i}(n: i32) -> i32 {{
     println!("Reached depth {i}");
     n + {i}
 }}
-"#,
-                i = i
+"#
             )
         } else {
             // Function that calls the next one
             format!(
                 r#"
-mod level_{next};
-use level_{next}::function_{next};
+mod level_{};
+use level_{}::function_{};
 
 pub fn function_{i}(n: i32) -> i32 {{
-    function_{next}(n + {i})
+    function_{}(n + {i})
 }}
 "#,
-                i = i,
-                next = i + 1
+                i + 1,
+                i + 1,
+                i + 1,
+                i + 1
             )
         };
 
-        fs::write(src_dir.join(format!("level_{}.rs", i)), content).unwrap();
+        fs::write(src_dir.join(format!("level_{i}.rs")), content).unwrap();
     }
 
     // Create entry point
@@ -315,15 +315,14 @@ fn test_many_functions_in_file() {
 pub fn func_{i}(x: i32) -> i32 {{
     x + {i}
 }}
-"#,
-            i = i
+"#
         ));
     }
 
     // Add a main function that calls some of them
     content.push_str("\nfn main() {\n");
     for i in 0..10 {
-        content.push_str(&format!("    func_{}({});\n", i, i));
+        content.push_str(&format!("    func_{i}({i});\n"));
     }
     content.push_str("}\n");
 
@@ -352,14 +351,13 @@ fn test_concurrent_file_access() {
     // Create initial files
     for i in 0..10 {
         fs::write(
-            src_dir.join(format!("file_{}.rs", i)),
+            src_dir.join(format!("file_{i}.rs")),
             format!(
                 r#"
 pub fn function_{i}() {{
     println!("File {i}");
 }}
-"#,
-                i = i
+"#
             ),
         )
         .unwrap();
@@ -487,7 +485,7 @@ fn test_deep_directory_nesting() {
     // Create deeply nested structure
     let depth = 20;
     for i in 0..depth {
-        current_dir = current_dir.join(format!("level_{}", i));
+        current_dir = current_dir.join(format!("level_{i}"));
         fs::create_dir_all(&current_dir).unwrap();
 
         // Add a file at each level
@@ -498,8 +496,7 @@ fn test_deep_directory_nesting() {
 pub fn level_{i}_function() {{
     println!("At level {i}");
 }}
-"#,
-                i = i
+"#
             ),
         )
         .unwrap();

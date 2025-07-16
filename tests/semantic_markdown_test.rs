@@ -47,9 +47,9 @@ fn main() {
 
     // The bug: semantic information is not in the markdown
     println!("=== STDERR (progress output) ===");
-    println!("{}", stderr);
+    println!("{stderr}");
     println!("\n=== STDOUT (markdown output) ===");
-    println!("{}", stdout);
+    println!("{stdout}");
 
     // These assertions SHOULD pass but currently FAIL
     assert!(

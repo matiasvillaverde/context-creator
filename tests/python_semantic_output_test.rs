@@ -117,10 +117,10 @@ class Client:
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
 
-    eprintln!("STDERR: {}", stderr);
+    eprintln!("STDERR: {stderr}");
 
     // Verify command succeeded
-    assert!(output.status.success(), "code-digest failed: {}", stderr);
+    assert!(output.status.success(), "code-digest failed: {stderr}");
 
     // Check that semantic analysis was performed
     if stderr.contains("Analyzing semantic dependencies") {
@@ -375,7 +375,7 @@ if __name__ == "__main__":
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
 
-    eprintln!("STDERR: {}", stderr);
+    eprintln!("STDERR: {stderr}");
 
     assert!(output.status.success());
 

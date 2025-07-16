@@ -99,11 +99,11 @@ pub fn display(msg: &str) {
     let stderr = String::from_utf8_lossy(&output.stderr);
 
     // Print output for debugging
-    eprintln!("STDOUT:\n{}", stdout);
-    eprintln!("STDERR:\n{}", stderr);
+    eprintln!("STDOUT:\n{stdout}");
+    eprintln!("STDERR:\n{stderr}");
 
     // Verify the command succeeded
-    assert!(output.status.success(), "code-digest failed: {}", stderr);
+    assert!(output.status.success(), "code-digest failed: {stderr}");
 
     // Check that semantic analysis was performed (from stderr progress messages)
     if stderr.contains("Analyzing semantic dependencies") {
@@ -138,8 +138,7 @@ pub fn display(msg: &str) {
             || main_rs_section.contains("Dependencies:")
             || main_rs_section.contains("lib::helper")
             || main_rs_section.contains("utils::format"),
-        "main.rs section should show its imports (lib::helper, utils::format), but found:\n{}",
-        main_rs_section
+        "main.rs section should show its imports (lib::helper, utils::format), but found:\n{main_rs_section}"
     );
 
     // Test 2: Check if helper.rs shows it's imported by main.rs
@@ -156,8 +155,7 @@ pub fn display(msg: &str) {
             || helper_section.contains("imported by:")
             || helper_section.contains("Referenced by:")
             || helper_section.contains("main.rs"),
-        "helper.rs section should show it's imported by main.rs, but found:\n{}",
-        helper_section
+        "helper.rs section should show it's imported by main.rs, but found:\n{helper_section}"
     );
 
     // Test 3: Check if function calls are shown when --include-callers is used
@@ -166,8 +164,7 @@ pub fn display(msg: &str) {
         main_rs_section.contains("format::display") ||
         main_rs_section.contains("Function calls:") ||
         main_rs_section.contains("Calls:"),
-        "main.rs section should show function calls (helper::init, format::display), but found:\n{}",
-        main_rs_section
+        "main.rs section should show function calls (helper::init, format::display), but found:\n{main_rs_section}"
     );
 
     // Test 4: Check if type references are shown when --include-types is used
@@ -183,8 +180,7 @@ pub fn display(msg: &str) {
         lib_section.contains("HashMap")
             || lib_section.contains("Type references:")
             || lib_section.contains("Types used:"),
-        "lib.rs section should show type references (HashMap), but found:\n{}",
-        lib_section
+        "lib.rs section should show type references (HashMap), but found:\n{lib_section}"
     );
 }
 

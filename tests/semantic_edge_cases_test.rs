@@ -76,9 +76,9 @@ pub fn function_c() {
     let stderr = String::from_utf8_lossy(&output.stderr);
 
     // Debug output
-    eprintln!("STDOUT:\n{}", stdout);
-    eprintln!("STDERR:\n{}", stderr);
-    eprintln!("Status: {}", output.status);
+    eprintln!("STDOUT:\n{stdout}");
+    eprintln!("STDERR:\n{stderr}");
+    eprintln!("Status: {:?}", output.status);
 
     // Should handle circular imports without crashing
     assert!(output.status.success(), "Should handle circular imports");
@@ -190,7 +190,7 @@ fn main() {
     // Create the imported modules
     for module in &["utils", "helpers", "config", "database", "api"] {
         fs::write(
-            src_dir.join(format!("{}.rs", module)),
+            src_dir.join(format!("{module}.rs")),
             format!(
                 r#"
 pub fn {}() {{
@@ -619,20 +619,19 @@ fn test_very_long_import_list() {
     let mut import_list = Vec::new();
 
     for i in 0..module_count {
-        let module_name = format!("module_{}", i);
-        imports.push_str(&format!("mod {};\n", module_name));
-        imports.push_str(&format!("use {}::function_{};\n", module_name, i));
+        let module_name = format!("module_{i}");
+        imports.push_str(&format!("mod {module_name};\n"));
+        imports.push_str(&format!("use {module_name}::function_{i};\n"));
         import_list.push(module_name.clone());
 
         fs::write(
-            src_dir.join(format!("{}.rs", module_name)),
+            src_dir.join(format!("{module_name}.rs")),
             format!(
                 r#"
-pub fn function_{}() {{
-    println!("Function {{}}", {});
+pub fn function_{i}() {{
+    println!("Function {{i}}", {i});
 }}
-"#,
-                i, i
+"#
             ),
         )
         .unwrap();
@@ -651,7 +650,7 @@ fn main() {{
 "#,
             imports,
             (0..module_count)
-                .map(|i| format!("function_{}();", i))
+                .map(|i| format!("function_{i}();"))
                 .collect::<Vec<_>>()
                 .join("\n    ")
         ),

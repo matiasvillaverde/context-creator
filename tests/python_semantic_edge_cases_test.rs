@@ -786,13 +786,12 @@ fn test_python_many_imports() {
     let module_count = 50;
     for i in 0..module_count {
         fs::write(
-            src_dir.join(format!("module{}.py", i)),
+            src_dir.join(format!("module{i}.py")),
             format!(
                 r#"
-def function{}():
-    return {}
-"#,
-                i, i
+def function{i}():
+    return {i}
+"#
             ),
         )
         .unwrap();
@@ -803,25 +802,24 @@ def function{}():
     let mut calls = String::new();
 
     for i in 0..module_count {
-        imports.push_str(&format!("from module{} import function{}\n", i, i));
-        calls.push_str(&format!("    result += function{}()\n", i));
+        imports.push_str(&format!("from module{i} import function{i}\n"));
+        calls.push_str(&format!("    result += function{i}()\n"));
     }
 
     fs::write(
         src_dir.join("main.py"),
         format!(
             r#"
-{}
+{imports}
 
 def main():
     result = 0
-{}
+{calls}
     return result
 
 if __name__ == "__main__":
     print(main())
-"#,
-            imports, calls
+"#
         ),
     )
     .unwrap();

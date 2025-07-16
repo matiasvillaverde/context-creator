@@ -180,7 +180,7 @@ fn test_very_long_lines() {
 
     // Create a file with very long lines
     let long_import_list = (0..100)
-        .map(|i| format!("item_{}", i))
+        .map(|i| format!("item_{i}"))
         .collect::<Vec<_>>()
         .join(", ");
 
@@ -198,7 +198,7 @@ const VERY_LONG_STRING: &str = "{}";
 "#,
             long_import_list,
             (0..50)
-                .map(|i| format!("param_{}: i32", i))
+                .map(|i| format!("param_{i}: i32"))
                 .collect::<Vec<_>>()
                 .join(", "),
             "A".repeat(1000)
