@@ -189,6 +189,26 @@ pub struct Config {
     #[arg(long = "enhanced-context")]
     pub enhanced_context: bool,
 
+    /// Enable import tracing for included files
+    #[arg(long, help = "Include files that import the specified modules")]
+    pub trace_imports: bool,
+
+    /// Include files that call functions from specified modules
+    #[arg(long, help = "Include files containing callers of specified functions")]
+    pub include_callers: bool,
+
+    /// Include type definitions used by specified files
+    #[arg(long, help = "Include type definitions and interfaces")]
+    pub include_types: bool,
+
+    /// Maximum depth for semantic dependency traversal
+    #[arg(
+        long,
+        default_value = "3",
+        help = "Depth limit for dependency traversal"
+    )]
+    pub semantic_depth: usize,
+
     /// Custom priority rules loaded from config file (not a CLI argument)
     #[clap(skip)]
     pub custom_priorities: Vec<crate::config::Priority>,
@@ -200,6 +220,35 @@ pub struct Config {
     /// Maximum tokens from config defaults (not a CLI argument)
     #[clap(skip)]
     pub config_defaults_max_tokens: Option<usize>,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            prompt: None,
+            paths: None,
+            include: None,
+            ignore: None,
+            repo: None,
+            read_stdin: false,
+            output_file: None,
+            max_tokens: None,
+            llm_tool: LlmTool::default(),
+            quiet: false,
+            verbose: false,
+            config: None,
+            progress: false,
+            copy: false,
+            enhanced_context: false,
+            trace_imports: false,
+            include_callers: false,
+            include_types: false,
+            semantic_depth: 3,
+            custom_priorities: vec![],
+            config_token_limits: None,
+            config_defaults_max_tokens: None,
+        }
+    }
 }
 
 impl Config {
@@ -473,24 +522,9 @@ mod tests {
         #[allow(dead_code)]
         fn new_for_test(paths: Option<Vec<PathBuf>>) -> Self {
             Self {
-                prompt: None,
                 paths,
-                include: None,
-                ignore: None,
-                repo: None,
-                read_stdin: false,
-                output_file: None,
-                max_tokens: None,
-                llm_tool: LlmTool::default(),
                 quiet: true, // Good default for tests
-                verbose: false,
-                config: None,
-                progress: false,
-                copy: false,
-                enhanced_context: false,
-                custom_priorities: vec![],
-                config_token_limits: None,
-                config_defaults_max_tokens: None,
+                ..Self::default()
             }
         }
 
@@ -498,24 +532,9 @@ mod tests {
         #[allow(dead_code)]
         fn new_for_test_with_include(include: Option<Vec<String>>) -> Self {
             Self {
-                prompt: None,
-                paths: None,
                 include,
-                ignore: None,
-                repo: None,
-                read_stdin: false,
-                output_file: None,
-                max_tokens: None,
-                llm_tool: LlmTool::default(),
                 quiet: true, // Good default for tests
-                verbose: false,
-                config: None,
-                progress: false,
-                copy: false,
-                enhanced_context: false,
-                custom_priorities: vec![],
-                config_token_limits: None,
-                config_defaults_max_tokens: None,
+                ..Self::default()
             }
         }
     }
@@ -539,6 +558,10 @@ mod tests {
             progress: false,
             copy: false,
             enhanced_context: false,
+            trace_imports: false,
+            include_callers: false,
+            include_types: false,
+            semantic_depth: 3,
             custom_priorities: vec![],
             config_token_limits: None,
             config_defaults_max_tokens: None,
@@ -565,6 +588,10 @@ mod tests {
             progress: false,
             copy: false,
             enhanced_context: false,
+            trace_imports: false,
+            include_callers: false,
+            include_types: false,
+            semantic_depth: 3,
             custom_priorities: vec![],
             config_token_limits: None,
             config_defaults_max_tokens: None,
@@ -595,6 +622,10 @@ mod tests {
             progress: false,
             copy: false,
             enhanced_context: false,
+            trace_imports: false,
+            include_callers: false,
+            include_types: false,
+            semantic_depth: 3,
             custom_priorities: vec![],
             config_token_limits: None,
             config_defaults_max_tokens: None,
@@ -622,6 +653,10 @@ mod tests {
             progress: false,
             copy: false,
             enhanced_context: false,
+            trace_imports: false,
+            include_callers: false,
+            include_types: false,
+            semantic_depth: 3,
             custom_priorities: vec![],
             config_token_limits: None,
             config_defaults_max_tokens: None,
@@ -649,6 +684,10 @@ mod tests {
             progress: false,
             copy: false,
             enhanced_context: false,
+            trace_imports: false,
+            include_callers: false,
+            include_types: false,
+            semantic_depth: 3,
             custom_priorities: vec![],
             config_token_limits: None,
             config_defaults_max_tokens: None,
@@ -945,6 +984,10 @@ mod tests {
             progress: false,
             copy: false,
             enhanced_context: false,
+            trace_imports: false,
+            include_callers: false,
+            include_types: false,
+            semantic_depth: 3,
             custom_priorities: vec![],
             config_token_limits: None,
             config_defaults_max_tokens: None,
@@ -973,6 +1016,10 @@ mod tests {
             progress: false,
             copy: false,
             enhanced_context: false,
+            trace_imports: false,
+            include_callers: false,
+            include_types: false,
+            semantic_depth: 3,
             custom_priorities: vec![],
             config_token_limits: None,
             config_defaults_max_tokens: None,
@@ -1048,6 +1095,10 @@ mod tests {
             progress: false,
             copy: false,
             enhanced_context: false,
+            trace_imports: false,
+            include_callers: false,
+            include_types: false,
+            semantic_depth: 3,
             custom_priorities: vec![],
             config_token_limits: None,
             config_defaults_max_tokens: None,
@@ -1071,6 +1122,10 @@ mod tests {
             progress: false,
             copy: false,
             enhanced_context: false,
+            trace_imports: false,
+            include_callers: false,
+            include_types: false,
+            semantic_depth: 3,
             custom_priorities: vec![],
             config_token_limits: None,
             config_defaults_max_tokens: None,
@@ -1103,6 +1158,10 @@ mod tests {
             progress: false,
             copy: false,
             enhanced_context: false,
+            trace_imports: false,
+            include_callers: false,
+            include_types: false,
+            semantic_depth: 3,
             custom_priorities: vec![],
             config_token_limits: None,
             config_defaults_max_tokens: None,
