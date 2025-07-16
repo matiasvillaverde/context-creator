@@ -9,14 +9,13 @@
 
 pub mod analyzer;
 pub mod cache;
-pub mod cache_v2;
 pub mod languages;
 pub mod parser_pool;
 pub mod path_validator;
 pub mod resolver;
 
 // Re-export commonly used types
-pub use cache_v2::AstCacheV2;
+pub use cache::AstCacheV2;
 
 #[cfg(test)]
 mod javascript_test;
@@ -26,7 +25,6 @@ mod python_test;
 mod test;
 
 pub use analyzer::{LanguageAnalyzer, SemanticContext, SemanticResult};
-pub use cache::AstCache;
 pub use resolver::{ModuleResolver, ResolvedPath};
 
 use crate::utils::error::CodeDigestError;

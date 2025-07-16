@@ -1,53 +1,13 @@
 //! Reliability tests for semantic analysis
 //! Tests thread safety, error handling, and resource management
 
-use code_digest::core::semantic::cache::AstCache;
 use code_digest::core::semantic::parser_pool::ParserPoolManager;
 use std::sync::Arc;
-use std::thread;
 use tempfile::TempDir;
 use tokio::runtime::Runtime;
 
-#[test]
-fn test_mutex_error_handling() {
-    use std::panic;
-
-    // Test that poisoned mutex doesn't crash the application
-    let cache = Arc::new(AstCache::new(10));
-    let cache_clone = cache.clone();
-
-    // Spawn a thread that will panic while holding the lock
-    let panic_thread = thread::spawn(move || {
-        // Catch the panic to properly test mutex poisoning
-        let result = panic::catch_unwind(|| {
-            // Get the internal mutex directly - we need to poison it
-            // Since the cache field is private, we'll use a method that holds the lock
-            cache_clone.clear().unwrap();
-            // Force a panic while the lock is held
-            panic!("Intentional panic to poison mutex");
-        });
-        assert!(result.is_err());
-    });
-
-    // Wait for the panic thread to finish
-    let _ = panic_thread.join();
-
-    // For now, since we can't directly poison the mutex from outside,
-    // let's test that all operations handle errors correctly
-    let result = cache.len();
-    assert!(result.is_ok()); // Should still work even after panic in another thread
-}
-
-#[test]
-fn test_cache_operations_return_results() {
-    let cache = AstCache::new(10);
-
-    // All operations should return Results
-    assert!(cache.len().is_ok());
-    assert!(cache.is_empty().is_ok());
-    assert!(cache.capacity().is_ok());
-    assert!(cache.clear().is_ok());
-}
+// Note: Mutex error handling tests removed as AstCacheV2 uses async/await with moka cache
+// which handles concurrent access differently and doesn't use mutexes
 
 #[test]
 fn test_parser_pool_creation() {
