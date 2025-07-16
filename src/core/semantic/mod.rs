@@ -9,8 +9,14 @@
 
 pub mod analyzer;
 pub mod cache;
+pub mod cache_v2;
 pub mod languages;
+pub mod parser_pool;
+pub mod path_validator;
 pub mod resolver;
+
+// Re-export commonly used types
+pub use cache_v2::AstCacheV2;
 
 #[cfg(test)]
 mod javascript_test;
