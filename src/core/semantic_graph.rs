@@ -102,7 +102,7 @@ impl<'a> DependencyGraph<'a> {
 
             // Analyze this file
             if let Err(e) = self.analyze_file(file_idx, depth, options) {
-                eprintln!("Warning: Failed to analyze file index {}: {}", file_idx, e);
+                eprintln!("Warning: Failed to analyze file index {file_idx}: {e}");
                 continue;
             }
 
@@ -221,7 +221,7 @@ impl<'a> DependencyGraph<'a> {
 
         // Try common patterns
         for ext in &["rs", "py", "js", "ts"] {
-            let candidate = parent.join(format!("{}.{}", module, ext));
+            let candidate = parent.join(format!("{module}.{ext}"));
             if self.path_to_index.contains_key(&candidate) {
                 return Some(candidate);
             }

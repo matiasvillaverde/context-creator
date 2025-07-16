@@ -207,7 +207,7 @@ fn process_directory(
 
         if config.progress && !config.quiet {
             let import_count: usize = files.iter().map(|f| f.imports.len()).sum();
-            eprintln!("✅ Found {} import relationships", import_count);
+            eprintln!("✅ Found {import_count} import relationships");
         }
     }
 

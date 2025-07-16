@@ -507,7 +507,7 @@ impl ModuleResolver for RustModuleResolver {
         if !module_path.contains("::") {
             if let Some(parent) = from_file.parent() {
                 // Try as a file
-                let file_path = parent.join(format!("{}.rs", module_path));
+                let file_path = parent.join(format!("{module_path}.rs"));
                 if file_path.exists() {
                     return Ok(ResolvedPath {
                         path: file_path,

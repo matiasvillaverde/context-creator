@@ -182,7 +182,7 @@ fn extract_import_items(node: &Node, source: &str) -> Vec<String> {
                         loop {
                             if ns_cursor.node().kind() == "identifier" {
                                 if let Ok(name) = ns_cursor.node().utf8_text(source.as_bytes()) {
-                                    items.push(format!("* as {}", name));
+                                    items.push(format!("* as {name}"));
                                 }
                             }
                             if !ns_cursor.goto_next_sibling() {

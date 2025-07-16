@@ -61,7 +61,7 @@ impl ResolverUtils {
         if base_path.exists() && base_path.is_dir() {
             for index_name in &["index", "mod", "__init__"] {
                 for ext in extensions {
-                    let index_path = base_path.join(format!("{}.{}", index_name, ext));
+                    let index_path = base_path.join(format!("{index_name}.{ext}"));
                     if index_path.exists() && index_path.is_file() {
                         return Some(index_path);
                     }
