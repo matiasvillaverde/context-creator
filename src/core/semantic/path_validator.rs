@@ -56,7 +56,11 @@ pub fn validate_import_path(
 
     // Decode any URL-encoded sequences first
     let import_str = import_path.to_string_lossy();
-    if import_str.contains("%2e") || import_str.contains("%2E") {
+    if import_str.contains("%2e")
+        || import_str.contains("%2E")
+        || import_str.contains("%2f")
+        || import_str.contains("%2F")
+    {
         return Err(CodeDigestError::SecurityError(
             PathSecurityError::PathTraversal {
                 path: import_str.to_string(),
