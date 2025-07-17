@@ -8,7 +8,7 @@ use tempfile::TempDir;
 #[test]
 fn test_context_builder_module_can_be_imported() {
     // This test verifies that the renamed module can be imported correctly
-    // by testing that the CLI can process files (which uses the core modules)
+    // by testing that the CLI can process files and output to stdout
     let temp_dir = TempDir::new().unwrap();
 
     // Create a simple test file
@@ -22,13 +22,13 @@ fn main() {
     )
     .unwrap();
 
-    // Test that the tool can process the file (which requires all modules to work)
+    // Test that the tool can process the file to stdout (which requires all modules to work)
     let mut cmd = Command::cargo_bin("context-creator").unwrap();
-    cmd.current_dir(temp_dir.path())
-        .arg("--prompt")
-        .arg("Test processing")
+    cmd.arg(temp_dir.path())
+        .arg("--quiet")
         .assert()
-        .success();
+        .success()
+        .stdout(predicate::str::contains("# Code Context"));
 }
 
 #[test]
@@ -47,15 +47,15 @@ def hello():
     )
     .unwrap();
 
-    // Test with options that would use ContextOptions
+    // Test with options that would use ContextOptions - output to stdout
     let mut cmd = Command::cargo_bin("context-creator").unwrap();
-    cmd.current_dir(temp_dir.path())
-        .arg("--prompt")
-        .arg("Analyze this code")
+    cmd.arg(temp_dir.path())
         .arg("--max-tokens")
         .arg("10000")
+        .arg("--quiet")
         .assert()
-        .success();
+        .success()
+        .stdout(predicate::str::contains("test.py"));
 }
 
 #[test]
@@ -69,13 +69,15 @@ fn test_all_core_modules_resolve_correctly() {
     fs::write(temp_dir.path().join("test.py"), "print('hello')").unwrap();
     fs::write(temp_dir.path().join("test.js"), "console.log('hello');").unwrap();
 
-    // Test that the tool can process multiple file types
+    // Test that the tool can process multiple file types to stdout
     let mut cmd = Command::cargo_bin("context-creator").unwrap();
-    cmd.current_dir(temp_dir.path())
-        .arg("--prompt")
-        .arg("Process multiple files")
+    cmd.arg(temp_dir.path())
+        .arg("--quiet")
         .assert()
-        .success();
+        .success()
+        .stdout(predicate::str::contains("test.rs"))
+        .stdout(predicate::str::contains("test.py"))
+        .stdout(predicate::str::contains("test.js"));
 }
 
 #[test]
