@@ -1,12 +1,12 @@
 use clap::Parser;
-use code_digest::cli::Config;
+use context_creator::cli::Config;
 use std::path::PathBuf;
 
 /// Test that ignore patterns from CLI are properly integrated into WalkOptions
 #[test]
 fn test_ignore_patterns_cli_integration() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--include",
         "src/**/*.rs",
         "--ignore",
@@ -23,7 +23,7 @@ fn test_ignore_patterns_cli_integration() {
 #[test]
 fn test_ignore_patterns_with_prompt() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--prompt",
         "Analyze code",
         "--include",
@@ -46,7 +46,7 @@ fn test_ignore_patterns_with_prompt() {
 #[test]
 fn test_ignore_patterns_without_include() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--ignore",
         "target/**",
         "--ignore",
@@ -66,7 +66,7 @@ fn test_ignore_patterns_without_include() {
 #[test]
 fn test_ignore_patterns_empty() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--ignore",
         "",
         "--ignore",
@@ -84,7 +84,7 @@ fn test_ignore_patterns_empty() {
 #[test]
 fn test_ignore_patterns_complex_globs() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--include",
         "src/**/*.{rs,py}",
         "--ignore",
@@ -110,7 +110,7 @@ fn test_ignore_patterns_complex_globs() {
 #[test]
 fn test_ignore_patterns_single_files() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--include",
         "**/*.rs",
         "--ignore",
@@ -131,7 +131,7 @@ fn test_ignore_patterns_single_files() {
 #[test]
 fn test_ignore_patterns_directories() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--include",
         "**/*.rs",
         "--ignore",
@@ -152,7 +152,7 @@ fn test_ignore_patterns_directories() {
 #[test]
 fn test_ignore_patterns_extensions() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--include",
         "**/*",
         "--ignore",
@@ -173,7 +173,7 @@ fn test_ignore_patterns_extensions() {
 #[test]
 fn test_ignore_patterns_mixed_types() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--include",
         "src/**/*.rs",
         "--ignore",
@@ -204,7 +204,7 @@ fn test_ignore_patterns_mixed_types() {
 #[test]
 fn test_ignore_patterns_with_negation() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--include",
         "**/*.rs",
         "--ignore",
@@ -223,7 +223,7 @@ fn test_ignore_patterns_with_negation() {
 #[test]
 fn test_ignore_patterns_case_sensitivity() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--include",
         "**/*.rs",
         "--ignore",
@@ -244,7 +244,7 @@ fn test_ignore_patterns_case_sensitivity() {
 #[test]
 fn test_ignore_patterns_special_chars() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--include",
         "**/*.rs",
         "--ignore",
@@ -272,7 +272,7 @@ fn test_ignore_patterns_special_chars() {
 #[test]
 fn test_ignore_patterns_relative_paths() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--include",
         "**/*.rs",
         "--ignore",
@@ -297,7 +297,7 @@ fn test_ignore_patterns_relative_paths() {
 #[test]
 fn test_ignore_patterns_absolute_paths() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--include",
         "**/*.rs",
         "--ignore",
@@ -313,7 +313,7 @@ fn test_ignore_patterns_absolute_paths() {
 #[test]
 fn test_ignore_patterns_multiple_flags() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--include",
         "**/*.rs",
         "--ignore",
@@ -336,7 +336,7 @@ fn test_ignore_patterns_multiple_flags() {
 #[test]
 fn test_ignore_patterns_in_walk_options() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--include",
         "**/*.rs",
         "--ignore",
@@ -350,7 +350,7 @@ fn test_ignore_patterns_in_walk_options() {
     assert_eq!(ignore_patterns, vec!["target/**", "*.log"]);
 
     // Test WalkOptions::from_config() integration
-    let walk_options = code_digest::core::walker::WalkOptions::from_config(&config).unwrap();
+    let walk_options = context_creator::core::walker::WalkOptions::from_config(&config).unwrap();
     assert_eq!(walk_options.ignore_patterns, vec!["target/**", "*.log"]);
     assert_eq!(walk_options.include_patterns, vec!["**/*.rs"]);
 }
@@ -359,7 +359,7 @@ fn test_ignore_patterns_in_walk_options() {
 #[test]
 fn test_ignore_patterns_filter_empty_in_walk_options() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--include",
         "**/*.rs",
         "--ignore",
@@ -377,7 +377,7 @@ fn test_ignore_patterns_filter_empty_in_walk_options() {
     assert_eq!(ignore_patterns, vec!["", "target/**", "   ", "*.log"]);
 
     // WalkOptions should filter out empty/whitespace patterns
-    let walk_options = code_digest::core::walker::WalkOptions::from_config(&config).unwrap();
+    let walk_options = context_creator::core::walker::WalkOptions::from_config(&config).unwrap();
     assert_eq!(walk_options.ignore_patterns, vec!["target/**", "*.log"]);
 }
 
@@ -385,7 +385,7 @@ fn test_ignore_patterns_filter_empty_in_walk_options() {
 #[test]
 fn test_ignore_patterns_with_default_directory() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--prompt",
         "Analyze code",
         "--ignore",
@@ -403,7 +403,7 @@ fn test_ignore_patterns_with_default_directory() {
 #[test]
 fn test_ignore_patterns_backward_compatibility() {
     // Test that existing functionality still works when ignore patterns are not used
-    let config = Config::parse_from(["code-digest", "--include", "**/*.rs"]);
+    let config = Config::parse_from(["context-creator", "--include", "**/*.rs"]);
 
     assert_eq!(config.get_include_patterns(), vec!["**/*.rs"]);
     assert_eq!(config.get_ignore_patterns(), Vec::<String>::new());
@@ -413,7 +413,7 @@ fn test_ignore_patterns_backward_compatibility() {
 #[test]
 fn test_ignore_patterns_with_repo() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--repo",
         "https://github.com/owner/repo",
         "--ignore",
@@ -433,7 +433,7 @@ fn test_ignore_patterns_with_repo() {
 #[test]
 fn test_ignore_patterns_with_llm_tool() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--tool",
         "codex",
         "--include",
@@ -442,7 +442,7 @@ fn test_ignore_patterns_with_llm_tool() {
         "target/**",
     ]);
 
-    assert_eq!(config.llm_tool, code_digest::cli::LlmTool::Codex);
+    assert_eq!(config.llm_tool, context_creator::cli::LlmTool::Codex);
     assert_eq!(config.get_ignore_patterns(), vec!["target/**"]);
 }
 
@@ -450,7 +450,7 @@ fn test_ignore_patterns_with_llm_tool() {
 #[test]
 fn test_ignore_patterns_with_output_file() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--include",
         "**/*.rs",
         "--ignore",
@@ -467,7 +467,7 @@ fn test_ignore_patterns_with_output_file() {
 #[test]
 fn test_ignore_patterns_with_copy_flag() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--include",
         "**/*.rs",
         "--ignore",
@@ -483,7 +483,7 @@ fn test_ignore_patterns_with_copy_flag() {
 #[test]
 fn test_ignore_patterns_with_enhanced_context() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--include",
         "**/*.rs",
         "--ignore",
@@ -499,7 +499,7 @@ fn test_ignore_patterns_with_enhanced_context() {
 #[test]
 fn test_ignore_patterns_with_config_file() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--include",
         "**/*.rs",
         "--ignore",
@@ -516,7 +516,7 @@ fn test_ignore_patterns_with_config_file() {
 #[test]
 fn test_ignore_patterns_with_max_tokens() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--include",
         "**/*.rs",
         "--ignore",
@@ -533,7 +533,7 @@ fn test_ignore_patterns_with_max_tokens() {
 #[test]
 fn test_ignore_patterns_with_quiet_flag() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--include",
         "**/*.rs",
         "--ignore",
@@ -549,7 +549,7 @@ fn test_ignore_patterns_with_quiet_flag() {
 #[test]
 fn test_ignore_patterns_with_verbose_flag() {
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--include",
         "**/*.rs",
         "--ignore",

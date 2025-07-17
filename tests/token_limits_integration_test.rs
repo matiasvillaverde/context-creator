@@ -1,12 +1,12 @@
 use clap::Parser;
-use code_digest::cli::Config;
+use context_creator::cli::Config;
 use std::fs;
 use tempfile::TempDir;
 
 #[test]
 fn test_token_limits_integration_with_config_file() {
     let temp_dir = TempDir::new().unwrap();
-    let config_path = temp_dir.path().join(".code-digest.toml");
+    let config_path = temp_dir.path().join(".context-creator.toml");
 
     // Create a config file with token limits
     let config_content = r#"
@@ -26,7 +26,7 @@ weight = 100.0
 
     // Test Gemini with prompt (should use config token limit)
     let mut config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--prompt",
         "test prompt",
         "--tool",
@@ -40,7 +40,7 @@ weight = 100.0
 
     // Test Codex with prompt (should use config token limit)
     let mut config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--prompt",
         "test prompt",
         "--tool",
@@ -56,7 +56,7 @@ weight = 100.0
 #[test]
 fn test_token_limits_explicit_override_config() {
     let temp_dir = TempDir::new().unwrap();
-    let config_path = temp_dir.path().join(".code-digest.toml");
+    let config_path = temp_dir.path().join(".context-creator.toml");
 
     // Create a config file with token limits
     let config_content = r#"
@@ -69,7 +69,7 @@ codex = 1800000
 
     // Explicit max_tokens should override config
     let mut config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--prompt",
         "test prompt",
         "--tool",
@@ -87,7 +87,7 @@ codex = 1800000
 #[test]
 fn test_token_limits_partial_config() {
     let temp_dir = TempDir::new().unwrap();
-    let config_path = temp_dir.path().join(".code-digest.toml");
+    let config_path = temp_dir.path().join(".context-creator.toml");
 
     // Create a config file with only Gemini token limit
     let config_content = r#"
@@ -100,7 +100,7 @@ gemini = 3000000
 
     // Test Gemini (should use config)
     let mut config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--prompt",
         "test prompt",
         "--tool",
@@ -114,7 +114,7 @@ gemini = 3000000
 
     // Test Codex (should use hard-coded default)
     let mut config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--prompt",
         "test prompt",
         "--tool",
@@ -130,7 +130,7 @@ gemini = 3000000
 #[test]
 fn test_token_limits_no_prompt_no_limits() {
     let temp_dir = TempDir::new().unwrap();
-    let config_path = temp_dir.path().join(".code-digest.toml");
+    let config_path = temp_dir.path().join(".context-creator.toml");
 
     // Create a config file with token limits
     let config_content = r#"
@@ -143,7 +143,7 @@ codex = 1800000
 
     // Without prompt, no token limits should be applied
     let mut config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--tool",
         "gemini",
         "--config",
@@ -158,7 +158,7 @@ codex = 1800000
 #[test]
 fn test_token_limits_precedence_order() {
     let temp_dir = TempDir::new().unwrap();
-    let config_path = temp_dir.path().join(".code-digest.toml");
+    let config_path = temp_dir.path().join(".context-creator.toml");
 
     // Create a config file with both defaults.max_tokens and tokens section
     let config_content = r#"
@@ -176,7 +176,7 @@ codex = 1800000
 
     // 1. Explicit should win
     let mut config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--prompt",
         "test prompt",
         "--tool",
@@ -191,7 +191,7 @@ codex = 1800000
 
     // 2. Config tokens should win over defaults.max_tokens when prompt is present
     let mut config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--prompt",
         "test prompt",
         "--tool",
@@ -210,7 +210,7 @@ fn test_token_limits_config_file_missing() {
 
     // Should fail gracefully when config file doesn't exist
     let mut config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--prompt",
         "test prompt",
         "--tool",
@@ -226,7 +226,7 @@ fn test_token_limits_config_file_missing() {
 #[test]
 fn test_token_limits_malformed_config() {
     let temp_dir = TempDir::new().unwrap();
-    let config_path = temp_dir.path().join(".code-digest.toml");
+    let config_path = temp_dir.path().join(".context-creator.toml");
 
     // Create a malformed config file
     let config_content = r#"
@@ -238,7 +238,7 @@ codex = 1800000
     fs::write(&config_path, config_content).unwrap();
 
     let mut config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--prompt",
         "test prompt",
         "--tool",

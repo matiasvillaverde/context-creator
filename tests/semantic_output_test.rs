@@ -86,14 +86,14 @@ pub fn display(msg: &str) {
     )
     .unwrap();
 
-    // Run code-digest with semantic analysis flags
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    // Run context-creator with semantic analysis flags
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&lib_dir)
         .arg("--trace-imports")
         .arg("--include-callers")
         .arg("--include-types")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -103,7 +103,7 @@ pub fn display(msg: &str) {
     eprintln!("STDERR:\n{stderr}");
 
     // Verify the command succeeded
-    assert!(output.status.success(), "code-digest failed: {stderr}");
+    assert!(output.status.success(), "context-creator failed: {stderr}");
 
     // Check that semantic analysis was performed (from stderr progress messages)
     if stderr.contains("Analyzing semantic dependencies") {
@@ -218,12 +218,12 @@ pub fn helper() {
     .unwrap();
 
     // Run with progress flag to see stderr messages
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--trace-imports")
         .arg("--progress")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     let stderr = String::from_utf8_lossy(&output.stderr);
 

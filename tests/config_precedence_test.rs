@@ -1,6 +1,6 @@
 use clap::Parser;
-use code_digest::cli::Config;
-use code_digest::core::walker::WalkOptions;
+use context_creator::cli::Config;
+use context_creator::core::walker::WalkOptions;
 use std::fs;
 use tempfile::TempDir;
 
@@ -18,7 +18,7 @@ ignore = ["config_*.rs", "config_target/**"]
 
     // CLI config with different ignore patterns
     let mut config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--config",
         config_path.to_str().unwrap(),
         "--ignore",
@@ -56,7 +56,7 @@ include = ["config_*.rs", "config_src/**"]
 
     // CLI config with different include patterns
     let mut config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--config",
         config_path.to_str().unwrap(),
         "--include",
@@ -94,7 +94,8 @@ include = ["config_src/**/*.rs"]
     fs::write(&config_path, config_content).unwrap();
 
     // CLI config with no patterns - should use config file patterns
-    let mut config = Config::parse_from(["code-digest", "--config", config_path.to_str().unwrap()]);
+    let mut config =
+        Config::parse_from(["context-creator", "--config", config_path.to_str().unwrap()]);
 
     // Load configuration from file
     config.load_from_file().unwrap();
@@ -122,7 +123,7 @@ ignore = ["config_*.rs", "config_target/**"]
 
     // CLI config with empty ignore patterns
     let mut config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--config",
         config_path.to_str().unwrap(),
         "--ignore",
@@ -158,7 +159,7 @@ include = ["config_src/**/*.rs"]
 
     // CLI config with only ignore patterns (no include)
     let mut config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--config",
         config_path.to_str().unwrap(),
         "--ignore",
@@ -183,7 +184,7 @@ include = ["config_src/**/*.rs"]
 fn test_cli_patterns_with_default_config() {
     // No config file provided - should use CLI patterns only
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--ignore",
         "cli_*.rs",
         "--ignore",
@@ -213,7 +214,7 @@ fn test_cli_patterns_with_default_config() {
 fn test_cli_pattern_validation_scenarios() {
     // CLI config with potentially problematic patterns
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--prompt",
         "Analyze code",
         "--ignore",
@@ -255,7 +256,7 @@ include = ["config_src/**/*.rs"]
 
     // CLI config with prompt and patterns
     let mut config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--config",
         config_path.to_str().unwrap(),
         "--prompt",
@@ -294,7 +295,7 @@ ignore = ["config_*.rs"]
 
     // CLI config with repo and ignore patterns
     let mut config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--config",
         config_path.to_str().unwrap(),
         "--repo",
@@ -329,7 +330,7 @@ include = ["config_src/**/*.rs"]
 
     // CLI config with multiple ignore patterns
     let mut config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--config",
         config_path.to_str().unwrap(),
         "--ignore",
@@ -368,7 +369,7 @@ gemini = 500000
 
     // CLI config with patterns
     let mut config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--config",
         config_path.to_str().unwrap(),
         "--ignore",
