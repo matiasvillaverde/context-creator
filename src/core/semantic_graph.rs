@@ -159,7 +159,15 @@ impl<'a> DependencyGraph<'a> {
         let analysis_result =
             analyzer.analyze_file(self.get_file_path(file_idx), &content, &context)?;
 
-        // Process imports
+        // Process imports - we need import info for type expansion even if trace_imports is false
+        // Store raw import module paths for file expansion
+        let mut raw_imports = Vec::new();
+        for import in &analysis_result.imports {
+            // Convert module path to a simple PathBuf for now
+            // This will be used by file_expander to find type definition files
+            raw_imports.push(PathBuf::from(&import.module));
+        }
+
         if options.trace_imports {
             let mut resolved_imports = Vec::new();
 
@@ -189,7 +197,15 @@ impl<'a> DependencyGraph<'a> {
                 }
             }
 
-            self.nodes[file_idx].imports = resolved_imports;
+            // Use resolved imports if available, otherwise use raw imports
+            self.nodes[file_idx].imports = if !resolved_imports.is_empty() {
+                resolved_imports
+            } else {
+                raw_imports
+            };
+        } else {
+            // Even if trace_imports is false, we need import info for type expansion
+            self.nodes[file_idx].imports = raw_imports;
         }
 
         // Store function calls and type references
@@ -338,7 +354,7 @@ impl<'a> DependencyGraph<'a> {
     /// Process type references to determine type relationships
     fn process_type_references(&self, files: &mut [FileInfo]) {
         // Build type name to file index mapping
-        let mut type_to_files: HashMap<String, Vec<usize>> = HashMap::new();
+        let mut type_to_files: HashMap<String, Vec<(usize, PathBuf)>> = HashMap::new();
 
         for (idx, file) in files.iter().enumerate() {
             if let Some(stem) = file.path.file_stem() {
@@ -346,10 +362,37 @@ impl<'a> DependencyGraph<'a> {
 
                 // Add capitalized version
                 let capitalized = capitalize_first(&type_name);
-                type_to_files.entry(capitalized).or_default().push(idx);
+                type_to_files
+                    .entry(capitalized)
+                    .or_default()
+                    .push((idx, file.path.clone()));
 
                 // Add original name
-                type_to_files.entry(type_name).or_default().push(idx);
+                type_to_files
+                    .entry(type_name)
+                    .or_default()
+                    .push((idx, file.path.clone()));
+            }
+        }
+
+        // Update type references with definition paths
+        for file in files.iter_mut() {
+            for type_ref in &mut file.type_references {
+                // Skip if already has definition path or is external
+                if type_ref.definition_path.is_some() || type_ref.is_external {
+                    continue;
+                }
+
+                // Try to find the definition file
+                if let Some(file_info) = type_to_files.get(&type_ref.name) {
+                    // Use the first match that's not the current file
+                    for (_def_idx, def_path) in file_info {
+                        if &file.path != def_path {
+                            type_ref.definition_path = Some(def_path.clone());
+                            break;
+                        }
+                    }
+                }
             }
         }
 
@@ -358,8 +401,8 @@ impl<'a> DependencyGraph<'a> {
 
         for (user_idx, file) in files.iter().enumerate() {
             for type_ref in &file.type_references {
-                if let Some(file_indices) = type_to_files.get(&type_ref.name) {
-                    for &def_idx in file_indices {
+                if let Some(file_info) = type_to_files.get(&type_ref.name) {
+                    for &(def_idx, _) in file_info {
                         if def_idx != user_idx {
                             relationships.push((user_idx, def_idx));
                         }
