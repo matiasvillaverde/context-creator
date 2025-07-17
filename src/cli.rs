@@ -7,7 +7,7 @@ use std::path::PathBuf;
 const AFTER_HELP_MSG: &str = "\
 CUSTOM PRIORITY RULES:
   Custom priority rules are processed in a 'first-match-wins' basis. Rules are 
-  evaluated in the order they are defined in your .code-digest.toml configuration 
+  evaluated in the order they are defined in your .context-creator.toml configuration 
   file. The first rule that matches a given file will be used, and all subsequent 
   rules will be ignored for that file.
 
@@ -22,34 +22,34 @@ CUSTOM PRIORITY RULES:
 
 USAGE EXAMPLES:
   # Process current directory with a prompt
-  code-digest --prompt \"Analyze this code\"
+  context-creator --prompt \"Analyze this code\"
   
   # Process specific directories (positional arguments)
-  code-digest src/ tests/ docs/
+  context-creator src/ tests/ docs/
   
   # Process specific directories (explicit include flags)
-  code-digest --include src/ --include tests/ --include docs/
+  context-creator --include src/ --include tests/ --include docs/
   
   # Process files matching glob patterns (QUOTE patterns to prevent shell expansion)
-  code-digest --include \"**/*.py\" --include \"src/**/*.{rs,toml}\"
+  context-creator --include \"**/*.py\" --include \"src/**/*.{rs,toml}\"
   
   # Process specific file types across all directories
-  code-digest --include \"**/*repository*.py\" --include \"**/test[0-9].py\"
+  context-creator --include \"**/*repository*.py\" --include \"**/test[0-9].py\"
   
   # Combine prompt with include patterns for targeted analysis
-  code-digest --prompt \"Review security\" --include \"src/auth/**\" --include \"src/security/**\"
+  context-creator --prompt \"Review security\" --include \"src/auth/**\" --include \"src/security/**\"
   
   # Use ignore patterns to exclude unwanted files
-  code-digest --include \"**/*.rs\" --ignore \"target/**\" --ignore \"**/*_test.rs\"
+  context-creator --include \"**/*.rs\" --ignore \"target/**\" --ignore \"**/*_test.rs\"
   
   # Combine prompt with ignore patterns
-  code-digest --prompt \"Analyze core logic\" --ignore \"tests/**\" --ignore \"docs/**\"
+  context-creator --prompt \"Analyze core logic\" --ignore \"tests/**\" --ignore \"docs/**\"
   
   # Process a GitHub repository
-  code-digest --repo https://github.com/owner/repo
+  context-creator --repo https://github.com/owner/repo
   
   # Read prompt from stdin
-  echo \"Review this code\" | code-digest --stdin .
+  echo \"Review this code\" | context-creator --stdin .
 ";
 
 /// Supported LLM CLI tools
@@ -253,8 +253,8 @@ impl Default for Config {
 
 impl Config {
     /// Validate the configuration
-    pub fn validate(&self) -> Result<(), crate::utils::error::CodeDigestError> {
-        use crate::utils::error::CodeDigestError;
+    pub fn validate(&self) -> Result<(), crate::utils::error::ContextCreatorError> {
+        use crate::utils::error::ContextCreatorError;
 
         // Validate that at least one input source is provided
         let has_input_source = self.get_prompt().is_some()
@@ -264,33 +264,33 @@ impl Config {
             || self.read_stdin;
 
         if !has_input_source {
-            return Err(CodeDigestError::InvalidConfiguration(
+            return Err(ContextCreatorError::InvalidConfiguration(
                 "At least one input source must be provided: --prompt, paths, --include, --repo, or --stdin".to_string(),
             ));
         }
 
         // Validate mutual exclusivity - prompt cannot be used with paths or repo
         if self.get_prompt().is_some() && self.paths.is_some() {
-            return Err(CodeDigestError::InvalidConfiguration(
+            return Err(ContextCreatorError::InvalidConfiguration(
                 "--prompt cannot be used with directory paths".to_string(),
             ));
         }
 
         if self.get_prompt().is_some() && self.repo.is_some() {
-            return Err(CodeDigestError::InvalidConfiguration(
+            return Err(ContextCreatorError::InvalidConfiguration(
                 "--prompt cannot be used with --repo".to_string(),
             ));
         }
 
         // Validate include conflicts - include cannot be used with repo or stdin
         if self.include.is_some() && self.repo.is_some() {
-            return Err(CodeDigestError::InvalidConfiguration(
+            return Err(ContextCreatorError::InvalidConfiguration(
                 "--include cannot be used with --repo".to_string(),
             ));
         }
 
         if self.include.is_some() && self.read_stdin {
-            return Err(CodeDigestError::InvalidConfiguration(
+            return Err(ContextCreatorError::InvalidConfiguration(
                 "--include cannot be used with --stdin".to_string(),
             ));
         }
@@ -300,7 +300,7 @@ impl Config {
             if !repo_url.starts_with("https://github.com/")
                 && !repo_url.starts_with("http://github.com/")
             {
-                return Err(CodeDigestError::InvalidConfiguration(
+                return Err(ContextCreatorError::InvalidConfiguration(
                     "Repository URL must be a GitHub URL (https://github.com/owner/repo)"
                         .to_string(),
                 ));
@@ -310,14 +310,14 @@ impl Config {
             let directories = self.get_directories();
             for directory in &directories {
                 if !directory.exists() {
-                    return Err(CodeDigestError::InvalidPath(format!(
+                    return Err(ContextCreatorError::InvalidPath(format!(
                         "Directory does not exist: {}",
                         directory.display()
                     )));
                 }
 
                 if !directory.is_dir() {
-                    return Err(CodeDigestError::InvalidPath(format!(
+                    return Err(ContextCreatorError::InvalidPath(format!(
                         "Path is not a directory: {}",
                         directory.display()
                     )));
@@ -333,7 +333,7 @@ impl Config {
             if let Some(parent) = output.parent() {
                 // Handle empty parent (current directory) and check if parent exists
                 if !parent.as_os_str().is_empty() && !parent.exists() {
-                    return Err(CodeDigestError::InvalidPath(format!(
+                    return Err(ContextCreatorError::InvalidPath(format!(
                         "Output directory does not exist: {}",
                         parent.display()
                     )));
@@ -343,14 +343,14 @@ impl Config {
 
         // Validate mutually exclusive options
         if self.output_file.is_some() && self.get_prompt().is_some() {
-            return Err(CodeDigestError::InvalidConfiguration(
+            return Err(ContextCreatorError::InvalidConfiguration(
                 "Cannot specify both --output and a prompt".to_string(),
             ));
         }
 
         // Validate copy and output mutual exclusivity
         if self.copy && self.output_file.is_some() {
-            return Err(CodeDigestError::InvalidConfiguration(
+            return Err(ContextCreatorError::InvalidConfiguration(
                 "Cannot specify both --copy and --output".to_string(),
             ));
         }
@@ -359,7 +359,7 @@ impl Config {
     }
 
     /// Load configuration from file if specified
-    pub fn load_from_file(&mut self) -> Result<(), crate::utils::error::CodeDigestError> {
+    pub fn load_from_file(&mut self) -> Result<(), crate::utils::error::ContextCreatorError> {
         use crate::config::ConfigFile;
 
         let config_file = if let Some(ref config_path) = self.config {
@@ -1034,7 +1034,7 @@ mod tests {
         use clap::Parser;
 
         // Test single directory
-        let args = vec!["code-digest", "/path/one"];
+        let args = vec!["context-creator", "/path/one"];
         let config = Config::parse_from(args);
         assert_eq!(config.paths.as_ref().unwrap().len(), 1);
         assert_eq!(
@@ -1048,7 +1048,7 @@ mod tests {
         use clap::Parser;
 
         // Test multiple directories
-        let args = vec!["code-digest", "/path/one", "/path/two", "/path/three"];
+        let args = vec!["context-creator", "/path/one", "/path/two", "/path/three"];
         let config = Config::parse_from(args);
         assert_eq!(config.paths.as_ref().unwrap().len(), 3);
         assert_eq!(
@@ -1065,7 +1065,7 @@ mod tests {
         );
 
         // Test with explicit prompt
-        let args = vec!["code-digest", "--prompt", "Find duplicated patterns"];
+        let args = vec!["context-creator", "--prompt", "Find duplicated patterns"];
         let config = Config::parse_from(args);
         assert_eq!(config.prompt, Some("Find duplicated patterns".to_string()));
     }

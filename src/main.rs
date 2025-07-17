@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use code_digest::{cli::Config, run};
+use context_creator::{cli::Config, run};
 
 fn main() -> Result<()> {
     // Parse command line arguments

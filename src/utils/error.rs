@@ -1,10 +1,10 @@
-//! Error types for code-digest
+//! Error types for context-creator
 
 use thiserror::Error;
 
-/// Main error type for code-digest operations
+/// Main error type for context-creator operations
 #[derive(Error, Debug)]
-pub enum CodeDigestError {
+pub enum ContextCreatorError {
     /// File system related errors
     #[error("Invalid path: {0}")]
     InvalidPath(String),
@@ -29,8 +29,8 @@ pub enum CodeDigestError {
     #[error("Token counting error: {0}")]
     TokenCountError(String),
 
-    #[error("Markdown generation error: {0}")]
-    MarkdownGenerationError(String),
+    #[error("Context generation error: {0}")]
+    ContextGenerationError(String),
 
     #[error("File prioritization error: {0}")]
     PrioritizationError(String),
@@ -95,8 +95,8 @@ pub enum CodeDigestError {
     Utf8Error(#[from] std::string::FromUtf8Error),
 }
 
-/// Result type alias for code-digest operations
-pub type Result<T> = std::result::Result<T, CodeDigestError>;
+/// Result type alias for context-creator operations
+pub type Result<T> = std::result::Result<T, ContextCreatorError>;
 
 #[cfg(test)]
 mod tests {
@@ -104,10 +104,10 @@ mod tests {
 
     #[test]
     fn test_error_display() {
-        let err = CodeDigestError::InvalidPath("/invalid/path".to_string());
+        let err = ContextCreatorError::InvalidPath("/invalid/path".to_string());
         assert_eq!(err.to_string(), "Invalid path: /invalid/path");
 
-        let err = CodeDigestError::TokenLimitExceeded {
+        let err = ContextCreatorError::TokenLimitExceeded {
             current: 200000,
             max: 150000,
         };
@@ -120,7 +120,7 @@ mod tests {
     #[test]
     fn test_io_error_conversion() {
         let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
-        let err: CodeDigestError = io_err.into();
-        assert!(matches!(err, CodeDigestError::IoError(_)));
+        let err: ContextCreatorError = io_err.into();
+        assert!(matches!(err, ContextCreatorError::IoError(_)));
     }
 }
