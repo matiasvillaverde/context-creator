@@ -446,14 +446,31 @@ mod tests {
 
     #[test]
     fn test_common_ancestor() {
-        let path1 = PathBuf::from("/home/user/project/src/main.rs");
-        let path2 = PathBuf::from("/home/user/project/lib/util.rs");
-        let ancestor = common_ancestor(&path1, &path2);
-        assert_eq!(ancestor, PathBuf::from("/home/user/project"));
+        #[cfg(windows)]
+        {
+            let path1 = PathBuf::from("C:\\Users\\user\\project\\src\\main.rs");
+            let path2 = PathBuf::from("C:\\Users\\user\\project\\lib\\util.rs");
+            let ancestor = common_ancestor(&path1, &path2);
+            assert_eq!(ancestor, PathBuf::from("C:\\Users\\user\\project"));
 
-        let path3 = PathBuf::from("/usr/local/bin/tool");
-        let path4 = PathBuf::from("/home/user/file");
-        let ancestor2 = common_ancestor(&path3, &path4);
-        assert_eq!(ancestor2, PathBuf::from("/"));
+            let path3 = PathBuf::from("C:\\Program Files\\tool");
+            let path4 = PathBuf::from("D:\\Users\\user\\file");
+            let ancestor2 = common_ancestor(&path3, &path4);
+            // Should fall back to C:\ (root from first path)
+            assert_eq!(ancestor2, PathBuf::from("C:\\"));
+        }
+
+        #[cfg(not(windows))]
+        {
+            let path1 = PathBuf::from("/home/user/project/src/main.rs");
+            let path2 = PathBuf::from("/home/user/project/lib/util.rs");
+            let ancestor = common_ancestor(&path1, &path2);
+            assert_eq!(ancestor, PathBuf::from("/home/user/project"));
+
+            let path3 = PathBuf::from("/usr/local/bin/tool");
+            let path4 = PathBuf::from("/home/user/file");
+            let ancestor2 = common_ancestor(&path3, &path4);
+            assert_eq!(ancestor2, PathBuf::from("/"));
+        }
     }
 }
