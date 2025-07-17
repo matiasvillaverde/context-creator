@@ -412,17 +412,22 @@ if __name__ == "__main__":
     // Check that usage.py imports from both modules
     assert!(stdout.contains("usage.py"));
     if stdout.contains("Imports:") {
-        let usage_section = stdout
-            .split("usage.py")
-            .nth(1)
-            .unwrap_or("")
-            .split("##")
-            .next()
-            .unwrap_or("");
+        // Look for the usage.py section and get everything until the next file or end
+        let content = if let Some(start_idx) = stdout.find("## usage.py") {
+            let section_start = &stdout[start_idx..];
+            // Find the next ## (another file) or use the whole remaining content
+            if let Some(next_file_idx) = section_start[11..].find("##") {
+                &section_start[..next_file_idx + 11]
+            } else {
+                section_start
+            }
+        } else {
+            ""
+        };
 
         assert!(
-            usage_section.contains("decorators") && usage_section.contains("metaclasses"),
-            "usage.py should import from both modules"
+            content.contains("decorators") && content.contains("metaclasses"),
+            "usage.py should import from both modules. Found: '{content}'"
         );
     }
 }
