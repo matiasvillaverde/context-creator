@@ -1,10 +1,10 @@
 [package]
-name = "code-digest"
-version = "0.5.0"
+name = "context-creator"
+version = "1.0.0"
 edition = "2021"
 description = "High-performance CLI tool to convert codebases to Markdown for LLM context"
 authors = ["Matias Villaverde"]
-repository = "https://github.com/matiasvillaverde/code-digest"
+repository = "https://github.com/matiasvillaverde/context-creator"
 license = "MIT"
 keywords = ["cli", "llm", "code", "context", "markdown"]
 categories = ["command-line-utilities", "development-tools"]
