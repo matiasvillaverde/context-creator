@@ -1,6 +1,6 @@
 //! Directory walking functionality with .gitignore and .digestignore support
 
-use crate::utils::error::CodeDigestError;
+use crate::utils::error::ContextCreatorError;
 use crate::utils::file_ext::FileType;
 use anyhow::Result;
 use glob::Pattern;
@@ -82,7 +82,7 @@ impl WalkOptions {
             match CompiledPriority::try_from_config_priority(priority) {
                 Ok(compiled) => custom_priorities.push(compiled),
                 Err(e) => {
-                    return Err(CodeDigestError::ConfigError(format!(
+                    return Err(ContextCreatorError::ConfigError(format!(
                         "Invalid glob pattern '{}' in custom priorities: {e}",
                         priority.pattern
                     ))
@@ -110,7 +110,7 @@ impl WalkOptions {
             follow_links: false,
             include_hidden: false,
             parallel: true,
-            ignore_file: ".digestignore".to_string(),
+            ignore_file: ".context-creator-ignore".to_string(),
             ignore_patterns,
             include_patterns,
             custom_priorities,
@@ -126,7 +126,7 @@ impl Default for WalkOptions {
             follow_links: false,
             include_hidden: false,
             parallel: true,
-            ignore_file: ".digestignore".to_string(),
+            ignore_file: ".context-creator-ignore".to_string(),
             ignore_patterns: vec![],
             include_patterns: vec![],
             custom_priorities: vec![],
@@ -200,7 +200,7 @@ impl FileInfo {
 /// Walk a directory and collect file information
 pub fn walk_directory(root: &Path, options: WalkOptions) -> Result<Vec<FileInfo>> {
     if !root.exists() {
-        return Err(CodeDigestError::InvalidPath(format!(
+        return Err(ContextCreatorError::InvalidPath(format!(
             "Directory does not exist: {}",
             root.display()
         ))
@@ -208,7 +208,7 @@ pub fn walk_directory(root: &Path, options: WalkOptions) -> Result<Vec<FileInfo>
     }
 
     if !root.is_dir() {
-        return Err(CodeDigestError::InvalidPath(format!(
+        return Err(ContextCreatorError::InvalidPath(format!(
             "Path is not a directory: {}",
             root.display()
         ))
@@ -229,7 +229,7 @@ pub fn walk_directory(root: &Path, options: WalkOptions) -> Result<Vec<FileInfo>
 pub fn sanitize_pattern(pattern: &str) -> Result<String> {
     // Length limit to prevent resource exhaustion
     if pattern.len() > 1000 {
-        return Err(CodeDigestError::InvalidConfiguration(
+        return Err(ContextCreatorError::InvalidConfiguration(
             "Pattern too long (max 1000 characters)".to_string(),
         )
         .into());
@@ -244,7 +244,7 @@ pub fn sanitize_pattern(pattern: &str) -> Result<String> {
             c == '\u{FEFF}' // Byte order mark
         })
     {
-        return Err(CodeDigestError::InvalidConfiguration(
+        return Err(ContextCreatorError::InvalidConfiguration(
             "Pattern contains invalid characters (null bytes or control characters)".to_string(),
         )
         .into());
@@ -252,7 +252,7 @@ pub fn sanitize_pattern(pattern: &str) -> Result<String> {
 
     // No absolute paths to prevent directory traversal
     if pattern.starts_with('/') || pattern.starts_with('\\') {
-        return Err(CodeDigestError::InvalidConfiguration(
+        return Err(ContextCreatorError::InvalidConfiguration(
             "Absolute paths not allowed in patterns".to_string(),
         )
         .into());
@@ -260,7 +260,7 @@ pub fn sanitize_pattern(pattern: &str) -> Result<String> {
 
     // Prevent directory traversal
     if pattern.contains("..") {
-        return Err(CodeDigestError::InvalidConfiguration(
+        return Err(ContextCreatorError::InvalidConfiguration(
             "Directory traversal (..) not allowed in patterns".to_string(),
         )
         .into());
@@ -292,7 +292,7 @@ fn build_walker(root: &Path, options: &WalkOptions) -> Result<Walk> {
 
             // Add the sanitized pattern to the walker
             if builder.add_ignore(&sanitized_pattern).is_none() {
-                return Err(CodeDigestError::InvalidConfiguration(format!(
+                return Err(ContextCreatorError::InvalidConfiguration(format!(
                     "Invalid ignore pattern '{pattern}': pattern could not be added"
                 ))
                 .into());
@@ -311,7 +311,7 @@ fn build_walker(root: &Path, options: &WalkOptions) -> Result<Walk> {
 
                 // Include patterns are added directly (not as negations)
                 override_builder.add(&sanitized_pattern).map_err(|e| {
-                    CodeDigestError::InvalidConfiguration(format!(
+                    ContextCreatorError::InvalidConfiguration(format!(
                         "Invalid include pattern '{pattern}': {e}"
                     ))
                 })?;
@@ -319,7 +319,7 @@ fn build_walker(root: &Path, options: &WalkOptions) -> Result<Walk> {
         }
 
         let overrides = override_builder.build().map_err(|e| {
-            CodeDigestError::InvalidConfiguration(format!(
+            ContextCreatorError::InvalidConfiguration(format!(
                 "Failed to build include pattern overrides: {e}"
             ))
         })?;
@@ -366,13 +366,13 @@ fn walk_parallel(walker: Walk, root: &Path, options: &WalkOptions) -> Result<Vec
         .collect();
 
     // Process in parallel with proper error collection
-    let results: Vec<Result<Option<FileInfo>, CodeDigestError>> = entries
+    let results: Vec<Result<Option<FileInfo>, ContextCreatorError>> = entries
         .into_par_iter()
         .map(|entry| {
             let path = entry.path();
             match process_file(path, &root, &options) {
                 Ok(file_info) => Ok(file_info),
-                Err(e) => Err(CodeDigestError::FileProcessingError {
+                Err(e) => Err(ContextCreatorError::FileProcessingError {
                     path: path.display().to_string(),
                     error: e.to_string(),
                 }),
@@ -607,7 +607,7 @@ mod tests {
         File::create(root.join("ignored.rs")).unwrap();
 
         // Create .digestignore
-        fs::write(root.join(".digestignore"), "ignored.rs").unwrap();
+        fs::write(root.join(".context-creator-ignore"), "ignored.rs").unwrap();
 
         let options = WalkOptions::default();
         let files = walk_directory(root, options).unwrap();
@@ -678,7 +678,7 @@ mod tests {
         assert!(!options.follow_links);
         assert!(!options.include_hidden);
         assert!(options.parallel);
-        assert_eq!(options.ignore_file, ".digestignore");
+        assert_eq!(options.ignore_file, ".context-creator-ignore");
     }
 
     #[test]
@@ -1559,15 +1559,15 @@ mod tests {
     #[test]
     fn test_error_handling_classification() {
         // Test that we correctly classify errors as critical vs non-critical
-        use crate::utils::error::CodeDigestError;
+        use crate::utils::error::ContextCreatorError;
 
         // Simulate critical errors
         let critical_errors = [
-            CodeDigestError::FileProcessingError {
+            ContextCreatorError::FileProcessingError {
                 path: "test.txt".to_string(),
                 error: "Permission denied".to_string(),
             },
-            CodeDigestError::InvalidConfiguration("Invalid pattern".to_string()),
+            ContextCreatorError::InvalidConfiguration("Invalid pattern".to_string()),
         ];
 
         // Check that permission denied is considered critical
@@ -1593,7 +1593,7 @@ mod tests {
             follow_links: false,
             include_hidden: false,
             parallel: false,
-            ignore_file: ".digestignore".to_string(),
+            ignore_file: ".context-creator-ignore".to_string(),
             ignore_patterns: vec![],
             include_patterns: vec!["../../../etc/passwd".to_string()], // Should be rejected
             custom_priorities: vec![],

@@ -1,7 +1,7 @@
 //! Thread-safe parser pool for tree-sitter parsers
 //! Manages parser lifecycle and prevents resource exhaustion
 
-use crate::utils::error::CodeDigestError;
+use crate::utils::error::ContextCreatorError;
 use async_trait::async_trait;
 use deadpool::managed::{self, Manager, Metrics, Pool, RecycleResult};
 use std::collections::HashMap;
@@ -32,14 +32,14 @@ impl ParserManager {
 #[async_trait]
 impl Manager for ParserManager {
     type Type = Parser;
-    type Error = CodeDigestError;
+    type Error = ContextCreatorError;
 
     async fn create(&self) -> Result<Parser, Self::Error> {
         let mut parser = Parser::new();
 
         // Set the language
         parser.set_language(self.language).map_err(|e| {
-            CodeDigestError::ParseError(format!(
+            ContextCreatorError::ParseError(format!(
                 "Failed to set {} language: {}",
                 self.language_name, e
             ))
@@ -139,13 +139,15 @@ impl ParserPoolManager {
     }
 
     /// Get a parser from the pool for the specified language
-    pub async fn get_parser(&self, language: &str) -> Result<PooledParser, CodeDigestError> {
+    pub async fn get_parser(&self, language: &str) -> Result<PooledParser, ContextCreatorError> {
         let pool = self.pools.get(language).ok_or_else(|| {
-            CodeDigestError::ParseError(format!("Unsupported language: {language}"))
+            ContextCreatorError::ParseError(format!("Unsupported language: {language}"))
         })?;
 
         pool.get().await.map_err(|e| {
-            CodeDigestError::ParseError(format!("Failed to get {language} parser from pool: {e}"))
+            ContextCreatorError::ParseError(format!(
+                "Failed to get {language} parser from pool: {e}"
+            ))
         })
     }
 
