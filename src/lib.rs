@@ -20,6 +20,13 @@ pub use utils::error::ContextCreatorError;
 
 /// Main entry point for the context creator library
 pub fn run(mut config: Config) -> Result<()> {
+    // Load configuration from file first
+    config.load_from_file()?;
+
+    // Validate configuration BEFORE processing
+    // This ensures mutual exclusivity checks work correctly
+    config.validate()?;
+
     // Handle remote repository if specified
     let _temp_dir = if let Some(repo_url) = &config.repo {
         if config.verbose {
@@ -56,8 +63,7 @@ pub fn run(mut config: Config) -> Result<()> {
         }
     }
 
-    // Validate configuration
-    config.validate()?;
+    // Configuration was already validated above
 
     // Create walker with options
     if config.verbose {
