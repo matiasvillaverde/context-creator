@@ -1,6 +1,6 @@
 //! Remote repository fetching functionality
 
-use crate::utils::error::CodeDigestError;
+use crate::utils::error::ContextCreatorError;
 use std::path::PathBuf;
 use std::process::Command;
 use tempfile::TempDir;
@@ -27,28 +27,32 @@ pub fn git_available() -> bool {
 }
 
 /// Parse GitHub URL to extract owner and repo
-pub fn parse_github_url(url: &str) -> Result<(String, String), CodeDigestError> {
+pub fn parse_github_url(url: &str) -> Result<(String, String), ContextCreatorError> {
     let url = url.trim_end_matches('/');
 
     // Handle both https:// and http:// URLs
     let parts: Vec<&str> = if url.starts_with("https://github.com/") {
         url.strip_prefix("https://github.com/")
-            .ok_or_else(|| CodeDigestError::InvalidConfiguration("Invalid GitHub URL".to_string()))?
+            .ok_or_else(|| {
+                ContextCreatorError::InvalidConfiguration("Invalid GitHub URL".to_string())
+            })?
             .split('/')
             .collect()
     } else if url.starts_with("http://github.com/") {
         url.strip_prefix("http://github.com/")
-            .ok_or_else(|| CodeDigestError::InvalidConfiguration("Invalid GitHub URL".to_string()))?
+            .ok_or_else(|| {
+                ContextCreatorError::InvalidConfiguration("Invalid GitHub URL".to_string())
+            })?
             .split('/')
             .collect()
     } else {
-        return Err(CodeDigestError::InvalidConfiguration(
+        return Err(ContextCreatorError::InvalidConfiguration(
             "URL must start with https://github.com/ or http://github.com/".to_string(),
         ));
     };
 
     if parts.len() < 2 {
-        return Err(CodeDigestError::InvalidConfiguration(
+        return Err(ContextCreatorError::InvalidConfiguration(
             "GitHub URL must contain owner and repository name".to_string(),
         ));
     }
@@ -57,10 +61,10 @@ pub fn parse_github_url(url: &str) -> Result<(String, String), CodeDigestError> 
 }
 
 /// Fetch a repository from GitHub
-pub fn fetch_repository(repo_url: &str, verbose: bool) -> Result<TempDir, CodeDigestError> {
+pub fn fetch_repository(repo_url: &str, verbose: bool) -> Result<TempDir, ContextCreatorError> {
     let (owner, repo) = parse_github_url(repo_url)?;
     let temp_dir = TempDir::new().map_err(|e| {
-        CodeDigestError::RemoteFetchError(format!("Failed to create temp directory: {e}"))
+        ContextCreatorError::RemoteFetchError(format!("Failed to create temp directory: {e}"))
     })?;
 
     // Set secure permissions on temp directory (0700)
@@ -68,12 +72,14 @@ pub fn fetch_repository(repo_url: &str, verbose: bool) -> Result<TempDir, CodeDi
     {
         use std::os::unix::fs::PermissionsExt;
         let metadata = fs::metadata(temp_dir.path()).map_err(|e| {
-            CodeDigestError::RemoteFetchError(format!("Failed to get temp directory metadata: {e}"))
+            ContextCreatorError::RemoteFetchError(format!(
+                "Failed to get temp directory metadata: {e}"
+            ))
         })?;
         let mut perms = metadata.permissions();
         perms.set_mode(0o700);
         fs::set_permissions(temp_dir.path(), perms).map_err(|e| {
-            CodeDigestError::RemoteFetchError(format!(
+            ContextCreatorError::RemoteFetchError(format!(
                 "Failed to set temp directory permissions: {e}"
             ))
         })?;
@@ -95,13 +101,13 @@ pub fn fetch_repository(repo_url: &str, verbose: bool) -> Result<TempDir, CodeDi
         }
         clone_with_git(repo_url, temp_dir.path(), verbose)?
     } else {
-        return Err(CodeDigestError::RemoteFetchError(
+        return Err(ContextCreatorError::RemoteFetchError(
             "Neither gh CLI nor git is available. Please install one of them.".to_string(),
         ));
     };
 
     if !success {
-        return Err(CodeDigestError::RemoteFetchError(
+        return Err(ContextCreatorError::RemoteFetchError(
             "Failed to clone repository".to_string(),
         ));
     }
@@ -119,7 +125,7 @@ fn clone_with_gh(
     repo: &str,
     target_dir: &std::path::Path,
     verbose: bool,
-) -> Result<bool, CodeDigestError> {
+) -> Result<bool, ContextCreatorError> {
     let repo_spec = format!("{owner}/{repo}");
     let mut cmd = Command::new("gh");
     cmd.arg("repo")
@@ -136,7 +142,7 @@ fn clone_with_gh(
 
     let output = cmd
         .output()
-        .map_err(|e| CodeDigestError::RemoteFetchError(format!("Failed to run gh: {e}")))?;
+        .map_err(|e| ContextCreatorError::RemoteFetchError(format!("Failed to run gh: {e}")))?;
 
     Ok(output.status.success())
 }
@@ -146,9 +152,9 @@ fn clone_with_git(
     repo_url: &str,
     target_dir: &std::path::Path,
     verbose: bool,
-) -> Result<bool, CodeDigestError> {
+) -> Result<bool, ContextCreatorError> {
     let repo_name = repo_url.split('/').next_back().ok_or_else(|| {
-        CodeDigestError::InvalidConfiguration("Invalid repository URL".to_string())
+        ContextCreatorError::InvalidConfiguration("Invalid repository URL".to_string())
     })?;
 
     let mut cmd = Command::new("git");
@@ -164,18 +170,18 @@ fn clone_with_git(
 
     let output = cmd
         .output()
-        .map_err(|e| CodeDigestError::RemoteFetchError(format!("Failed to run git: {e}")))?;
+        .map_err(|e| ContextCreatorError::RemoteFetchError(format!("Failed to run git: {e}")))?;
 
     Ok(output.status.success())
 }
 
 /// Get the path to the cloned repository within the temp directory
-pub fn get_repo_path(temp_dir: &TempDir, repo_url: &str) -> Result<PathBuf, CodeDigestError> {
+pub fn get_repo_path(temp_dir: &TempDir, repo_url: &str) -> Result<PathBuf, ContextCreatorError> {
     let (_, repo) = parse_github_url(repo_url)?;
     let repo_path = temp_dir.path().join(&repo);
 
     if !repo_path.exists() {
-        return Err(CodeDigestError::RemoteFetchError(format!(
+        return Err(ContextCreatorError::RemoteFetchError(format!(
             "Repository directory not found after cloning: {}",
             repo_path.display()
         )));

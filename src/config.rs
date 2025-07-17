@@ -1,11 +1,11 @@
-//! Configuration file support for code-digest
+//! Configuration file support for context-creator
 //!
 //! This module handles loading and parsing configuration files in TOML format.
 //! Configuration files can specify defaults for CLI options and additional
 //! settings like file priorities and ignore patterns.
 
 use crate::cli::{Config as CliConfig, LlmTool};
-use crate::utils::error::CodeDigestError;
+use crate::utils::error::ContextCreatorError;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -20,7 +20,7 @@ pub struct ConfigFile {
     #[serde(default)]
     pub priorities: Vec<Priority>,
 
-    /// Ignore patterns beyond .gitignore and .digestignore
+    /// Ignore patterns beyond .gitignore and .context-creator-ignore
     #[serde(default)]
     pub ignore: Vec<String>,
 
@@ -82,16 +82,16 @@ pub struct TokenLimits {
 
 impl ConfigFile {
     /// Load configuration from a file
-    pub fn load_from_file(path: &Path) -> Result<Self, CodeDigestError> {
+    pub fn load_from_file(path: &Path) -> Result<Self, ContextCreatorError> {
         if !path.exists() {
-            return Err(CodeDigestError::InvalidPath(format!(
+            return Err(ContextCreatorError::InvalidPath(format!(
                 "Configuration file does not exist: {}",
                 path.display()
             )));
         }
 
         let content = std::fs::read_to_string(path).map_err(|e| {
-            CodeDigestError::ConfigError(format!(
+            ContextCreatorError::ConfigError(format!(
                 "Failed to read config file {}: {}",
                 path.display(),
                 e
@@ -99,7 +99,7 @@ impl ConfigFile {
         })?;
 
         let config: ConfigFile = toml::from_str(&content).map_err(|e| {
-            CodeDigestError::ConfigError(format!(
+            ContextCreatorError::ConfigError(format!(
                 "Failed to parse config file {}: {}",
                 path.display(),
                 e
@@ -110,22 +110,22 @@ impl ConfigFile {
     }
 
     /// Load configuration from default locations
-    pub fn load_default() -> Result<Option<Self>, CodeDigestError> {
-        // Try .code-digest.toml in current directory
-        let local_config = Path::new(".code-digest.toml");
+    pub fn load_default() -> Result<Option<Self>, ContextCreatorError> {
+        // Try .context-creator.toml in current directory
+        let local_config = Path::new(".context-creator.toml");
         if local_config.exists() {
             return Ok(Some(Self::load_from_file(local_config)?));
         }
 
-        // Try .digestrc.toml in current directory
-        let rc_config = Path::new(".digestrc.toml");
+        // Try .contextrc.toml in current directory
+        let rc_config = Path::new(".contextrc.toml");
         if rc_config.exists() {
             return Ok(Some(Self::load_from_file(rc_config)?));
         }
 
         // Try in home directory
         if let Some(home) = dirs::home_dir() {
-            let home_config = home.join(".code-digest.toml");
+            let home_config = home.join(".context-creator.toml");
             if home_config.exists() {
                 return Ok(Some(Self::load_from_file(&home_config)?));
             }

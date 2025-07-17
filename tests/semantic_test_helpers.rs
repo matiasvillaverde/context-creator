@@ -1,8 +1,8 @@
 //! Helper functions for semantic analysis tests
 
-use code_digest::cli::Config;
-use code_digest::core::cache::FileCache;
-use code_digest::core::walker::{walk_directory, FileInfo, WalkOptions};
+use context_creator::cli::Config;
+use context_creator::core::cache::FileCache;
+use context_creator::core::walker::{walk_directory, FileInfo, WalkOptions};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -73,7 +73,7 @@ pub fn analyze_project_with_options(
     let cache = Arc::new(FileCache::new());
 
     let mut files = walk_directory(root, walk_options).unwrap();
-    code_digest::core::walker::perform_semantic_analysis(&mut files, &config, &cache).unwrap();
+    context_creator::core::walker::perform_semantic_analysis(&mut files, &config, &cache).unwrap();
 
     files
 }

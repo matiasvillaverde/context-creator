@@ -1,49 +1,49 @@
 # Configuration Reference
 
-Complete reference for configuring code-digest through TOML files, environment variables, and command-line arguments.
+Complete reference for configuring context-creator through TOML files, environment variables, and command-line arguments.
 
 ## Configuration Hierarchy
 
-Code-digest uses the following configuration precedence (highest to lowest):
+context-creator uses the following configuration precedence (highest to lowest):
 
 1. **Command-line arguments** (highest priority)
 2. **Environment variables**
-3. **Project configuration file** (`.code-digest.toml`)
-4. **User configuration file** (`~/.config/code-digest/config.toml`)
-5. **System configuration file** (`/etc/code-digest/config.toml`)
+3. **Project configuration file** (`.context-creator.toml`)
+4. **User configuration file** (`~/.config/context-creator/config.toml`)
+5. **System configuration file** (`/etc/context-creator/config.toml`)
 6. **Built-in defaults** (lowest priority)
 
 ## Configuration File Locations
 
 ### Auto-discovery Order
 
-Code-digest automatically searches for configuration files in this order:
+context-creator automatically searches for configuration files in this order:
 
 ```bash
 # 1. Current directory
-./.code-digest.toml
-./code-digest.toml
+./.context-creator.toml
+./context-creator.toml
 
 # 2. User config directory
-~/.config/code-digest/config.toml
-~/.config/code-digest.toml
+~/.config/context-creator/config.toml
+~/.config/context-creator.toml
 
 # 3. System config directory (Linux/macOS)
-/etc/code-digest/config.toml
+/etc/context-creator/config.toml
 
 # 4. Windows AppData
-%APPDATA%\code-digest\config.toml
+%APPDATA%\context-creator\config.toml
 ```
 
 ### Explicit Configuration
 
 ```bash
 # Use specific config file
-code-digest -c /path/to/config.toml
+context-creator -c /path/to/config.toml
 
 # Use specific config with environment variable
-export CODE_DIGEST_CONFIG="/path/to/config.toml"
-code-digest
+export CODE_context_CONFIG="/path/to/config.toml"
+context-creator
 ```
 
 ## Configuration File Format
@@ -52,7 +52,7 @@ code-digest
 
 ```toml
 # Complete configuration example
-# ~/.config/code-digest/config.toml
+# ~/.config/context-creator/config.toml
 
 [defaults]
 max_tokens = 50000
@@ -68,7 +68,7 @@ sort_by_priority = true
 
 [format]
 file_header_template = "## {path}"
-doc_header_template = "# Code Digest: {directory}"
+doc_header_template = "# Code context: {directory}"
 
 [processing]
 parallel_jobs = 0  # 0 = auto-detect CPU cores
@@ -77,7 +77,7 @@ timeout_seconds = 300
 
 [cache]
 enabled = true
-directory = "~/.cache/code-digest"
+directory = "~/.cache/context-creator"
 max_size_mb = 1024
 ttl_hours = 24
 
@@ -311,7 +311,7 @@ Output formatting templates:
 file_header_template = "## {path}"
 
 # Template for document header (supports {directory}, {date}, {time})
-doc_header_template = "# Code Digest: {directory}"
+doc_header_template = "# Code context: {directory}"
 
 # Custom section templates
 stats_template = "## 📊 Statistics"
@@ -351,7 +351,7 @@ Caching configuration:
 enabled = true
 
 # Cache directory
-directory = "~/.cache/code-digest"
+directory = "~/.cache/context-creator"
 
 # Maximum cache size (MB)
 max_size_mb = 1024
@@ -449,31 +449,31 @@ include = ["core/**/*"]
 
 ## Environment Variables
 
-All configuration options can be set via environment variables using the prefix `CODE_DIGEST_`:
+All configuration options can be set via environment variables using the prefix `CODE_context_`:
 
 ```bash
 # Basic options
-export CODE_DIGEST_MAX_TOKENS=50000
-export CODE_DIGEST_PROGRESS=true
-export CODE_DIGEST_VERBOSE=false
-export CODE_DIGEST_TOOL=gemini
+export CODE_context_MAX_TOKENS=50000
+export CODE_context_PROGRESS=true
+export CODE_context_VERBOSE=false
+export CODE_context_TOOL=gemini
 
 # Paths
-export CODE_DIGEST_CONFIG=/path/to/config.toml
-export CODE_DIGEST_CACHE_DIR=/path/to/cache
+export CODE_context_CONFIG=/path/to/config.toml
+export CODE_context_CACHE_DIR=/path/to/cache
 
 # Processing
-export CODE_DIGEST_PARALLEL_JOBS=8
-export CODE_DIGEST_CHUNK_SIZE=1000
-export CODE_DIGEST_TIMEOUT_SECONDS=300
+export CODE_context_PARALLEL_JOBS=8
+export CODE_context_CHUNK_SIZE=1000
+export CODE_context_TIMEOUT_SECONDS=300
 
 # Patterns (comma-separated)
-export CODE_DIGEST_IGNORE="target/,node_modules/,*.log"
-export CODE_DIGEST_INCLUDE="src/**/*,*.toml"
+export CODE_context_IGNORE="target/,node_modules/,*.log"
+export CODE_context_INCLUDE="src/**/*,*.toml"
 
 # LLM integration
-export CODE_DIGEST_LLM_TIMEOUT=120
-export CODE_DIGEST_LLM_RETRIES=3
+export CODE_context_LLM_TIMEOUT=120
+export CODE_context_LLM_RETRIES=3
 
 # Debug options
 export RUST_LOG=debug
@@ -486,21 +486,21 @@ All options can be overridden via command-line arguments:
 
 ```bash
 # Basic usage
-code-digest --max-tokens 25000
-code-digest --tool codex
-code-digest --verbose --progress
+context-creator --max-tokens 25000
+context-creator --tool codex
+context-creator --verbose --progress
 
 # File filtering
-code-digest --ignore "*.log,*.tmp"
-code-digest --include "src/**/*"
+context-creator --ignore "*.log,*.tmp"
+context-creator --include "src/**/*"
 
 # Configuration
-code-digest --config custom.toml
-code-digest --no-config  # Skip all config files
+context-creator --config custom.toml
+context-creator --no-config  # Skip all config files
 
 # Output format
-code-digest --no-tree --no-stats --no-toc
-code-digest --group-by-type
+context-creator --no-tree --no-stats --no-toc
+context-creator --group-by-type
 ```
 
 ## Validation
@@ -509,23 +509,23 @@ code-digest --group-by-type
 
 ```bash
 # Validate configuration file
-code-digest --validate-config -c config.toml
+context-creator --validate-config -c config.toml
 
 # Show effective configuration
-code-digest --show-config
+context-creator --show-config
 
 # Generate configuration schema
-code-digest --config-schema > schema.json
+context-creator --config-schema > schema.json
 
 # Dry run (validate without processing)
-code-digest --dry-run -d project
+context-creator --dry-run -d project
 ```
 
 ### Schema Validation
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/matiasvillaverde/code-digest/main/schema/config.schema.json",
+  "$schema": "https://raw.githubusercontent.com/matiasvillaverde/context-creator/main/schema/config.schema.json",
   "type": "object",
   "properties": {
     "defaults": {
@@ -548,12 +548,12 @@ code-digest --dry-run -d project
 ```bash
 # Project structure
 project/
-├── .code-digest.toml      # Project-specific config
+├── .context-creator.toml      # Project-specific config
 ├── src/
 └── docs/
 
 # User configuration
-~/.config/code-digest/
+~/.config/context-creator/
 ├── config.toml            # Main config
 ├── rust-projects.toml     # Rust-specific config
 └── web-projects.toml      # Web project config
@@ -620,16 +620,16 @@ args = ["--no-log", "--secure"]
 
 ```bash
 # Check configuration loading
-RUST_LOG=debug code-digest --show-config
+RUST_LOG=debug context-creator --show-config
 
 # Validate TOML syntax
 toml-lint config.toml
 
 # Test pattern matching
-code-digest --dry-run --verbose -d project
+context-creator --dry-run --verbose -d project
 
 # Check environment variables
-env | grep CODE_DIGEST
+env | grep CODE_context
 ```
 
 ### Configuration Debugging
@@ -649,19 +649,19 @@ show_filtered_files = true
 
 ```bash
 # Migrate old configuration
-code-digest --migrate-config ~/.code-digest.conf
+context-creator --migrate-config ~/.context-creator.conf
 
 # Convert environment variables
-code-digest --migrate-env > new-config.toml
+context-creator --migrate-env > new-config.toml
 ```
 
 ### Configuration Templates
 
 ```bash
 # Generate template for specific use case
-code-digest --template rust-project > rust.toml
-code-digest --template web-project > web.toml
-code-digest --template minimal > minimal.toml
+context-creator --template rust-project > rust.toml
+context-creator --template web-project > web.toml
+context-creator --template minimal > minimal.toml
 ```
 
 ## Advanced Configuration
@@ -694,7 +694,7 @@ include = ["tests/**/*"]
 quiet = true
 ignore = ["tests/**/*", "docs/**/*"]
 
-# Use with: CODE_DIGEST_ENV=development code-digest
+# Use with: CODE_context_ENV=development context-creator
 ```
 
 ### Plugin Configuration

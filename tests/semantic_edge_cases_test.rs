@@ -65,12 +65,12 @@ pub fn function_c() {
     )
     .unwrap();
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--trace-imports")
         .arg("--include-callers")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -127,13 +127,13 @@ pub const DEFAULT_NAME: &str = "default";
     )
     .unwrap();
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--trace-imports")
         .arg("--include-callers")
         .arg("--include-types")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
@@ -208,12 +208,12 @@ pub fn {}() {{
         .unwrap();
     }
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--trace-imports")
         .arg("--include-callers")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
@@ -277,11 +277,11 @@ pub fn analyze() {
     )
     .unwrap();
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--trace-imports")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
@@ -325,11 +325,11 @@ fn test_library() {
     )
     .unwrap();
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(temp_dir.path())
         .arg("--trace-imports")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
@@ -376,11 +376,11 @@ impl<T: Clone + Send, U: Default> ComplexType<T, U> {
     )
     .unwrap();
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--include-types")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
@@ -455,11 +455,11 @@ pub fn process_data(input: &str) {
     )
     .unwrap();
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--include-callers")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
@@ -478,13 +478,13 @@ fn test_empty_directory() {
     let empty_dir = temp_dir.path().join("empty");
     fs::create_dir_all(&empty_dir).unwrap();
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&empty_dir)
         .arg("--trace-imports")
         .arg("--include-callers")
         .arg("--include-types")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     // Should handle empty directory gracefully
     assert!(output.status.success());
@@ -511,11 +511,11 @@ pub fn function() {
     )
     .unwrap();
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--trace-imports")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     // Should handle non-ASCII filenames
     assert!(output.status.success());
@@ -553,12 +553,12 @@ pub fn child_function() {
     )
     .unwrap();
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--trace-imports")
         .arg("--include-callers")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
@@ -595,12 +595,12 @@ pub async fn async_function() -> Result<()> {
     )
     .unwrap();
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--trace-imports")
         .arg("--include-types")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     // Should not crash on external imports
     assert!(output.status.success());
@@ -657,11 +657,11 @@ fn main() {{
     )
     .unwrap();
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--trace-imports")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 

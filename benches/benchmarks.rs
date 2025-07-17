@@ -1,4 +1,4 @@
-//! Performance benchmarks for code-digest
+//! Performance benchmarks for context-creator
 //!
 //! This benchmark suite measures the performance of key components:
 //! - Directory walking and file discovery
@@ -11,14 +11,14 @@ use std::fs;
 use std::path::Path;
 use tempfile::TempDir;
 
-use code_digest::core::{
+use context_creator::core::{
     cache::FileCache,
-    digest::{generate_markdown, DigestOptions},
+    context_builder::{generate_markdown, ContextOptions},
     prioritizer::prioritize_files,
     token::TokenCounter,
     walker::{walk_directory, WalkOptions},
 };
-use code_digest::utils::file_ext::FileType;
+use context_creator::utils::file_ext::FileType;
 use std::sync::Arc;
 
 /// Create a test project with various file sizes and types
@@ -147,14 +147,14 @@ fn bench_file_prioritization(c: &mut Criterion) {
         let walk_options = WalkOptions::default();
         let files = walk_directory(&project_dir, walk_options).unwrap();
 
-        let digest_options = DigestOptions {
+        let context_options = ContextOptions {
             max_tokens: Some(50000),
             include_tree: true,
             include_stats: true,
             group_by_type: false,
             sort_by_priority: true,
             file_header_template: "## {path}".to_string(),
-            doc_header_template: "# Code Digest".to_string(),
+            doc_header_template: "# Code Context".to_string(),
             include_toc: true,
             enhanced_context: false,
         };
@@ -162,7 +162,7 @@ fn bench_file_prioritization(c: &mut Criterion) {
         group.throughput(Throughput::Elements(file_count as u64));
         group.bench_with_input(
             BenchmarkId::new("prioritize_files", file_count),
-            &(&files, &digest_options),
+            &(&files, &context_options),
             |b, (files, options)| {
                 b.iter(|| {
                     let files_clone = (*files).clone();
@@ -187,14 +187,14 @@ fn bench_markdown_generation(c: &mut Criterion) {
         let walk_options = WalkOptions::default();
         let files = walk_directory(&project_dir, walk_options).unwrap();
 
-        let digest_options = DigestOptions {
+        let context_options = ContextOptions {
             max_tokens: None,
             include_tree: true,
             include_stats: true,
             group_by_type: false,
             sort_by_priority: true,
             file_header_template: "## {path}".to_string(),
-            doc_header_template: "# Code Digest".to_string(),
+            doc_header_template: "# Code Context".to_string(),
             include_toc: true,
             enhanced_context: false,
         };
@@ -202,7 +202,7 @@ fn bench_markdown_generation(c: &mut Criterion) {
         group.throughput(Throughput::Elements(file_count as u64));
         group.bench_with_input(
             BenchmarkId::new("generate_markdown", file_count),
-            &(&files, &digest_options),
+            &(&files, &context_options),
             |b, (files, options)| {
                 b.iter(|| {
                     let files_clone = (*files).clone();
@@ -239,23 +239,23 @@ fn bench_end_to_end_processing(c: &mut Criterion) {
                     let walk_options = WalkOptions::default();
                     let files = walk_directory(black_box(path), walk_options).unwrap();
 
-                    let digest_options = DigestOptions {
+                    let context_options = ContextOptions {
                         max_tokens: Some(100000),
                         include_tree: true,
                         include_stats: true,
                         group_by_type: false,
                         sort_by_priority: true,
                         file_header_template: "## {path}".to_string(),
-                        doc_header_template: "# Code Digest".to_string(),
+                        doc_header_template: "# Code Context".to_string(),
                         include_toc: true,
                         enhanced_context: false,
                     };
 
                     let cache = Arc::new(FileCache::new());
                     let prioritized_files =
-                        prioritize_files(files, &digest_options, cache.clone()).unwrap();
+                        prioritize_files(files, &context_options, cache.clone()).unwrap();
                     let _markdown =
-                        generate_markdown(prioritized_files, digest_options, cache).unwrap();
+                        generate_markdown(prioritized_files, context_options, cache).unwrap();
 
                     black_box(());
                 });

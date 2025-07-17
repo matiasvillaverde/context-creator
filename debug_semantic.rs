@@ -1,6 +1,6 @@
-use code_digest::cli::Config;
-use code_digest::core::walker::{walk_directory, WalkOptions, perform_semantic_analysis};
-use code_digest::core::cache::FileCache;
+use context_creator::cli::Config;
+use context_creator::core::walker::{walk_directory, WalkOptions, perform_semantic_analysis};
+use context_creator::core::cache::FileCache;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;

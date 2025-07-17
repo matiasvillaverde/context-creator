@@ -1,6 +1,6 @@
 # Git Hooks
 
-This directory contains git hooks for the code-digest project.
+This directory contains git hooks for the context-creator project.
 
 ## Setup
 

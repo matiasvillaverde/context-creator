@@ -12,7 +12,7 @@ from typing import Dict, List, Any
 
 def generate_hash(data: str) -> str:
     """Generate SHA256 hash of input data."""
-    return hashlib.sha256(data.encode()).hexdigest()
+    return hashlib.sha256(data.encode()).hexcontext()
 
 
 def parse_config(config_path: str) -> Dict[str, Any]:

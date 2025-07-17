@@ -1,9 +1,9 @@
 //! Performance tests to verify optimization requirements
 
-use code_digest::core::cache::FileCache;
-use code_digest::core::digest::{generate_markdown, DigestOptions};
-use code_digest::core::prioritizer::prioritize_files;
-use code_digest::core::walker::{walk_directory, WalkOptions};
+use context_creator::core::cache::FileCache;
+use context_creator::core::context_builder::{generate_markdown, ContextOptions};
+use context_creator::core::prioritizer::prioritize_files;
+use context_creator::core::walker::{walk_directory, WalkOptions};
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
@@ -74,22 +74,22 @@ fn test_performance_1000_files_under_1_second() {
     let cache = Arc::new(FileCache::new());
 
     // Prioritize files with token limit
-    let digest_options = DigestOptions {
+    let context_options = ContextOptions {
         max_tokens: Some(100_000),
         include_tree: true,
         include_stats: true,
         group_by_type: false,
         sort_by_priority: true,
         file_header_template: "## {path}".to_string(),
-        doc_header_template: "# Code Digest".to_string(),
+        doc_header_template: "# Code Context".to_string(),
         include_toc: true,
         enhanced_context: false,
     };
 
-    let prioritized_files = prioritize_files(files, &digest_options, cache.clone()).unwrap();
+    let prioritized_files = prioritize_files(files, &context_options, cache.clone()).unwrap();
 
     // Generate markdown
-    let _markdown = generate_markdown(prioritized_files, digest_options, cache).unwrap();
+    let _markdown = generate_markdown(prioritized_files, context_options, cache).unwrap();
 
     let elapsed = start.elapsed();
 

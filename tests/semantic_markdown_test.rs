@@ -30,13 +30,13 @@ fn main() {
     .unwrap();
 
     // Run with semantic analysis
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--trace-imports")
         .arg("--include-callers")
         .arg("--progress")
         .output()
-        .expect("Failed to run code-digest");
+        .expect("Failed to run context-creator");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);

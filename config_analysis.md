@@ -1,4 +1,4 @@
-# Code Digest: .
+# Code context: .
 
 ## Statistics
 
@@ -16,7 +16,7 @@
 ├── core/
 │   ├── walker.rs
 │   ├── token.rs
-│   ├── digest.rs
+│   ├── context.rs
 │   ├── mod.rs
 │   └── prioritizer.rs
 ├── utils/
@@ -36,7 +36,7 @@
 - [lib.rs](#lib-rs)
 - [cli.rs](#cli-rs)
 - [config.rs](#config-rs)
-- [core/digest.rs](#core-digest-rs)
+- [core/context.rs](#core-context-rs)
 - [core/mod.rs](#core-mod-rs)
 - [core/prioritizer.rs](#core-prioritizer-rs)
 - [core/token.rs](#core-token-rs)
@@ -51,7 +51,7 @@
 ```rust
 use anyhow::Result;
 use clap::Parser;
-use code_digest::{cli::Config, run};
+use code_context::{cli::Config, run};
 
 fn main() -> Result<()> {
     // Parse command line arguments
@@ -70,7 +70,7 @@ fn main() -> Result<()> {
 ## lib.rs
 
 ```rust
-//! Code Digest - High-performance CLI tool to convert codebases to Markdown for LLM context
+//! Code context - High-performance CLI tool to convert codebases to Markdown for LLM context
 //!
 //! This library provides the core functionality for traversing directories,
 //! processing files, and generating formatted Markdown output suitable for
@@ -86,15 +86,15 @@ use anyhow::Result;
 use std::path::Path;
 
 pub use cli::Config;
-pub use core::{digest::DigestOptions, walker::WalkOptions};
-pub use utils::error::CodeDigestError;
+pub use core::{context::contextOptions, walker::WalkOptions};
+pub use utils::error::CodecontextError;
 
-/// Main entry point for the code digest library
+/// Main entry point for the code context library
 pub fn run(mut config: Config) -> Result<()> {
     // Handle remote repository if specified
     let _temp_dir = if let Some(repo_url) = &config.repo {
         if config.verbose {
-            eprintln!("🔧 Starting code-digest with remote repository: {repo_url}");
+            eprintln!("🔧 Starting context-creator with remote repository: {repo_url}");
         }
 
         // Fetch the repository
@@ -111,7 +111,7 @@ pub fn run(mut config: Config) -> Result<()> {
 
     // Setup logging based on verbosity
     if config.verbose {
-        eprintln!("🔧 Starting code-digest with configuration:");
+        eprintln!("🔧 Starting context-creator with configuration:");
         eprintln!("  Directories: {:?}", config.directories);
         eprintln!("  Max tokens: {:?}", config.max_tokens);
         eprintln!("  LLM tool: {}", config.llm_tool.command());
@@ -134,11 +134,11 @@ pub fn run(mut config: Config) -> Result<()> {
     }
     let walk_options = WalkOptions::from_config(&config)?;
 
-    // Create digest options
+    // Create context options
     if config.verbose {
-        eprintln!("📄 Creating markdown digest options...");
+        eprintln!("📄 Creating markdown context options...");
     }
-    let digest_options = DigestOptions::from_config(&config)?;
+    let context_options = contextOptions::from_config(&config)?;
 
     // Process all directories
     let mut all_outputs = Vec::new();
@@ -154,7 +154,7 @@ pub fn run(mut config: Config) -> Result<()> {
         }
 
         let output =
-            process_directory(directory, walk_options.clone(), digest_options.clone(), &config)?;
+            process_directory(directory, walk_options.clone(), context_options.clone(), &config)?;
         all_outputs.push((directory.clone(), output));
     }
 
@@ -165,7 +165,7 @@ pub fn run(mut config: Config) -> Result<()> {
     } else {
         // Multiple directories - combine with headers
         let mut combined = String::new();
-        combined.push_str("# Code Digest - Multiple Directories\n\n");
+        combined.push_str("# Code context - Multiple Directories\n\n");
 
         for (path, content) in all_outputs {
             combined.push_str(&format!("## Directory: {}\n\n", path.display()));
@@ -197,7 +197,7 @@ pub fn run(mut config: Config) -> Result<()> {
             print!("{output}");
         }
         (Some(_), Some(_)) => {
-            return Err(CodeDigestError::InvalidConfiguration(
+            return Err(CodecontextError::InvalidConfiguration(
                 "Cannot specify both output file and prompt".to_string(),
             )
             .into());
@@ -211,7 +211,7 @@ pub fn run(mut config: Config) -> Result<()> {
 fn process_directory(
     path: &Path,
     walk_options: WalkOptions,
-    digest_options: DigestOptions,
+    context_options: contextOptions,
     config: &Config,
 ) -> Result<String> {
     // Walk the directory
@@ -232,11 +232,11 @@ fn process_directory(
     }
 
     // Prioritize files if needed
-    let prioritized_files = if digest_options.max_tokens.is_some() {
+    let prioritized_files = if context_options.max_tokens.is_some() {
         if config.progress && !config.quiet {
             eprintln!("🎯 Prioritizing files for token limit...");
         }
-        core::prioritizer::prioritize_files(files, &digest_options)?
+        core::prioritizer::prioritize_files(files, &context_options)?
     } else {
         files
     };
@@ -246,7 +246,7 @@ fn process_directory(
     }
 
     // Generate markdown
-    let markdown = core::digest::generate_markdown(prioritized_files, digest_options)?;
+    let markdown = core::context::generate_markdown(prioritized_files, context_options)?;
 
     if config.progress && !config.quiet {
         eprintln!("✅ Markdown generation complete");
@@ -270,12 +270,12 @@ fn execute_with_llm(prompt: &str, context: &str, config: &Config) -> Result<()> 
         .spawn()
         .map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
-                CodeDigestError::LlmToolNotFound {
+                CodecontextError::LlmToolNotFound {
                     tool: tool_command.to_string(),
                     install_instructions: config.llm_tool.install_instructions().to_string(),
                 }
             } else {
-                CodeDigestError::SubprocessError(e.to_string())
+                CodecontextError::SubprocessError(e.to_string())
             }
         })?;
 
@@ -286,7 +286,7 @@ fn execute_with_llm(prompt: &str, context: &str, config: &Config) -> Result<()> 
 
     let status = child.wait()?;
     if !status.success() {
-        return Err(CodeDigestError::SubprocessError(format!(
+        return Err(CodecontextError::SubprocessError(format!(
             "{tool_command} exited with status: {status}"
         ))
         .into());
@@ -387,15 +387,15 @@ pub struct Config {
 
 impl Config {
     /// Validate the configuration
-    pub fn validate(&self) -> Result<(), crate::utils::error::CodeDigestError> {
-        use crate::utils::error::CodeDigestError;
+    pub fn validate(&self) -> Result<(), crate::utils::error::CodecontextError> {
+        use crate::utils::error::CodecontextError;
 
         // Validate repo URL if provided
         if let Some(repo_url) = &self.repo {
             if !repo_url.starts_with("https://github.com/")
                 && !repo_url.starts_with("http://github.com/")
             {
-                return Err(CodeDigestError::InvalidConfiguration(
+                return Err(CodecontextError::InvalidConfiguration(
                     "Repository URL must be a GitHub URL (https://github.com/owner/repo)"
                         .to_string(),
                 ));
@@ -404,14 +404,14 @@ impl Config {
             // Only validate directories if repo is not provided
             for directory in &self.directories {
                 if !directory.exists() {
-                    return Err(CodeDigestError::InvalidPath(format!(
+                    return Err(CodecontextError::InvalidPath(format!(
                         "Directory does not exist: {}",
                         directory.display()
                     )));
                 }
 
                 if !directory.is_dir() {
-                    return Err(CodeDigestError::InvalidPath(format!(
+                    return Err(CodecontextError::InvalidPath(format!(
                         "Path is not a directory: {}",
                         directory.display()
                     )));
@@ -424,7 +424,7 @@ impl Config {
             if let Some(parent) = output.parent() {
                 // Handle empty parent (current directory) and check if parent exists
                 if !parent.as_os_str().is_empty() && !parent.exists() {
-                    return Err(CodeDigestError::InvalidPath(format!(
+                    return Err(CodecontextError::InvalidPath(format!(
                         "Output directory does not exist: {}",
                         parent.display()
                     )));
@@ -434,7 +434,7 @@ impl Config {
 
         // Validate mutually exclusive options
         if self.output_file.is_some() && self.prompt.is_some() {
-            return Err(CodeDigestError::InvalidConfiguration(
+            return Err(CodecontextError::InvalidConfiguration(
                 "Cannot specify both --output and a prompt".to_string(),
             ));
         }
@@ -443,7 +443,7 @@ impl Config {
     }
 
     /// Load configuration from file if specified
-    pub fn load_from_file(&mut self) -> Result<(), crate::utils::error::CodeDigestError> {
+    pub fn load_from_file(&mut self) -> Result<(), crate::utils::error::CodecontextError> {
         use crate::config::ConfigFile;
 
         let config_file = if let Some(ref config_path) = self.config {
@@ -629,7 +629,7 @@ mod tests {
         use clap::Parser;
 
         // Test single directory (backward compatibility)
-        let args = vec!["code-digest", "-d", "/path/one"];
+        let args = vec!["context-creator", "-d", "/path/one"];
         let config = Config::parse_from(args);
         assert_eq!(config.directories.len(), 1);
         assert_eq!(config.directories[0], PathBuf::from("/path/one"));
@@ -640,13 +640,13 @@ mod tests {
         use clap::Parser;
 
         // Test single directory (backward compatibility)
-        let args = vec!["code-digest", "-d", "/path/one"];
+        let args = vec!["context-creator", "-d", "/path/one"];
         let config = Config::parse_from(args);
         assert_eq!(config.directories.len(), 1);
         assert_eq!(config.directories[0], PathBuf::from("/path/one"));
 
         // Test multiple directories
-        let args = vec!["code-digest", "-d", "/path/one", "/path/two", "/path/three"];
+        let args = vec!["context-creator", "-d", "/path/one", "/path/two", "/path/three"];
         let config = Config::parse_from(args);
         assert_eq!(config.directories.len(), 3);
         assert_eq!(config.directories[0], PathBuf::from("/path/one"));
@@ -655,7 +655,7 @@ mod tests {
 
         // Test with prompt after directories using -- separator
         let args = vec![
-            "code-digest",
+            "context-creator",
             "-d",
             "/src/module1",
             "/src/module2",
@@ -735,14 +735,14 @@ mod tests {
 ## config.rs
 
 ```rust
-//! Configuration file support for code-digest
+//! Configuration file support for context-creator
 //!
 //! This module handles loading and parsing configuration files in TOML format.
 //! Configuration files can specify defaults for CLI options and additional
 //! settings like file priorities and ignore patterns.
 
 use crate::cli::{Config as CliConfig, LlmTool};
-use crate::utils::error::CodeDigestError;
+use crate::utils::error::CodecontextError;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -757,7 +757,7 @@ pub struct ConfigFile {
     #[serde(default)]
     pub priorities: Vec<Priority>,
 
-    /// Ignore patterns beyond .gitignore and .digestignore
+    /// Ignore patterns beyond .gitignore and .contextignore
     #[serde(default)]
     pub ignore: Vec<String>,
 
@@ -806,16 +806,16 @@ pub struct Priority {
 
 impl ConfigFile {
     /// Load configuration from a file
-    pub fn load_from_file(path: &Path) -> Result<Self, CodeDigestError> {
+    pub fn load_from_file(path: &Path) -> Result<Self, CodecontextError> {
         if !path.exists() {
-            return Err(CodeDigestError::InvalidPath(format!(
+            return Err(CodecontextError::InvalidPath(format!(
                 "Configuration file does not exist: {}",
                 path.display()
             )));
         }
 
         let content = std::fs::read_to_string(path).map_err(|e| {
-            CodeDigestError::ConfigError(format!(
+            CodecontextError::ConfigError(format!(
                 "Failed to read config file {}: {}",
                 path.display(),
                 e
@@ -823,7 +823,7 @@ impl ConfigFile {
         })?;
 
         let config: ConfigFile = toml::from_str(&content).map_err(|e| {
-            CodeDigestError::ConfigError(format!(
+            CodecontextError::ConfigError(format!(
                 "Failed to parse config file {}: {}",
                 path.display(),
                 e
@@ -834,22 +834,22 @@ impl ConfigFile {
     }
 
     /// Load configuration from default locations
-    pub fn load_default() -> Result<Option<Self>, CodeDigestError> {
-        // Try .code-digest.toml in current directory
-        let local_config = Path::new(".code-digest.toml");
+    pub fn load_default() -> Result<Option<Self>, CodecontextError> {
+        // Try .context-creator.toml in current directory
+        let local_config = Path::new(".context-creator.toml");
         if local_config.exists() {
             return Ok(Some(Self::load_from_file(local_config)?));
         }
 
-        // Try .digestrc.toml in current directory
-        let rc_config = Path::new(".digestrc.toml");
+        // Try .contextrc.toml in current directory
+        let rc_config = Path::new(".contextrc.toml");
         if rc_config.exists() {
             return Ok(Some(Self::load_from_file(rc_config)?));
         }
 
         // Try in home directory
         if let Some(home) = dirs::home_dir() {
-            let home_config = home.join(".code-digest.toml");
+            let home_config = home.join(".context-creator.toml");
             if home_config.exists() {
                 return Ok(Some(Self::load_from_file(&home_config)?));
             }
@@ -1051,7 +1051,7 @@ progress = true
 }
 ```
 
-## core/digest.rs
+## core/context.rs
 
 ```rust
 //! Markdown generation functionality
@@ -1063,9 +1063,9 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-/// Options for generating markdown digest
+/// Options for generating markdown context
 #[derive(Debug, Clone)]
-pub struct DigestOptions {
+pub struct contextOptions {
     /// Maximum tokens allowed in the output
     pub max_tokens: Option<usize>,
     /// Include file tree in output
@@ -1084,39 +1084,39 @@ pub struct DigestOptions {
     pub include_toc: bool,
 }
 
-impl DigestOptions {
-    /// Create DigestOptions from CLI config
+impl contextOptions {
+    /// Create contextOptions from CLI config
     pub fn from_config(config: &crate::cli::Config) -> Result<Self> {
-        Ok(DigestOptions {
+        Ok(contextOptions {
             max_tokens: config.max_tokens,
             include_tree: true,
             include_stats: true,
             group_by_type: false,
             sort_by_priority: true,
             file_header_template: "## {path}".to_string(),
-            doc_header_template: "# Code Digest: {directory}".to_string(),
+            doc_header_template: "# Code context: {directory}".to_string(),
             include_toc: true,
         })
     }
 }
 
-impl Default for DigestOptions {
+impl Default for contextOptions {
     fn default() -> Self {
-        DigestOptions {
+        contextOptions {
             max_tokens: None,
             include_tree: true,
             include_stats: true,
             group_by_type: false,
             sort_by_priority: true,
             file_header_template: "## {path}".to_string(),
-            doc_header_template: "# Code Digest: {directory}".to_string(),
+            doc_header_template: "# Code context: {directory}".to_string(),
             include_toc: true,
         }
     }
 }
 
 /// Generate markdown from a list of files
-pub fn generate_markdown(files: Vec<FileInfo>, options: DigestOptions) -> Result<String> {
+pub fn generate_markdown(files: Vec<FileInfo>, options: contextOptions) -> Result<String> {
     let mut output = String::new();
 
     // Add document header
@@ -1190,7 +1190,7 @@ pub fn generate_markdown(files: Vec<FileInfo>, options: DigestOptions) -> Result
 fn append_file_content(
     output: &mut String,
     file: &FileInfo,
-    options: &DigestOptions,
+    options: &contextOptions,
 ) -> Result<()> {
     // Read file content
     let content = match fs::read_to_string(&file.path) {
@@ -1556,7 +1556,7 @@ mod tests {
     }
 
     #[test]
-    fn test_digest_options_from_config() {
+    fn test_context_options_from_config() {
         use crate::cli::Config;
         use tempfile::TempDir;
 
@@ -1574,7 +1574,7 @@ mod tests {
             repo: None,
         };
 
-        let options = DigestOptions::from_config(&config).unwrap();
+        let options = contextOptions::from_config(&config).unwrap();
         assert_eq!(options.max_tokens, Some(100000));
         assert!(options.include_tree);
         assert!(options.include_stats);
@@ -1585,21 +1585,21 @@ mod tests {
     fn test_generate_markdown_structure_headers() {
         let files = vec![];
 
-        let options = DigestOptions {
+        let options = contextOptions {
             max_tokens: None,
             include_tree: true,
             include_stats: true,
             group_by_type: true,
             sort_by_priority: true,
             file_header_template: "## {path}".to_string(),
-            doc_header_template: "# Code Digest".to_string(),
+            doc_header_template: "# Code context".to_string(),
             include_toc: true,
         };
 
         let markdown = generate_markdown(files, options).unwrap();
 
         // Check that main structure is present even with no files
-        assert!(markdown.contains("# Code Digest"));
+        assert!(markdown.contains("# Code context"));
         assert!(markdown.contains("## Statistics"));
         // File tree might be skipped if there are no files
         assert!(markdown.contains("## Files"));
@@ -1612,7 +1612,7 @@ mod tests {
 ```rust
 //! Core functionality modules
 
-pub mod digest;
+pub mod context;
 pub mod prioritizer;
 pub mod token;
 pub mod walker;
@@ -1623,7 +1623,7 @@ pub mod walker;
 ```rust
 //! File prioritization based on token limits
 
-use crate::core::digest::DigestOptions;
+use crate::core::context::contextOptions;
 use crate::core::token::{would_exceed_limit, TokenCounter};
 use crate::core::walker::FileInfo;
 use anyhow::Result;
@@ -1632,7 +1632,7 @@ use std::fs;
 /// Prioritize files based on their importance and token limits
 pub fn prioritize_files(
     mut files: Vec<FileInfo>,
-    options: &DigestOptions,
+    options: &contextOptions,
 ) -> Result<Vec<FileInfo>> {
     // If no token limit, return all files sorted by priority
     let max_tokens = match options.max_tokens {
@@ -1706,7 +1706,7 @@ pub fn prioritize_files(
 }
 
 /// Calculate token overhead for markdown structure
-fn calculate_structure_overhead(options: &DigestOptions, files: &[FileInfo]) -> Result<usize> {
+fn calculate_structure_overhead(options: &contextOptions, files: &[FileInfo]) -> Result<usize> {
     let counter = TokenCounter::new()?;
     let mut overhead = 0;
 
@@ -1805,7 +1805,7 @@ mod tests {
             },
         ];
 
-        let options = DigestOptions::default();
+        let options = contextOptions::default();
         let result = prioritize_files(files, &options).unwrap();
 
         assert_eq!(result.len(), 2);
@@ -1874,7 +1874,7 @@ mod tests {
             },
         ];
 
-        let options = DigestOptions::default();
+        let options = contextOptions::default();
         let result = prioritize_files(files, &options).unwrap();
 
         // Should return all files when no limit
@@ -1896,14 +1896,14 @@ mod tests {
             priority: 1.5,
         }];
 
-        let options = DigestOptions {
+        let options = contextOptions {
             max_tokens: None,
             include_tree: true,
             include_stats: true,
             group_by_type: true,
             sort_by_priority: true,
             file_header_template: "## {path}".to_string(),
-            doc_header_template: "# Code Digest".to_string(),
+            doc_header_template: "# Code context".to_string(),
             include_toc: true,
         };
 
@@ -2222,9 +2222,9 @@ mod tests {
 ## core/walker.rs
 
 ```rust
-//! Directory walking functionality with .gitignore and .digestignore support
+//! Directory walking functionality with .gitignore and .contextignore support
 
-use crate::utils::error::CodeDigestError;
+use crate::utils::error::CodecontextError;
 use crate::utils::file_ext::FileType;
 use anyhow::Result;
 use ignore::{Walk, WalkBuilder};
@@ -2243,7 +2243,7 @@ pub struct WalkOptions {
     pub include_hidden: bool,
     /// Use parallel processing
     pub parallel: bool,
-    /// Custom ignore file name (default: .digestignore)
+    /// Custom ignore file name (default: .contextignore)
     pub ignore_file: String,
     /// Additional glob patterns to ignore
     pub ignore_patterns: Vec<String>,
@@ -2259,7 +2259,7 @@ impl WalkOptions {
             follow_links: false,
             include_hidden: false,
             parallel: true,
-            ignore_file: ".digestignore".to_string(),
+            ignore_file: ".contextignore".to_string(),
             ignore_patterns: vec![],
             include_patterns: vec![],
         })
@@ -2273,7 +2273,7 @@ impl Default for WalkOptions {
             follow_links: false,
             include_hidden: false,
             parallel: true,
-            ignore_file: ".digestignore".to_string(),
+            ignore_file: ".contextignore".to_string(),
             ignore_patterns: vec![],
             include_patterns: vec![],
         }
@@ -2331,7 +2331,7 @@ impl FileInfo {
 /// Walk a directory and collect file information
 pub fn walk_directory(root: &Path, options: WalkOptions) -> Result<Vec<FileInfo>> {
     if !root.exists() {
-        return Err(CodeDigestError::InvalidPath(format!(
+        return Err(CodecontextError::InvalidPath(format!(
             "Directory does not exist: {}",
             root.display()
         ))
@@ -2339,7 +2339,7 @@ pub fn walk_directory(root: &Path, options: WalkOptions) -> Result<Vec<FileInfo>
     }
 
     if !root.is_dir() {
-        return Err(CodeDigestError::InvalidPath(format!(
+        return Err(CodecontextError::InvalidPath(format!(
             "Path is not a directory: {}",
             root.display()
         ))
@@ -2537,7 +2537,7 @@ mod tests {
     }
 
     #[test]
-    fn test_walk_with_digestignore() {
+    fn test_walk_with_contextignore() {
         let temp_dir = TempDir::new().unwrap();
         let root = temp_dir.path();
 
@@ -2545,8 +2545,8 @@ mod tests {
         File::create(root.join("main.rs")).unwrap();
         File::create(root.join("ignored.rs")).unwrap();
 
-        // Create .digestignore
-        fs::write(root.join(".digestignore"), "ignored.rs").unwrap();
+        // Create .contextignore
+        fs::write(root.join(".contextignore"), "ignored.rs").unwrap();
 
         let options = WalkOptions::default();
         let files = walk_directory(root, options).unwrap();
@@ -2625,7 +2625,7 @@ mod tests {
         assert!(!options.follow_links);
         assert!(!options.include_hidden);
         assert!(options.parallel);
-        assert_eq!(options.ignore_file, ".digestignore");
+        assert_eq!(options.ignore_file, ".contextignore");
     }
 
     #[test]
@@ -2739,7 +2739,7 @@ mod tests {
 ```rust
 //! Remote repository fetching functionality
 
-use crate::utils::error::CodeDigestError;
+use crate::utils::error::CodecontextError;
 use std::path::PathBuf;
 use std::process::Command;
 use tempfile::TempDir;
@@ -2766,28 +2766,28 @@ pub fn git_available() -> bool {
 }
 
 /// Parse GitHub URL to extract owner and repo
-pub fn parse_github_url(url: &str) -> Result<(String, String), CodeDigestError> {
+pub fn parse_github_url(url: &str) -> Result<(String, String), CodecontextError> {
     let url = url.trim_end_matches('/');
 
     // Handle both https:// and http:// URLs
     let parts: Vec<&str> = if url.starts_with("https://github.com/") {
         url.strip_prefix("https://github.com/")
-            .ok_or_else(|| CodeDigestError::InvalidConfiguration("Invalid GitHub URL".to_string()))?
+            .ok_or_else(|| CodecontextError::InvalidConfiguration("Invalid GitHub URL".to_string()))?
             .split('/')
             .collect()
     } else if url.starts_with("http://github.com/") {
         url.strip_prefix("http://github.com/")
-            .ok_or_else(|| CodeDigestError::InvalidConfiguration("Invalid GitHub URL".to_string()))?
+            .ok_or_else(|| CodecontextError::InvalidConfiguration("Invalid GitHub URL".to_string()))?
             .split('/')
             .collect()
     } else {
-        return Err(CodeDigestError::InvalidConfiguration(
+        return Err(CodecontextError::InvalidConfiguration(
             "URL must start with https://github.com/ or http://github.com/".to_string(),
         ));
     };
 
     if parts.len() < 2 {
-        return Err(CodeDigestError::InvalidConfiguration(
+        return Err(CodecontextError::InvalidConfiguration(
             "GitHub URL must contain owner and repository name".to_string(),
         ));
     }
@@ -2796,10 +2796,10 @@ pub fn parse_github_url(url: &str) -> Result<(String, String), CodeDigestError> 
 }
 
 /// Fetch a repository from GitHub
-pub fn fetch_repository(repo_url: &str, verbose: bool) -> Result<TempDir, CodeDigestError> {
+pub fn fetch_repository(repo_url: &str, verbose: bool) -> Result<TempDir, CodecontextError> {
     let (owner, repo) = parse_github_url(repo_url)?;
     let temp_dir = TempDir::new().map_err(|e| {
-        CodeDigestError::RemoteFetchError(format!("Failed to create temp directory: {e}"))
+        CodecontextError::RemoteFetchError(format!("Failed to create temp directory: {e}"))
     })?;
 
     // Set secure permissions on temp directory (0700)
@@ -2807,12 +2807,12 @@ pub fn fetch_repository(repo_url: &str, verbose: bool) -> Result<TempDir, CodeDi
     {
         use std::os::unix::fs::PermissionsExt;
         let metadata = fs::metadata(temp_dir.path()).map_err(|e| {
-            CodeDigestError::RemoteFetchError(format!("Failed to get temp directory metadata: {e}"))
+            CodecontextError::RemoteFetchError(format!("Failed to get temp directory metadata: {e}"))
         })?;
         let mut perms = metadata.permissions();
         perms.set_mode(0o700);
         fs::set_permissions(temp_dir.path(), perms).map_err(|e| {
-            CodeDigestError::RemoteFetchError(format!(
+            CodecontextError::RemoteFetchError(format!(
                 "Failed to set temp directory permissions: {e}"
             ))
         })?;
@@ -2834,13 +2834,13 @@ pub fn fetch_repository(repo_url: &str, verbose: bool) -> Result<TempDir, CodeDi
         }
         clone_with_git(repo_url, temp_dir.path(), verbose)?
     } else {
-        return Err(CodeDigestError::RemoteFetchError(
+        return Err(CodecontextError::RemoteFetchError(
             "Neither gh CLI nor git is available. Please install one of them.".to_string(),
         ));
     };
 
     if !success {
-        return Err(CodeDigestError::RemoteFetchError("Failed to clone repository".to_string()));
+        return Err(CodecontextError::RemoteFetchError("Failed to clone repository".to_string()));
     }
 
     if verbose {
@@ -2856,7 +2856,7 @@ fn clone_with_gh(
     repo: &str,
     target_dir: &std::path::Path,
     verbose: bool,
-) -> Result<bool, CodeDigestError> {
+) -> Result<bool, CodecontextError> {
     let repo_spec = format!("{owner}/{repo}");
     let mut cmd = Command::new("gh");
     cmd.arg("repo")
@@ -2873,7 +2873,7 @@ fn clone_with_gh(
 
     let output = cmd
         .output()
-        .map_err(|e| CodeDigestError::RemoteFetchError(format!("Failed to run gh: {e}")))?;
+        .map_err(|e| CodecontextError::RemoteFetchError(format!("Failed to run gh: {e}")))?;
 
     Ok(output.status.success())
 }
@@ -2883,9 +2883,9 @@ fn clone_with_git(
     repo_url: &str,
     target_dir: &std::path::Path,
     verbose: bool,
-) -> Result<bool, CodeDigestError> {
+) -> Result<bool, CodecontextError> {
     let repo_name = repo_url.split('/').next_back().ok_or_else(|| {
-        CodeDigestError::InvalidConfiguration("Invalid repository URL".to_string())
+        CodecontextError::InvalidConfiguration("Invalid repository URL".to_string())
     })?;
 
     let mut cmd = Command::new("git");
@@ -2897,18 +2897,18 @@ fn clone_with_git(
 
     let output = cmd
         .output()
-        .map_err(|e| CodeDigestError::RemoteFetchError(format!("Failed to run git: {e}")))?;
+        .map_err(|e| CodecontextError::RemoteFetchError(format!("Failed to run git: {e}")))?;
 
     Ok(output.status.success())
 }
 
 /// Get the path to the cloned repository within the temp directory
-pub fn get_repo_path(temp_dir: &TempDir, repo_url: &str) -> Result<PathBuf, CodeDigestError> {
+pub fn get_repo_path(temp_dir: &TempDir, repo_url: &str) -> Result<PathBuf, CodecontextError> {
     let (_, repo) = parse_github_url(repo_url)?;
     let repo_path = temp_dir.path().join(&repo);
 
     if !repo_path.exists() {
-        return Err(CodeDigestError::RemoteFetchError(format!(
+        return Err(CodecontextError::RemoteFetchError(format!(
             "Repository directory not found after cloning: {}",
             repo_path.display()
         )));
@@ -2993,13 +2993,13 @@ mod tests {
 ## utils/error.rs
 
 ```rust
-//! Error types for code-digest
+//! Error types for context-creator
 
 use thiserror::Error;
 
-/// Main error type for code-digest operations
+/// Main error type for context-creator operations
 #[derive(Error, Debug)]
-pub enum CodeDigestError {
+pub enum CodecontextError {
     /// File system related errors
     #[error("Invalid path: {0}")]
     InvalidPath(String),
@@ -3061,8 +3061,8 @@ pub enum CodeDigestError {
     Utf8Error(#[from] std::string::FromUtf8Error),
 }
 
-/// Result type alias for code-digest operations
-pub type Result<T> = std::result::Result<T, CodeDigestError>;
+/// Result type alias for context-creator operations
+pub type Result<T> = std::result::Result<T, CodecontextError>;
 
 #[cfg(test)]
 mod tests {
@@ -3070,18 +3070,18 @@ mod tests {
 
     #[test]
     fn test_error_display() {
-        let err = CodeDigestError::InvalidPath("/invalid/path".to_string());
+        let err = CodecontextError::InvalidPath("/invalid/path".to_string());
         assert_eq!(err.to_string(), "Invalid path: /invalid/path");
 
-        let err = CodeDigestError::TokenLimitExceeded { current: 200000, max: 150000 };
+        let err = CodecontextError::TokenLimitExceeded { current: 200000, max: 150000 };
         assert_eq!(err.to_string(), "Token limit exceeded: 200000 tokens (max: 150000)");
     }
 
     #[test]
     fn test_io_error_conversion() {
         let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
-        let err: CodeDigestError = io_err.into();
-        assert!(matches!(err, CodeDigestError::IoError(_)));
+        let err: CodecontextError = io_err.into();
+        assert!(matches!(err, CodecontextError::IoError(_)));
     }
 }
 ```
