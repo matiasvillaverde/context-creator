@@ -399,9 +399,14 @@ fn handle_type_annotation(node: &Node, ctx: &mut AnalysisContext) {
             (type_name, None)
         };
 
-        ctx.result
-            .type_references
-            .push(TypeReference { name, module, line });
+        ctx.result.type_references.push(TypeReference {
+            name,
+            module,
+            line,
+            definition_path: None,
+            is_external: false,
+            external_package: None,
+        });
     }
 }
 
@@ -553,9 +558,14 @@ fn handle_class_definition(node: &Node, ctx: &mut AnalysisContext) {
                     } else {
                         (type_name, None)
                     };
-                    ctx.result
-                        .type_references
-                        .push(TypeReference { name, module, line });
+                    ctx.result.type_references.push(TypeReference {
+                        name,
+                        module,
+                        line,
+                        definition_path: None,
+                        is_external: false,
+                        external_package: None,
+                    });
                 }
             }
         }
