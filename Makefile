@@ -1,4 +1,4 @@
-# Makefile for the code-digest Rust project
+# Makefile for the context-creator Rust project
 
 # Use cargo-first approach for toolchain consistency and versioning.
 CARGO := cargo
@@ -87,7 +87,7 @@ coverage: ## Generate test coverage report (requires cargo-tarpaulin).
 # ====================================================================================
 
 help: ## Display this help message.
-	@echo "code-digest - High-performance CLI tool to convert codebases to Markdown for LLM context"
+	@echo "context-creator - High-performance CLI tool to convert codebases to Markdown for LLM context"
 	@echo ""
 	@echo "Usage: make [target]"
 	@echo ""
