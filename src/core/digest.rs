@@ -224,6 +224,84 @@ fn append_file_content(
     output.push_str(&header);
     output.push_str("\n\n");
 
+    // Add semantic information if available
+    if !file.imports.is_empty() {
+        output.push_str("Imports: ");
+        let import_names: Vec<String> = file
+            .imports
+            .iter()
+            .map(|p| {
+                let filename = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+
+                // For Python __init__.py files, use the parent directory name
+                if filename == "__init__.py" {
+                    p.parent()
+                        .and_then(|parent| parent.file_name())
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("unknown")
+                        .to_string()
+                } else {
+                    // Remove common extensions
+                    filename
+                        .strip_suffix(".py")
+                        .or_else(|| filename.strip_suffix(".rs"))
+                        .or_else(|| filename.strip_suffix(".js"))
+                        .or_else(|| filename.strip_suffix(".ts"))
+                        .unwrap_or(filename)
+                        .to_string()
+                }
+            })
+            .collect();
+        output.push_str(&format!("{}\n\n", import_names.join(", ")));
+    }
+
+    if !file.imported_by.is_empty() {
+        output.push_str("Imported by: ");
+        let imported_by_names: Vec<String> = file
+            .imported_by
+            .iter()
+            .map(|p| {
+                p.file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or_else(|| p.to_str().unwrap_or("unknown"))
+                    .to_string()
+            })
+            .collect();
+        output.push_str(&format!("{}\n\n", imported_by_names.join(", ")));
+    }
+
+    if !file.function_calls.is_empty() {
+        output.push_str("Function calls: ");
+        let function_names: Vec<String> = file
+            .function_calls
+            .iter()
+            .map(|fc| {
+                if let Some(module) = &fc.module {
+                    format!("{}.{}", module, fc.name)
+                } else {
+                    fc.name.clone()
+                }
+            })
+            .collect();
+        output.push_str(&format!("{}\n\n", function_names.join(", ")));
+    }
+
+    if !file.type_references.is_empty() {
+        output.push_str("Type references: ");
+        let type_names: Vec<String> = file
+            .type_references
+            .iter()
+            .map(|tr| {
+                if let Some(module) = &tr.module {
+                    format!("{}.{}", module, tr.name)
+                } else {
+                    tr.name.clone()
+                }
+            })
+            .collect();
+        output.push_str(&format!("{}\n\n", type_names.join(", ")));
+    }
+
     // Add language hint for syntax highlighting
     let language = get_language_hint(&file.file_type);
     output.push_str(&format!("```{language}\n"));

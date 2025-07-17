@@ -29,13 +29,13 @@ fn test_multi_language_project_semantic_analysis() {
         root.join("python/main.py"),
         r#"
 import os
-from .utils import helper
-from .models import User
+import utils
+import models
 
 def main():
-    user = User("Alice")
-    helper.process(user)
-    print(f"Hello, {user.name}")
+    user = models.User("Alice")
+    result = utils.process(user)
+    print(f"Hello, {result}")
 "#,
     )
     .unwrap();
