@@ -1,4 +1,4 @@
-//! Sample Rust project for testing code-digest
+//! Sample Rust project for testing context-creator
 
 use serde::{Deserialize, Serialize};
 
