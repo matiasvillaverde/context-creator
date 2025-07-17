@@ -231,15 +231,29 @@ fn append_file_content(
             .imports
             .iter()
             .map(|p| {
-                // Get the file name without extension for cleaner output
-                p.file_name()
-                    .and_then(|n| n.to_str())
-                    .map(|name| {
-                        // Remove .rs extension if present
-                        name.strip_suffix(".rs").unwrap_or(name)
-                    })
-                    .unwrap_or_else(|| p.to_str().unwrap_or("unknown"))
-                    .to_string()
+                // Special handling for Python __init__.py files
+                if p.file_name() == Some(std::ffi::OsStr::new("__init__.py")) {
+                    // Use the parent directory name for Python packages
+                    p.parent()
+                        .and_then(|parent| parent.file_name())
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("unknown")
+                        .to_string()
+                } else {
+                    // Get the file name without extension for cleaner output
+                    p.file_name()
+                        .and_then(|n| n.to_str())
+                        .map(|name| {
+                            // Remove common extensions
+                            name.strip_suffix(".rs")
+                                .or_else(|| name.strip_suffix(".py"))
+                                .or_else(|| name.strip_suffix(".js"))
+                                .or_else(|| name.strip_suffix(".ts"))
+                                .unwrap_or(name)
+                        })
+                        .unwrap_or_else(|| p.to_str().unwrap_or("unknown"))
+                        .to_string()
+                }
             })
             .collect();
         output.push_str(&format!("{}\n\n", import_names.join(", ")));
@@ -251,8 +265,17 @@ fn append_file_content(
             .imported_by
             .iter()
             .map(|p| {
+                // Get the file name without extension for cleaner output
                 p.file_name()
                     .and_then(|n| n.to_str())
+                    .map(|name| {
+                        // Remove common extensions
+                        name.strip_suffix(".rs")
+                            .or_else(|| name.strip_suffix(".py"))
+                            .or_else(|| name.strip_suffix(".js"))
+                            .or_else(|| name.strip_suffix(".ts"))
+                            .unwrap_or(name)
+                    })
                     .unwrap_or_else(|| p.to_str().unwrap_or("unknown"))
                     .to_string()
             })
@@ -267,9 +290,9 @@ fn append_file_content(
             .iter()
             .map(|fc| {
                 if let Some(module) = &fc.module {
-                    format!("{}.{}()", module, fc.name)
+                    format!("{}.{}", module, fc.name)
                 } else {
-                    format!("{}()", fc.name)
+                    fc.name.clone()
                 }
             })
             .collect();
