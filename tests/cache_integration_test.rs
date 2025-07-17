@@ -1,6 +1,6 @@
 //! Integration tests for FileCache in the processing pipeline
 
-use code_digest::core::cache::FileCache;
+use context_creator::core::cache::FileCache;
 use std::fs;
 use std::sync::Arc;
 use tempfile::TempDir;

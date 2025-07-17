@@ -1,12 +1,12 @@
 use clap::Parser;
-use code_digest::cli::Config;
+use context_creator::cli::Config;
 use std::path::PathBuf;
 
 #[test]
 fn test_prompt_with_include_patterns() {
     // This should work after we fix the ArgGroup
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--prompt",
         "Analyze authentication",
         "--include",
@@ -30,7 +30,7 @@ fn test_prompt_with_include_patterns() {
 fn test_prompt_with_ignore_patterns() {
     // This should work after we add --ignore flag
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--prompt",
         "Security review",
         "--include",
@@ -48,7 +48,7 @@ fn test_prompt_with_ignore_patterns() {
 fn test_complex_pattern_combinations() {
     // Test multiple include and ignore patterns
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--prompt",
         "Review core functionality",
         "--include",
@@ -79,7 +79,7 @@ fn test_complex_pattern_combinations() {
 fn test_ignore_without_prompt() {
     // Test that ignore works without prompt too
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--include",
         "**/*.rs",
         "--ignore",
@@ -94,7 +94,7 @@ fn test_ignore_without_prompt() {
 #[test]
 fn test_backward_compatibility_paths() {
     // Ensure existing path arguments still work
-    let config = Config::parse_from(["code-digest", "src/", "tests/"]);
+    let config = Config::parse_from(["context-creator", "src/", "tests/"]);
 
     assert_eq!(config.get_prompt(), None);
     assert_eq!(
@@ -108,7 +108,7 @@ fn test_backward_compatibility_paths() {
 #[test]
 fn test_backward_compatibility_prompt_only() {
     // Ensure existing prompt-only usage still works
-    let config = Config::parse_from(["code-digest", "--prompt", "Analyze this code"]);
+    let config = Config::parse_from(["context-creator", "--prompt", "Analyze this code"]);
 
     assert_eq!(config.get_prompt(), Some("Analyze this code".to_string()));
     assert_eq!(config.get_directories(), vec![PathBuf::from(".")]);
@@ -120,7 +120,7 @@ fn test_backward_compatibility_prompt_only() {
 fn test_backward_compatibility_include_only() {
     // Ensure existing include-only usage still works
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--include",
         "src/**/*.rs",
         "--include",
@@ -138,7 +138,7 @@ fn test_backward_compatibility_include_only() {
 #[test]
 fn test_mutually_exclusive_prompt_and_paths() {
     // This should still fail - prompt and paths are mutually exclusive
-    let result = Config::try_parse_from(["code-digest", "--prompt", "Analyze", "src/"]);
+    let result = Config::try_parse_from(["context-creator", "--prompt", "Analyze", "src/"]);
 
     // Either parsing fails or validation fails
     match result {
@@ -153,7 +153,7 @@ fn test_mutually_exclusive_prompt_and_paths() {
 #[test]
 fn test_mutually_exclusive_include_and_paths() {
     // This should still fail - include and paths are mutually exclusive
-    let result = Config::try_parse_from(["code-digest", "--include", "src/**", "src/"]);
+    let result = Config::try_parse_from(["context-creator", "--include", "src/**", "src/"]);
 
     assert!(result.is_err());
 }
@@ -162,7 +162,7 @@ fn test_mutually_exclusive_include_and_paths() {
 fn test_mutually_exclusive_prompt_and_repo() {
     // This should still fail - prompt and repo are mutually exclusive
     let result = Config::try_parse_from([
-        "code-digest",
+        "context-creator",
         "--prompt",
         "Analyze",
         "--repo",

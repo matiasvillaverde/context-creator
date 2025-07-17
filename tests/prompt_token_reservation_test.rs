@@ -1,12 +1,12 @@
 use clap::Parser;
-use code_digest::cli::Config;
+use context_creator::cli::Config;
 use std::fs;
 use tempfile::TempDir;
 
 #[test]
 fn test_prompt_token_reservation_integration() {
     let temp_dir = TempDir::new().unwrap();
-    let config_path = temp_dir.path().join(".code-digest.toml");
+    let config_path = temp_dir.path().join(".context-creator.toml");
 
     // Create a config file with a specific token limit
     let config_content = r#"
@@ -18,7 +18,7 @@ gemini = 10000
 
     // Test with a prompt that should reserve tokens
     let mut config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--prompt",
         "This is a longer test prompt that should use several tokens for testing the reservation system",
         "--tool",
@@ -52,7 +52,7 @@ gemini = 10000
 #[test]
 fn test_no_prompt_uses_full_budget() {
     let temp_dir = TempDir::new().unwrap();
-    let config_path = temp_dir.path().join(".code-digest.toml");
+    let config_path = temp_dir.path().join(".context-creator.toml");
 
     // Create a config file with a specific token limit
     let config_content = r#"
@@ -64,7 +64,7 @@ gemini = 10000
 
     // Test without prompt (using file processing)
     let mut config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--tool",
         "gemini",
         "--config",
@@ -83,7 +83,7 @@ gemini = 10000
 fn test_explicit_cli_override_with_prompt_reservation() {
     // Test that explicit CLI token limit is properly reserved for prompts
     let config = Config::parse_from([
-        "code-digest",
+        "context-creator",
         "--prompt",
         "Test prompt for explicit override",
         "--max-tokens",

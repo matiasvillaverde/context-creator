@@ -1,4 +1,4 @@
-//! End-to-End tests for code-digest
+//! End-to-End tests for context-creator
 //!
 //! These tests verify complete user workflows from CLI invocation to final output,
 //! testing real-world scenarios and edge cases that users might encounter.
@@ -475,7 +475,7 @@ fn test_database_integration() {
         r#"
 # Example Project
 
-This is an example Rust project for testing code-digest functionality.
+This is an example Rust project for testing context-creator functionality.
 
 ## Features
 
@@ -576,7 +576,7 @@ setup(
     fs::write(
         project_dir.join("example/__init__.py"),
         r#"
-"""Example Python package for testing code-digest."""
+"""Example Python package for testing context-creator."""
 
 __version__ = "0.1.0"
 __author__ = "Test Author"
@@ -854,7 +854,7 @@ def test_format_response():
         r#"
 # Example Python Project
 
-A Python package for testing code-digest functionality.
+A Python package for testing context-creator functionality.
 
 ## Installation
 
@@ -892,7 +892,7 @@ fn test_e2e_basic_markdown_generation() {
     let project_dir = create_realistic_rust_project(temp_dir.path());
     let output_file = temp_dir.path().join("output.md");
 
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&project_dir)
         .arg("-o")
         .arg(&output_file)
@@ -910,7 +910,7 @@ fn test_e2e_basic_markdown_generation() {
     let content = fs::read_to_string(&output_file).unwrap();
 
     // Should contain basic structure
-    assert!(content.contains("# Code Digest"));
+    assert!(content.contains("# Code Context"));
     assert!(content.contains("## Statistics"));
     assert!(content.contains("## File Structure"));
     assert!(content.contains("## Table of Contents"));
@@ -942,7 +942,7 @@ fn test_e2e_with_token_limits() {
     let project_dir = create_realistic_rust_project(temp_dir.path());
     let output_file = temp_dir.path().join("limited_output.md");
 
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&project_dir)
         .arg("-o")
         .arg(&output_file)
@@ -960,7 +960,7 @@ fn test_e2e_with_token_limits() {
     let content = fs::read_to_string(&output_file).unwrap();
 
     // Should still have basic structure but fewer files
-    assert!(content.contains("# Code Digest"));
+    assert!(content.contains("# Code Context"));
     assert!(content.contains("## Statistics"));
 
     // Should prioritize important files (main.rs, lib.rs, Cargo.toml)
@@ -996,7 +996,7 @@ weight = 150.0
 
     let output_file = temp_dir.path().join("config_output.md");
 
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&project_dir)
         .arg("-o")
         .arg(&output_file)
@@ -1055,7 +1055,7 @@ fn test_e2e_multi_language_project() {
 
     let output_file = temp_dir.path().join("mixed_output.md");
 
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&mixed_dir)
         .arg("-o")
         .arg(&output_file)
@@ -1085,7 +1085,7 @@ fn test_e2e_multi_language_project() {
 #[test]
 fn test_e2e_error_handling() {
     // Test with non-existent directory
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg("/nonexistent/directory/path");
 
     cmd.assert()
@@ -1096,7 +1096,7 @@ fn test_e2e_error_handling() {
     let temp_dir = TempDir::new().unwrap();
     let project_dir = create_realistic_rust_project(temp_dir.path());
 
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&project_dir)
         .arg("-o")
         .arg("/nonexistent/path/output.md");
@@ -1167,7 +1167,7 @@ edition = "2021"
 
     let output_file = temp_dir.path().join("large_output.md");
 
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&large_project)
         .arg("-o")
         .arg(&output_file)
@@ -1184,7 +1184,7 @@ edition = "2021"
     let content = fs::read_to_string(&output_file).unwrap();
 
     // Should have processed the large project efficiently
-    assert!(content.contains("# Code Digest"));
+    assert!(content.contains("# Code Context"));
     assert!(content.contains("## Statistics"));
 
     // Should contain some of the generated modules
@@ -1197,7 +1197,7 @@ fn test_e2e_stdout_output() {
     let temp_dir = TempDir::new().unwrap();
     let project_dir = create_realistic_rust_project(temp_dir.path());
 
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&project_dir)
         .arg("--max-tokens")
         .arg("10000")
@@ -1206,20 +1206,20 @@ fn test_e2e_stdout_output() {
     let output = cmd.assert().success().get_output().stdout.clone();
     let output_str = String::from_utf8(output).unwrap();
 
-    assert!(output_str.contains("# Code Digest"));
+    assert!(output_str.contains("# Code Context"));
     assert!(contains_path(&output_str, "src/main.rs"));
     assert!(output_str.contains("```rust"));
 }
 
-/// Test end-to-end with digestignore file
+/// Test end-to-end with contextignore file
 #[test]
-fn test_e2e_with_digestignore() {
+fn test_e2e_with_contextignore() {
     let temp_dir = TempDir::new().unwrap();
     let project_dir = create_realistic_rust_project(temp_dir.path());
 
-    // Create .digestignore file
+    // Create .context-creator-ignore file
     fs::write(
-        project_dir.join(".digestignore"),
+        project_dir.join(".context-creator-ignore"),
         r#"
 tests/
 *.log
@@ -1232,7 +1232,7 @@ src/handlers/
 
     let output_file = temp_dir.path().join("ignored_output.md");
 
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&project_dir)
         .arg("-o")
         .arg(&output_file)
@@ -1260,7 +1260,7 @@ fn test_e2e_verbose_debugging() {
     let project_dir = create_realistic_rust_project(temp_dir.path());
     let output_file = temp_dir.path().join("verbose_output.md");
 
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&project_dir)
         .arg("-o")
         .arg(&output_file)
@@ -1269,10 +1269,12 @@ fn test_e2e_verbose_debugging() {
 
     cmd.assert()
         .success()
-        .stderr(predicate::str::contains("Starting code-digest"))
+        .stderr(predicate::str::contains("Starting context-creator"))
         .stderr(predicate::str::contains("Directories:"))
         .stderr(predicate::str::contains("Creating directory walker"))
-        .stderr(predicate::str::contains("Creating markdown digest"))
+        .stderr(predicate::str::contains(
+            "Creating context generation options",
+        ))
         .stderr(predicate::str::contains("File list:"))
         .stderr(predicate::str::contains("Scanning directory"))
         .stderr(predicate::str::contains("Generating markdown"));
@@ -1288,7 +1290,7 @@ fn test_e2e_llm_tool_selection() {
     let output_file = temp_dir.path().join("tool_output.md");
 
     // Test with gemini
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&project_dir)
         .arg("-o")
         .arg(&output_file)
@@ -1301,7 +1303,7 @@ fn test_e2e_llm_tool_selection() {
         .stderr(predicate::str::contains("LLM tool: gemini"));
 
     // Test with codex
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&project_dir)
         .arg("-o")
         .arg(&output_file)
@@ -1325,7 +1327,7 @@ fn test_e2e_multiple_directories() {
 
     let output_file = temp_dir.path().join("multiple_dirs_output.md");
 
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&rust_dir)
         .arg(&python_dir)
         .arg("-o")
@@ -1341,7 +1343,7 @@ fn test_e2e_multiple_directories() {
     let content = fs::read_to_string(&output_file).unwrap();
 
     // Should contain header indicating multiple directories
-    assert!(content.contains("# Code Digest - Multiple Directories"));
+    assert!(content.contains("# Code Context - Multiple Directories"));
 
     // Should contain separate sections for each directory
     assert!(content.contains(&format!("## Directory: {}", rust_dir.display())));

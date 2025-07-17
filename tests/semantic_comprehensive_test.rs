@@ -1,8 +1,8 @@
 //! Comprehensive semantic analysis integration tests
 
-use code_digest::cli::Config;
-use code_digest::core::cache::FileCache;
-use code_digest::core::walker::{walk_directory, FileInfo, WalkOptions};
+use context_creator::cli::Config;
+use context_creator::core::cache::FileCache;
+use context_creator::core::walker::{walk_directory, FileInfo, WalkOptions};
 use std::fs;
 use std::sync::Arc;
 use tempfile::TempDir;
@@ -154,7 +154,7 @@ pub fn process_name(name: &str) -> String {
     let mut files = walk_directory(root, walk_options).unwrap();
 
     // Perform semantic analysis
-    code_digest::core::walker::perform_semantic_analysis(&mut files, &config, &cache).unwrap();
+    context_creator::core::walker::perform_semantic_analysis(&mut files, &config, &cache).unwrap();
 
     // Verify Python imports
     let py_main = find_file(&files, &["python", "main.py"]).expect("Python main.py not found");
@@ -259,7 +259,7 @@ pub fn func_c() {
     let mut files = walk_directory(root, walk_options).unwrap();
 
     // Perform semantic analysis - should handle cycles gracefully
-    code_digest::core::walker::perform_semantic_analysis(&mut files, &config, &cache).unwrap();
+    context_creator::core::walker::perform_semantic_analysis(&mut files, &config, &cache).unwrap();
 
     // All files should have been analyzed despite the cycle
     assert_eq!(files.len(), 3);
@@ -328,7 +328,7 @@ pub fn func9() {
     let cache = Arc::new(FileCache::new());
     let mut files = walk_directory(root, walk_options).unwrap();
 
-    code_digest::core::walker::perform_semantic_analysis(&mut files, &config, &cache).unwrap();
+    context_creator::core::walker::perform_semantic_analysis(&mut files, &config, &cache).unwrap();
 
     // Check that analysis was limited by depth
     // Files beyond depth 2 should have minimal analysis
