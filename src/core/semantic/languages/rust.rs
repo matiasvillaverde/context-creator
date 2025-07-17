@@ -71,7 +71,14 @@ fn extract_semantic_info(cursor: &mut TreeCursor, source: &str, result: &mut Ana
             // Import handling
             "use_declaration" => {
                 if let Some(import) = parse_use_declaration(&node, source) {
-                    result.imports.push(import);
+                    // Always add the import, even if it contains types
+                    result.imports.push(import.clone());
+
+                    // Also extract type references from imports
+                    // This handles cases like "use traits::Repository;"
+                    if let Some(type_refs) = extract_type_refs_from_import(&import, &node) {
+                        result.type_references.extend(type_refs);
+                    }
                 }
             }
             "mod_item" => {
@@ -124,6 +131,60 @@ fn extract_semantic_info(cursor: &mut TreeCursor, source: &str, result: &mut Ana
     }
 }
 
+/// Extract type references from imports
+/// This handles cases where imports reference types, traits, etc.
+fn extract_type_refs_from_import(import: &Import, node: &Node) -> Option<Vec<TypeReference>> {
+    let mut type_refs = Vec::new();
+    let line = node.start_position().row + 1;
+
+    // If we have specific items imported, check each one
+    if !import.items.is_empty() {
+        for item in &import.items {
+            // Check if the item starts with uppercase (likely a type/trait)
+            if let Some(first_char) = item.chars().next() {
+                if first_char.is_uppercase() {
+                    type_refs.push(TypeReference {
+                        name: item.clone(),
+                        module: Some(import.module.clone()),
+                        line,
+                        definition_path: None,
+                        is_external: false,
+                        external_package: None,
+                    });
+                }
+            }
+        }
+    } else {
+        // For imports like "use module::Type", check the last segment
+        let parts: Vec<&str> = import.module.split("::").collect();
+        if let Some(last_part) = parts.last() {
+            if let Some(first_char) = last_part.chars().next() {
+                if first_char.is_uppercase() {
+                    // The last part is likely a type/trait
+                    type_refs.push(TypeReference {
+                        name: last_part.to_string(),
+                        module: if parts.len() > 1 {
+                            Some(parts[..parts.len() - 1].join("::"))
+                        } else {
+                            None
+                        },
+                        line,
+                        definition_path: None,
+                        is_external: false,
+                        external_package: None,
+                    });
+                }
+            }
+        }
+    }
+
+    if type_refs.is_empty() {
+        None
+    } else {
+        Some(type_refs)
+    }
+}
+
 /// Parse a use declaration
 fn parse_use_declaration(node: &Node, source: &str) -> Option<Import> {
     let start = node.start_position();
@@ -131,6 +192,7 @@ fn parse_use_declaration(node: &Node, source: &str) -> Option<Import> {
 
     // Find the path in the use declaration
     let mut path = String::new();
+    let mut items = Vec::new();
     let mut cursor = node.walk();
 
     if cursor.goto_first_child() {
@@ -138,12 +200,31 @@ fn parse_use_declaration(node: &Node, source: &str) -> Option<Import> {
             let child = cursor.node();
             match child.kind() {
                 "use_tree" => {
-                    path = extract_use_path(&child, source);
+                    let (module_path, extracted_items) = extract_use_path_and_items(&child, source);
+                    path = module_path;
+                    items = extracted_items;
                     break;
                 }
                 "scoped_identifier" => {
                     // Direct scoped_identifier (e.g., std::collections::HashMap)
                     path = extract_scoped_identifier(&child, source);
+
+                    // Check if the last part is a type (starts with uppercase)
+                    let parts: Vec<&str> = path.split("::").collect();
+                    if let Some(last_part) = parts.last() {
+                        if let Some(first_char) = last_part.chars().next() {
+                            if first_char.is_uppercase() {
+                                // The last part is likely a type/trait
+                                items.push(last_part.to_string());
+                                // Update path to exclude the type
+                                if parts.len() > 1 {
+                                    path = parts[..parts.len() - 1].join("::");
+                                } else {
+                                    path = String::new();
+                                }
+                            }
+                        }
+                    }
                     break;
                 }
                 _ => {}
@@ -154,24 +235,31 @@ fn parse_use_declaration(node: &Node, source: &str) -> Option<Import> {
         }
     }
 
-    if path.is_empty() {
+    if path.is_empty() && items.is_empty() {
         return None;
     }
 
     let is_relative =
         path.starts_with("super") || path.starts_with("self") || path.starts_with("crate");
 
-    Some(Import {
-        module: path,
-        items: vec![], // TODO: Extract specific items from use tree
-        is_relative,
-        line,
-    })
+    // If we have items but no path, and items contain types, we should still create an import
+    // This handles cases where the entire import is a type (e.g., "use module::Type;")
+    if !path.is_empty() || !items.is_empty() {
+        return Some(Import {
+            module: path,
+            items,
+            is_relative,
+            line,
+        });
+    }
+
+    None
 }
 
-/// Extract the path from a use tree
-fn extract_use_path(node: &Node, source: &str) -> String {
+/// Extract path and items from a use tree
+fn extract_use_path_and_items(node: &Node, source: &str) -> (String, Vec<String>) {
     let mut path_parts = Vec::new();
+    let mut items = Vec::new();
     let mut cursor = node.walk();
 
     if cursor.goto_first_child() {
@@ -180,16 +268,40 @@ fn extract_use_path(node: &Node, source: &str) -> String {
             match child.kind() {
                 "identifier" | "super" | "self" | "crate" => {
                     if let Ok(text) = child.utf8_text(source.as_bytes()) {
-                        path_parts.push(text);
+                        path_parts.push(text.to_string());
                     }
                 }
                 "scoped_identifier" => {
                     let scoped_path = extract_scoped_identifier(&child, source);
-                    return scoped_path;
+                    // Check if the last part is a type (starts with uppercase)
+                    let parts: Vec<&str> = scoped_path.split("::").collect();
+                    if let Some(last_part) = parts.last() {
+                        if let Some(first_char) = last_part.chars().next() {
+                            if first_char.is_uppercase() {
+                                // The last part is likely a type/trait
+                                items.push(last_part.to_string());
+                                // Add the module path without the type
+                                if parts.len() > 1 {
+                                    return (parts[..parts.len() - 1].join("::"), items);
+                                } else {
+                                    return (String::new(), items);
+                                }
+                            }
+                        }
+                    }
+                    return (scoped_path, items);
+                }
+                "use_list" => {
+                    // Handle use lists like {Item1, Item2}
+                    items.extend(extract_use_list_items(&child, source));
                 }
                 "use_tree" => {
                     // Nested use tree
-                    return extract_use_path(&child, source);
+                    let (nested_path, nested_items) = extract_use_path_and_items(&child, source);
+                    if !nested_path.is_empty() {
+                        path_parts.push(nested_path);
+                    }
+                    items.extend(nested_items);
                 }
                 _ => {}
             }
@@ -199,7 +311,37 @@ fn extract_use_path(node: &Node, source: &str) -> String {
         }
     }
 
-    path_parts.join("::")
+    (path_parts.join("::"), items)
+}
+
+/// Extract items from a use list (e.g., {Item1, Item2})
+fn extract_use_list_items(node: &Node, source: &str) -> Vec<String> {
+    let mut items = Vec::new();
+    let mut cursor = node.walk();
+
+    if cursor.goto_first_child() {
+        loop {
+            let child = cursor.node();
+            match child.kind() {
+                "identifier" => {
+                    if let Ok(text) = child.utf8_text(source.as_bytes()) {
+                        items.push(text.to_string());
+                    }
+                }
+                "use_tree" => {
+                    // Nested use tree in list
+                    let (_, nested_items) = extract_use_path_and_items(&child, source);
+                    items.extend(nested_items);
+                }
+                _ => {}
+            }
+            if !cursor.goto_next_sibling() {
+                break;
+            }
+        }
+    }
+
+    items
 }
 
 /// Extract a scoped identifier (e.g., std::collections::HashMap)
@@ -408,6 +550,9 @@ fn parse_type_reference(node: &Node, source: &str) -> Option<TypeReference> {
             name: type_name.to_string(),
             module: None, // TODO: Determine module from context
             line,
+            definition_path: None,
+            is_external: false,
+            external_package: None,
         })
     } else {
         None
@@ -446,6 +591,9 @@ fn parse_generic_type(node: &Node, source: &str) -> Option<TypeReference> {
         name: base_type,
         module: None, // TODO: Extract module from scoped identifiers
         line,
+        definition_path: None,
+        is_external: false,
+        external_package: None,
     })
 }
 

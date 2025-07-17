@@ -337,6 +337,9 @@ fn parse_type_identifier(node: &Node, source: &str) -> Option<TypeReference> {
             name: type_name.to_string(),
             module: None,
             line,
+            definition_path: None,
+            is_external: false,
+            external_package: None,
         })
     } else {
         None
@@ -384,7 +387,14 @@ fn parse_generic_type(node: &Node, source: &str) -> Option<TypeReference> {
         (base_type, None)
     };
 
-    Some(TypeReference { name, module, line })
+    Some(TypeReference {
+        name,
+        module,
+        line,
+        definition_path: None,
+        is_external: false,
+        external_package: None,
+    })
 }
 
 /// Extract nested type identifier (e.g., React.Component)
@@ -433,6 +443,9 @@ fn parse_type_annotation(node: &Node, source: &str) -> Option<TypeReference> {
                             name: type_name.to_string(),
                             module: None,
                             line,
+                            definition_path: None,
+                            is_external: false,
+                            external_package: None,
                         });
                     }
                 }

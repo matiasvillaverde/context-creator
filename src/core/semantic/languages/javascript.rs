@@ -405,6 +405,9 @@ fn parse_type_annotation(node: &Node, source: &str) -> Option<TypeReference> {
             name: type_name.to_string(),
             module: None,
             line,
+            definition_path: None,
+            is_external: false,
+            external_package: None,
         })
     } else {
         None
@@ -436,6 +439,9 @@ fn parse_jsx_element(node: &Node, source: &str) -> Option<TypeReference> {
                                             name: name.to_string(),
                                             module: None,
                                             line,
+                                            definition_path: None,
+                                            is_external: false,
+                                            external_package: None,
                                         });
                                     }
                                 }
