@@ -171,9 +171,9 @@ fn test_invalid_repo_url() {
     let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg("--repo").arg("https://gitlab.com/fake/repo");
 
-    cmd.assert()
-        .failure()
-        .stderr(predicate::str::contains("URL must start with"));
+    cmd.assert().failure().stderr(predicate::str::contains(
+        "Repository URL must be a GitHub URL",
+    ));
 }
 
 #[test]
@@ -183,9 +183,9 @@ fn test_repo_and_directory_mutually_exclusive_cli() {
         .arg("https://github.com/fake/repo")
         .arg(".");
 
-    cmd.assert()
-        .failure()
-        .stderr(predicate::str::contains("cannot be used with"));
+    cmd.assert().failure().stderr(predicate::str::contains(
+        "Cannot specify both --repo and local paths",
+    ));
 }
 
 #[test]

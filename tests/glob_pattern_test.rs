@@ -339,10 +339,16 @@ mod edge_case_tests {
     }
 
     #[test]
-    fn test_include_patterns_with_positional_args_conflict() {
-        // Test that --include and positional arguments are mutually exclusive
+    fn test_include_patterns_with_positional_args_now_allowed() {
+        // Test that --include and positional arguments are now allowed together
         let temp_dir = TempDir::new().unwrap();
         let root = temp_dir.path();
+
+        // Create the src directory and some files
+        fs::create_dir_all(root.join("src")).unwrap();
+        File::create(root.join("src/test.py")).unwrap();
+        File::create(root.join("src/main.rs")).unwrap();
+        File::create(root.join("other.py")).unwrap();
 
         let mut cmd = Command::cargo_bin("context-creator").unwrap();
         cmd.current_dir(root)
@@ -352,9 +358,15 @@ mod edge_case_tests {
             .arg("--output-file")
             .arg("output.md");
 
-        cmd.assert()
-            .failure()
-            .stderr(predicate::str::contains("cannot be used with"));
+        cmd.assert().success();
+
+        // Should create output file with content
+        let output_content = fs::read_to_string(root.join("output.md")).unwrap();
+
+        // Check if the files were actually included
+        // With the current implementation, include patterns operate on the current directory
+        // while positional paths specify directories to scan
+        assert!(contains_path(&output_content, "test.py")); // Should find test.py in current directory
     }
 
     #[test]
