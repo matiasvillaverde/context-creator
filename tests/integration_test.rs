@@ -1,4 +1,4 @@
-//! Integration tests for code-digest
+//! Integration tests for context-creator
 //!
 //! These tests verify that the complete application workflows work correctly
 //! by testing the interaction between all components.
@@ -12,7 +12,7 @@ use tempfile::TempDir;
 /// Test basic CLI functionality with help command
 #[test]
 fn test_cli_help() {
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg("--help");
 
     cmd.assert()
@@ -26,12 +26,12 @@ fn test_cli_help() {
 /// Test version command
 #[test]
 fn test_cli_version() {
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg("--version");
 
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("code-digest"));
+        .stdout(predicate::str::contains("context-creator"));
 }
 
 /// Test processing a simple directory with output to file
@@ -84,7 +84,7 @@ This is a test project for integration testing.
 
     let output_file = temp_dir.path().join("output.md");
 
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&project_dir)
         .arg("-o")
         .arg(&output_file)
@@ -100,7 +100,7 @@ This is a test project for integration testing.
     // Verify output file exists and has expected content
     assert!(output_file.exists());
     let content = fs::read_to_string(&output_file).unwrap();
-    assert!(content.contains("# Code Digest"));
+    assert!(content.contains("# Code Context"));
     assert!(content.contains("## Statistics"));
     assert!(content.contains("## Files"));
     assert!(content.contains("main.rs"));
@@ -124,7 +124,7 @@ fn test_process_with_token_limit() {
 
     let output_file = temp_dir.path().join("output.md");
 
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&project_dir)
         .arg("-o")
         .arg(&output_file)
@@ -140,15 +140,15 @@ fn test_process_with_token_limit() {
     // Verify output file exists
     assert!(output_file.exists());
     let content = fs::read_to_string(&output_file).unwrap();
-    assert!(content.contains("# Code Digest"));
+    assert!(content.contains("# Code Context"));
 
     // Should include main.rs (highest priority) but might exclude others due to token limit
     assert!(content.contains("main.rs"));
 }
 
-/// Test processing with .digestignore file
+/// Test processing with .context-creator-ignore file
 #[test]
-fn test_process_with_digestignore() {
+fn test_process_with_contextignore() {
     let temp_dir = TempDir::new().unwrap();
     let project_dir = temp_dir.path().join("test_project");
     fs::create_dir(&project_dir).unwrap();
@@ -158,12 +158,12 @@ fn test_process_with_digestignore() {
     fs::write(project_dir.join("secret.txt"), "secret data").unwrap();
     fs::write(project_dir.join("public.md"), "# Public").unwrap();
 
-    // Create .digestignore file
-    fs::write(project_dir.join(".digestignore"), "secret.txt\n").unwrap();
+    // Create .context-creator-ignore file
+    fs::write(project_dir.join(".context-creator-ignore"), "secret.txt\n").unwrap();
 
     let output_file = temp_dir.path().join("output.md");
 
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&project_dir).arg("-o").arg(&output_file);
 
     cmd.assert().success();
@@ -186,7 +186,7 @@ fn test_verbose_mode() {
 
     let output_file = temp_dir.path().join("output.md");
 
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&project_dir)
         .arg("-o")
         .arg(&output_file)
@@ -195,10 +195,12 @@ fn test_verbose_mode() {
 
     cmd.assert()
         .success()
-        .stderr(predicate::str::contains("Starting code-digest"))
+        .stderr(predicate::str::contains("Starting context-creator"))
         .stderr(predicate::str::contains("Directories:"))
         .stderr(predicate::str::contains("Creating directory walker"))
-        .stderr(predicate::str::contains("Creating markdown digest"))
+        .stderr(predicate::str::contains(
+            "Creating context generation options",
+        ))
         .stderr(predicate::str::contains("File list:"))
         .stderr(predicate::str::contains("main.rs (Rust)"));
 }
@@ -232,7 +234,7 @@ weight = 200.0
 
     let output_file = temp_dir.path().join("output.md");
 
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&project_dir)
         .arg("-o")
         .arg(&output_file)
@@ -260,7 +262,7 @@ fn test_llm_tool_options() {
     let output_file = temp_dir.path().join("output.md");
 
     // Test with different tool options (should work even if tools aren't installed)
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&project_dir)
         .arg("-o")
         .arg(&output_file)
@@ -273,7 +275,7 @@ fn test_llm_tool_options() {
         .stderr(predicate::str::contains("LLM tool: gemini"));
 
     // Test with codex option
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&project_dir)
         .arg("-o")
         .arg(&output_file)
@@ -289,7 +291,7 @@ fn test_llm_tool_options() {
 /// Test error handling for invalid directory
 #[test]
 fn test_invalid_directory_error() {
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg("/nonexistent/directory");
 
     cmd.assert()
@@ -306,7 +308,7 @@ fn test_invalid_output_directory_error() {
 
     fs::write(project_dir.join("main.rs"), "fn main() {}").unwrap();
 
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&project_dir)
         .arg("-o")
         .arg("/nonexistent/directory/output.md");
@@ -327,7 +329,7 @@ fn test_mutually_exclusive_options_error() {
 
     let output_file = temp_dir.path().join("output.md");
 
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&project_dir)
         .arg("-o")
         .arg(&output_file)
@@ -381,7 +383,7 @@ fn test_large_project_handling() {
 
     let output_file = temp_dir.path().join("output.md");
 
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&project_dir)
         .arg("-o")
         .arg(&output_file)
@@ -396,7 +398,7 @@ fn test_large_project_handling() {
         .stderr(predicate::str::contains("files"));
 
     let content = fs::read_to_string(&output_file).unwrap();
-    assert!(content.contains("# Code Digest"));
+    assert!(content.contains("# Code Context"));
     assert!(content.contains("## Statistics"));
     assert!(content.contains("Cargo.toml"));
     assert!(content.contains("README.md"));
@@ -413,12 +415,12 @@ fn test_stdout_output() {
 
     fs::write(project_dir.join("main.rs"), "fn main() {}").unwrap();
 
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&project_dir).arg("--quiet"); // Suppress progress output
 
     cmd.assert()
         .success()
-        .stdout(predicate::str::contains("# Code Digest"))
+        .stdout(predicate::str::contains("# Code Context"))
         .stdout(predicate::str::contains("main.rs"));
 }
 
@@ -433,7 +435,7 @@ fn test_quiet_mode() {
 
     let output_file = temp_dir.path().join("output.md");
 
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&project_dir)
         .arg("-o")
         .arg(&output_file)
@@ -467,7 +469,7 @@ fn test_clipboard_copy() {
     )
     .unwrap();
 
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&project_dir).arg("--copy");
 
     cmd.assert()
@@ -485,7 +487,7 @@ fn test_copy_output_mutually_exclusive() {
 
     fs::write(project_dir.join("test.rs"), "fn main() {}").unwrap();
 
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg(&project_dir)
         .arg("--copy")
         .arg("-o")

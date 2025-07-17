@@ -6,17 +6,17 @@
 //! 3. Proper URL decoding before validation
 //! 4. No manual path resolution
 
-use crate::utils::error::CodeDigestError;
+use crate::utils::error::ContextCreatorError;
 use std::path::{Path, PathBuf};
 
 /// Validate import path - production-ready, fast, secure
 pub fn validate_import_path(
     base_dir: &Path,
     import_path: &Path,
-) -> Result<PathBuf, CodeDigestError> {
+) -> Result<PathBuf, ContextCreatorError> {
     // 1. Base directory must be absolute
     if !base_dir.is_absolute() {
-        return Err(CodeDigestError::SecurityError(
+        return Err(ContextCreatorError::SecurityError(
             "Base directory must be absolute".to_string(),
         ));
     }
@@ -27,7 +27,7 @@ pub fn validate_import_path(
 
     // 3. Reject if decoded path differs (indicates encoding was present)
     if decoded != path_str {
-        return Err(CodeDigestError::SecurityError(format!(
+        return Err(ContextCreatorError::SecurityError(format!(
             "URL-encoded paths are not allowed: {path_str}"
         )));
     }
@@ -45,7 +45,7 @@ pub fn validate_import_path(
     // 6. CRITICAL: Only use canonicalize - never fall back to manual resolution
     // If the file doesn't exist, that's a legitimate error, not a security bypass
     let canonical_path = full_path.canonicalize().map_err(|e| {
-        CodeDigestError::InvalidPath(format!(
+        ContextCreatorError::InvalidPath(format!(
             "Path does not exist or cannot be resolved: {} ({})",
             full_path.display(),
             e
@@ -53,12 +53,12 @@ pub fn validate_import_path(
     })?;
 
     let canonical_base = base_dir.canonicalize().map_err(|e| {
-        CodeDigestError::SecurityError(format!("Cannot canonicalize base directory: {e}"))
+        ContextCreatorError::SecurityError(format!("Cannot canonicalize base directory: {e}"))
     })?;
 
     // 7. Verify the canonical path is within base directory
     if !canonical_path.starts_with(&canonical_base) {
-        return Err(CodeDigestError::SecurityError(format!(
+        return Err(ContextCreatorError::SecurityError(format!(
             "Path escapes project directory: {}",
             import_path.display()
         )));
@@ -68,31 +68,31 @@ pub fn validate_import_path(
 }
 
 /// Validate module name - fast, simple, secure
-pub fn validate_module_name(module_name: &str) -> Result<(), CodeDigestError> {
+pub fn validate_module_name(module_name: &str) -> Result<(), ContextCreatorError> {
     // Reject if empty
     if module_name.is_empty() {
-        return Err(CodeDigestError::SecurityError(
+        return Err(ContextCreatorError::SecurityError(
             "Module name cannot be empty".to_string(),
         ));
     }
 
     // Reject if too long (DoS protection)
     if module_name.len() > 255 {
-        return Err(CodeDigestError::SecurityError(
+        return Err(ContextCreatorError::SecurityError(
             "Module name too long".to_string(),
         ));
     }
 
     // Check for null bytes (string termination attacks)
     if module_name.contains('\0') {
-        return Err(CodeDigestError::SecurityError(
+        return Err(ContextCreatorError::SecurityError(
             "Module name contains null byte".to_string(),
         ));
     }
 
     // Simple check for path traversal
     if module_name.contains("..") {
-        return Err(CodeDigestError::SecurityError(format!(
+        return Err(ContextCreatorError::SecurityError(format!(
             "Invalid module name: {module_name}"
         )));
     }
@@ -104,7 +104,7 @@ pub fn validate_module_name(module_name: &str) -> Result<(), CodeDigestError> {
     });
 
     if !valid_chars {
-        return Err(CodeDigestError::SecurityError(format!(
+        return Err(ContextCreatorError::SecurityError(format!(
             "Module name contains invalid characters: {module_name}"
         )));
     }
@@ -113,7 +113,7 @@ pub fn validate_module_name(module_name: &str) -> Result<(), CodeDigestError> {
 }
 
 /// Decode URL-encoded path - handles all encoding variants
-fn decode_url_path(path: &str) -> Result<String, CodeDigestError> {
+fn decode_url_path(path: &str) -> Result<String, ContextCreatorError> {
     // Fast path - if no % sign, no decoding needed
     if !path.contains('%') {
         return Ok(path.to_string());
@@ -135,7 +135,7 @@ fn decode_url_path(path: &str) -> Result<String, CodeDigestError> {
        lower.contains("%u00")
     // Unicode encoding
     {
-        return Err(CodeDigestError::SecurityError(
+        return Err(ContextCreatorError::SecurityError(
             "URL-encoded characters detected in path".to_string(),
         ));
     }

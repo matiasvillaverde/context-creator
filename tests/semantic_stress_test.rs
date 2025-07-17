@@ -64,13 +64,13 @@ pub struct Type{i} {{
 
     fs::write(src_dir.join("main.rs"), main_content).unwrap();
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--trace-imports")
         .arg("--include-callers")
         .arg("--include-types")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     // Should handle massive number of imports
     assert!(output.status.success(), "Should handle 200+ imports");
@@ -140,12 +140,12 @@ fn main() {
     )
     .unwrap();
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--trace-imports")
         .arg("--include-callers")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     // Should handle deep call chains
     assert!(
@@ -277,13 +277,13 @@ fn main() {
     )
     .unwrap();
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--trace-imports")
         .arg("--include-callers")
         .arg("--include-types")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
@@ -328,11 +328,11 @@ pub fn func_{i}(x: i32) -> i32 {{
 
     fs::write(src_dir.join("many_functions.rs"), content).unwrap();
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--include-callers")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     // Should handle files with many functions
     assert!(
@@ -363,13 +363,13 @@ pub fn function_{i}() {{
         .unwrap();
     }
 
-    // Run code-digest multiple times in parallel (simulated by quick succession)
+    // Run context-creator multiple times in parallel (simulated by quick succession)
     for _ in 0..3 {
-        let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+        let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
             .arg(&src_dir)
             .arg("--trace-imports")
             .output()
-            .expect("Failed to execute code-digest");
+            .expect("Failed to execute context-creator");
 
         assert!(output.status.success(), "Should handle concurrent access");
     }
@@ -412,11 +412,11 @@ pub const TEMPLATE: &str = "template";
     )
     .unwrap();
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--trace-imports")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     // Should handle mixed extensions gracefully
     assert!(output.status.success());
@@ -466,11 +466,11 @@ fn main() {
     )
     .unwrap();
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--trace-imports")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     // Should handle symlinks
     assert!(output.status.success(), "Should handle symlinked files");
@@ -502,11 +502,11 @@ pub fn level_{i}_function() {{
         .unwrap();
     }
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(temp_dir.path())
         .arg("--trace-imports")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     // Should handle deep directory nesting
     assert!(

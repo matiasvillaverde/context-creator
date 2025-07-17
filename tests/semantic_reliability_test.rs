@@ -1,7 +1,7 @@
 //! Reliability tests for semantic analysis
 //! Tests thread safety, error handling, and resource management
 
-use code_digest::core::semantic::parser_pool::ParserPoolManager;
+use context_creator::core::semantic::parser_pool::ParserPoolManager;
 use std::sync::Arc;
 use tempfile::TempDir;
 use tokio::runtime::Runtime;
@@ -99,7 +99,7 @@ fn test_parsing_with_timeout() {
 
 #[test]
 fn test_cache_with_parser_pool() {
-    use code_digest::core::semantic::AstCacheV2;
+    use context_creator::core::semantic::AstCacheV2;
     use std::path::Path;
 
     let rt = Runtime::new().unwrap();
@@ -122,7 +122,7 @@ fn test_cache_with_parser_pool() {
 
 #[test]
 fn test_path_validation() {
-    use code_digest::core::semantic::path_validator::validate_import_path;
+    use context_creator::core::semantic::path_validator::validate_import_path;
     use std::fs;
     use tempfile::TempDir;
 
@@ -153,7 +153,7 @@ fn test_path_validation() {
 
 #[test]
 fn test_path_traversal_attack_prevention() {
-    use code_digest::core::semantic::path_validator::validate_import_path;
+    use context_creator::core::semantic::path_validator::validate_import_path;
     use std::fs;
 
     let temp_dir = TempDir::new().unwrap();

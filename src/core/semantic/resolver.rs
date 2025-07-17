@@ -1,6 +1,6 @@
 //! Module resolution for converting import strings to file paths
 
-use crate::utils::error::CodeDigestError;
+use crate::utils::error::ContextCreatorError;
 use std::path::{Path, PathBuf};
 
 /// A resolved module path
@@ -22,7 +22,7 @@ pub trait ModuleResolver: Send + Sync {
         module_path: &str,
         from_file: &Path,
         base_dir: &Path,
-    ) -> Result<ResolvedPath, CodeDigestError>;
+    ) -> Result<ResolvedPath, ContextCreatorError>;
 
     /// Get common file extensions for this language
     fn get_file_extensions(&self) -> Vec<&'static str>;

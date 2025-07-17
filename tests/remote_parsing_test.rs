@@ -76,7 +76,7 @@ exit /b 1
         fs::write(mock_bin_dir.join("gh.cmd"), script).unwrap();
     }
 
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
 
     // Prepend the mock bin directory to the PATH
     let original_path = std::env::var("PATH").unwrap_or_default();
@@ -155,7 +155,7 @@ exit /b 1
         fs::write(mock_git_path.with_extension("bat"), script).unwrap();
     }
 
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
 
     // Set PATH with only our mock bin (no gh available)
     cmd.env("PATH", mock_bin_dir.display().to_string());
@@ -168,7 +168,7 @@ exit /b 1
 
 #[test]
 fn test_invalid_repo_url() {
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg("--repo").arg("https://gitlab.com/fake/repo");
 
     cmd.assert()
@@ -178,7 +178,7 @@ fn test_invalid_repo_url() {
 
 #[test]
 fn test_repo_and_directory_mutually_exclusive_cli() {
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg("--repo")
         .arg("https://github.com/fake/repo")
         .arg(".");
@@ -194,7 +194,7 @@ fn test_no_git_or_gh_available() {
     let empty_bin_dir = temp_dir.path().join("bin");
     fs::create_dir(&empty_bin_dir).unwrap();
 
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
 
     // Set PATH to empty directory (no commands available)
     cmd.env("PATH", empty_bin_dir.display().to_string());
@@ -210,9 +210,9 @@ fn test_no_git_or_gh_available() {
 fn test_parse_own_repository() {
     // This test requires gh or git to be available and network access
     // Use our own repository as the test case
-    let mut cmd = Command::cargo_bin("code-digest").unwrap();
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg("--repo")
-        .arg("https://github.com/matiasvillaverde/code-digest");
+        .arg("https://github.com/matiasvillaverde/context-creator");
 
     let assert = cmd.assert();
 

@@ -18,7 +18,7 @@ mod glob_pattern_integration_tests {
 
     #[test]
     fn test_simple_wildcard_patterns() {
-        // Test scenario: code-digest --include "*.py" --prompt "analyze Python files"
+        // Test scenario: context-creator --include "*.py" --prompt "analyze Python files"
         let temp_dir = TempDir::new().unwrap();
         let root = temp_dir.path();
 
@@ -28,7 +28,7 @@ mod glob_pattern_integration_tests {
         fs::write(root.join("README.md"), "# Test Project\\n").unwrap();
         fs::write(root.join("config.toml"), "[test]\\nvalue = 1\\n").unwrap();
 
-        let mut cmd = Command::cargo_bin("code-digest").unwrap();
+        let mut cmd = Command::cargo_bin("context-creator").unwrap();
         cmd.current_dir(root)
             .arg("--include")
             .arg("*.py")
@@ -60,7 +60,7 @@ mod glob_pattern_integration_tests {
 
     #[test]
     fn test_recursive_directory_matching() {
-        // Test scenario: code-digest --include "**/*.rs" --prompt "analyze Rust code"
+        // Test scenario: context-creator --include "**/*.rs" --prompt "analyze Rust code"
         let temp_dir = TempDir::new().unwrap();
         let root = temp_dir.path();
 
@@ -73,7 +73,7 @@ mod glob_pattern_integration_tests {
         File::create(root.join("tests/test.rs")).unwrap();
         File::create(root.join("README.md")).unwrap();
 
-        let mut cmd = Command::cargo_bin("code-digest").unwrap();
+        let mut cmd = Command::cargo_bin("context-creator").unwrap();
         cmd.current_dir(root)
             .arg("--include")
             .arg("**/*.rs")
@@ -93,7 +93,7 @@ mod glob_pattern_integration_tests {
 
     #[test]
     fn test_brace_expansion() {
-        // Test scenario: code-digest --include "src/**/*.{py,js}" --prompt "analyze source files"
+        // Test scenario: context-creator --include "src/**/*.{py,js}" --prompt "analyze source files"
         let temp_dir = TempDir::new().unwrap();
         let root = temp_dir.path();
 
@@ -107,7 +107,7 @@ mod glob_pattern_integration_tests {
         File::create(root.join("tests/test.py")).unwrap(); // Should not match
         File::create(root.join("src/config.toml")).unwrap(); // Should not match
 
-        let mut cmd = Command::cargo_bin("code-digest").unwrap();
+        let mut cmd = Command::cargo_bin("context-creator").unwrap();
         cmd.current_dir(root)
             .arg("--include")
             .arg("src/**/*.{py,js}")
@@ -128,7 +128,7 @@ mod glob_pattern_integration_tests {
 
     #[test]
     fn test_character_sets_and_ranges() {
-        // Test scenario: code-digest --include "**/test[0-9].py" --prompt "analyze test files"
+        // Test scenario: context-creator --include "**/test[0-9].py" --prompt "analyze test files"
         let temp_dir = TempDir::new().unwrap();
         let root = temp_dir.path();
 
@@ -142,7 +142,7 @@ mod glob_pattern_integration_tests {
         File::create(root.join("test10.py")).unwrap(); // Should not match
         File::create(root.join("testA.py")).unwrap(); // Should not match
 
-        let mut cmd = Command::cargo_bin("code-digest").unwrap();
+        let mut cmd = Command::cargo_bin("context-creator").unwrap();
         cmd.current_dir(root)
             .arg("--include")
             .arg("**/test[0-9].py")
@@ -164,7 +164,7 @@ mod glob_pattern_integration_tests {
 
     #[test]
     fn test_complex_pattern_combinations() {
-        // Test scenario: code-digest --include "**/*{repository,service,model}*.py" --include "**/db/**"
+        // Test scenario: context-creator --include "**/*{repository,service,model}*.py" --include "**/db/**"
         let temp_dir = TempDir::new().unwrap();
         let root = temp_dir.path();
 
@@ -182,7 +182,7 @@ mod glob_pattern_integration_tests {
         File::create(root.join("src/utils.py")).unwrap(); // Should not match first pattern
         File::create(root.join("src/config.py")).unwrap(); // Should not match first pattern
 
-        let mut cmd = Command::cargo_bin("code-digest").unwrap();
+        let mut cmd = Command::cargo_bin("context-creator").unwrap();
         cmd.current_dir(root)
             .arg("--include")
             .arg("**/*{repository,service,model}*.py")
@@ -213,11 +213,11 @@ mod glob_pattern_integration_tests {
 
     #[test]
     fn test_invalid_glob_pattern_error() {
-        // Test scenario: code-digest --include "src/[" --prompt "test"
+        // Test scenario: context-creator --include "src/[" --prompt "test"
         let temp_dir = TempDir::new().unwrap();
         let root = temp_dir.path();
 
-        let mut cmd = Command::cargo_bin("code-digest").unwrap();
+        let mut cmd = Command::cargo_bin("context-creator").unwrap();
         cmd.current_dir(root)
             .arg("--include")
             .arg("src/[") // Invalid pattern - unclosed bracket
@@ -237,7 +237,7 @@ mod glob_pattern_integration_tests {
 
         File::create(root.join("test.py")).unwrap();
 
-        let mut cmd = Command::cargo_bin("code-digest").unwrap();
+        let mut cmd = Command::cargo_bin("context-creator").unwrap();
         cmd.current_dir(root)
             .arg("--include")
             .arg("") // Empty pattern
@@ -264,7 +264,7 @@ mod glob_pattern_integration_tests {
         File::create(root.join("config.rs")).unwrap();
         File::create(root.join("README.md")).unwrap();
 
-        let mut cmd = Command::cargo_bin("code-digest").unwrap();
+        let mut cmd = Command::cargo_bin("context-creator").unwrap();
         cmd.current_dir(root)
             .arg("--include")
             .arg("*.py")
@@ -295,7 +295,7 @@ mod glob_pattern_integration_tests {
         File::create(root.join("test.py")).unwrap();
 
         // Test with quoted pattern
-        let mut cmd = Command::cargo_bin("code-digest").unwrap();
+        let mut cmd = Command::cargo_bin("context-creator").unwrap();
         cmd.current_dir(root)
             .arg("--include")
             .arg("src/*.rs") // This would be expanded by shell if not quoted properly
@@ -324,7 +324,7 @@ mod edge_case_tests {
         File::create(root.join("test.py")).unwrap();
         File::create(root.join("README.md")).unwrap();
 
-        let mut cmd = Command::cargo_bin("code-digest").unwrap();
+        let mut cmd = Command::cargo_bin("context-creator").unwrap();
         cmd.current_dir(root)
             .arg("--include")
             .arg("*.rs") // No Rust files exist
@@ -344,7 +344,7 @@ mod edge_case_tests {
         let temp_dir = TempDir::new().unwrap();
         let root = temp_dir.path();
 
-        let mut cmd = Command::cargo_bin("code-digest").unwrap();
+        let mut cmd = Command::cargo_bin("context-creator").unwrap();
         cmd.current_dir(root)
             .arg("src/") // Positional argument
             .arg("--include")
@@ -360,7 +360,7 @@ mod edge_case_tests {
     #[test]
     fn test_help_shows_glob_examples() {
         // Test that help text includes glob pattern examples
-        let mut cmd = Command::cargo_bin("code-digest").unwrap();
+        let mut cmd = Command::cargo_bin("context-creator").unwrap();
         cmd.arg("--help");
 
         cmd.assert()

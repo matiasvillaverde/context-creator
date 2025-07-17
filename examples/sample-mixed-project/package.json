@@ -1,7 +1,7 @@
 {
   "name": "sample-mixed-project",
   "version": "1.0.0",
-  "description": "A sample mixed-language project for testing code-digest",
+  "description": "A sample mixed-language project for testing context-creator",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",

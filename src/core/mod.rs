@@ -1,7 +1,7 @@
 //! Core functionality modules
 
 pub mod cache;
-pub mod digest;
+pub mod context_builder;
 pub mod prioritizer;
 pub mod semantic;
 pub mod semantic_graph;

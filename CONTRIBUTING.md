@@ -1,6 +1,6 @@
-# Contributing to code-digest
+# Contributing to context-creator
 
-First off, thank you for considering contributing to code-digest! It's people like you that make code-digest such a great tool.
+First off, thank you for considering contributing to context-creator! It's people like you that make context-creator such a great tool.
 
 ## 🤝 Code of Conduct
 
@@ -19,13 +19,13 @@ This project and everyone participating in it is governed by our Code of Conduct
 1. Fork the repository on GitHub
 2. Clone your fork locally:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/code-digest.git
-   cd code-digest
+   git clone https://github.com/YOUR_USERNAME/context-creator.git
+   cd context-creator
    ```
 
 3. Add the upstream repository:
    ```bash
-   git remote add upstream https://github.com/matiasvillaverde/code-digest.git
+   git remote add upstream https://github.com/matiasvillaverde/context-creator.git
    ```
 
 4. Create a new branch for your feature/fix:
@@ -111,7 +111,7 @@ Example:
 ```
 feat: add support for custom ignore patterns
 
-- Implement .digestignore file parsing
+- Implement .contextignore file parsing
 - Add tests for ignore pattern matching
 - Update documentation
 ```
@@ -210,7 +210,7 @@ What actually happens
 ## Environment
 - OS: [e.g., macOS 13.0]
 - Rust: [e.g., 1.74.0]
-- code-digest version: [e.g., 0.1.0]
+- context-creator version: [e.g., 0.1.0]
 ```
 
 ## 💡 Suggesting Features
@@ -244,4 +244,4 @@ Feel free to:
 4. After merge, tag the release
 5. GitHub Actions will build and publish
 
-Thank you for contributing to code-digest! 🙏
+Thank you for contributing to context-creator! 🙏

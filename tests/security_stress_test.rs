@@ -1,6 +1,6 @@
 //! Stress tests for security fixes to find potential bugs and edge cases
 
-use code_digest::core::walker::{sanitize_pattern, WalkOptions};
+use context_creator::core::walker::{sanitize_pattern, WalkOptions};
 use std::fs;
 use tempfile::TempDir;
 
@@ -77,7 +77,7 @@ fn test_sanitization_stress_mixed_attacks() {
 #[test]
 fn test_parallel_error_handling_stress() {
     // Test error handling under stress conditions
-    use code_digest::core::walker::walk_directory;
+    use context_creator::core::walker::walk_directory;
 
     let temp_dir = TempDir::new().unwrap();
     let root = temp_dir.path();
@@ -92,7 +92,7 @@ fn test_parallel_error_handling_stress() {
         follow_links: false,
         include_hidden: false,
         parallel: true,
-        ignore_file: ".digestignore".to_string(),
+        ignore_file: ".context-creator-ignore".to_string(),
         ignore_patterns: vec![],
         include_patterns: vec!["../../../etc/passwd".to_string()],
         custom_priorities: vec![],
@@ -139,7 +139,7 @@ fn test_sanitization_performance_dos_prevention() {
 fn test_error_classification_edge_cases() {
     // Test edge cases in error classification that might cause misclassification
 
-    use code_digest::utils::error::CodeDigestError;
+    use context_creator::utils::error::ContextCreatorError;
 
     // Test errors that contain keywords but shouldn't be critical
     let non_critical_errors = vec![
@@ -149,7 +149,7 @@ fn test_error_classification_edge_cases() {
     ];
 
     for error_text in non_critical_errors {
-        let error = CodeDigestError::FileProcessingError {
+        let error = ContextCreatorError::FileProcessingError {
             path: "test.txt".to_string(),
             error: error_text.to_string(),
         };

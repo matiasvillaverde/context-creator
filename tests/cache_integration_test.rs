@@ -1,6 +1,6 @@
 //! Integration tests for FileCache in the processing pipeline
 
-use code_digest::core::cache::FileCache;
+use context_creator::core::cache::FileCache;
 use std::fs;
 use std::sync::Arc;
 use tempfile::TempDir;
@@ -22,7 +22,7 @@ fn test_single_file_read_per_file() {
         // Simulate token counter reading
         let _content2 = cache.get_or_load(file_path).unwrap();
 
-        // Simulate digest generator reading
+        // Simulate context generator reading
         let _content3 = cache.get_or_load(file_path).unwrap();
     }
 

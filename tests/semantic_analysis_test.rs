@@ -1,8 +1,8 @@
 //! Integration tests for semantic analysis functionality
 
-use code_digest::cli::Config;
-use code_digest::core::cache::FileCache;
-use code_digest::core::walker::{walk_directory, WalkOptions};
+use context_creator::cli::Config;
+use context_creator::core::cache::FileCache;
+use context_creator::core::walker::{walk_directory, WalkOptions};
 use std::fs;
 use std::sync::Arc;
 use tempfile::TempDir;
@@ -69,7 +69,7 @@ pub fn helper() {
     assert_eq!(files.len(), 3);
 
     // Perform semantic analysis
-    code_digest::core::walker::perform_semantic_analysis(&mut files, &config, &cache).unwrap();
+    context_creator::core::walker::perform_semantic_analysis(&mut files, &config, &cache).unwrap();
 
     // Find main.rs
     let main_file = files
@@ -112,7 +112,7 @@ fn test_semantic_analysis_disabled() {
     let mut files = walk_directory(root, walk_options).unwrap();
 
     // Perform semantic analysis (should be a no-op)
-    code_digest::core::walker::perform_semantic_analysis(&mut files, &config, &cache).unwrap();
+    context_creator::core::walker::perform_semantic_analysis(&mut files, &config, &cache).unwrap();
 
     // Check that no imports were detected
     for file in &files {
@@ -148,7 +148,7 @@ fn test_semantic_analysis_with_non_code_files() {
 
     // Perform semantic analysis
     // Should not crash on non-code files
-    code_digest::core::walker::perform_semantic_analysis(&mut files, &config, &cache).unwrap();
+    context_creator::core::walker::perform_semantic_analysis(&mut files, &config, &cache).unwrap();
 
     // Non-code files should have no imports
     for file in &files {
@@ -483,7 +483,8 @@ pub fn working() {
     let mut files = walk_directory(&root, walk_options).unwrap();
 
     // This should not panic despite broken.rs having syntax errors
-    let result = code_digest::core::walker::perform_semantic_analysis(&mut files, &config, &cache);
+    let result =
+        context_creator::core::walker::perform_semantic_analysis(&mut files, &config, &cache);
 
     // The analysis should complete successfully
     assert!(
@@ -582,7 +583,8 @@ pub const SECRET: &str = "should not be accessible";
     let mut files = walk_directory(&root.join("src"), walk_options).unwrap();
 
     // Perform semantic analysis
-    let result = code_digest::core::walker::perform_semantic_analysis(&mut files, &config, &cache);
+    let result =
+        context_creator::core::walker::perform_semantic_analysis(&mut files, &config, &cache);
     assert!(
         result.is_ok(),
         "Semantic analysis should handle path traversal attempts safely"
@@ -1080,7 +1082,7 @@ pub mod api;
     let cache = Arc::new(FileCache::new());
 
     let mut files = walk_directory(&root, walk_options).unwrap();
-    code_digest::core::walker::perform_semantic_analysis(&mut files, &config, &cache).unwrap();
+    context_creator::core::walker::perform_semantic_analysis(&mut files, &config, &cache).unwrap();
 
     // Check that imports were detected and priorities adjusted
     // Need to look for files in their subdirectories
@@ -1381,11 +1383,11 @@ pub const API_URL: &str = "http://localhost:8000";
 }
 
 #[test]
-fn test_digestignore_integration() {
+fn test_contextignore_integration() {
     let (_temp_dir, root) = TestProjectBuilder::new()
-        // Create .digestignore file
+        // Create .context-creator-ignore file
         .add_file(
-            ".digestignore",
+            ".context-creator-ignore",
             r#"
 # Ignore test files
 *_test.rs
@@ -1508,13 +1510,13 @@ pub fn helper() {
     let walk_options = WalkOptions::from_config(&config).unwrap();
     let cache = Arc::new(FileCache::new());
 
-    // Walk directory - this should respect .digestignore
+    // Walk directory - this should respect .context-creator-ignore
     let mut files = walk_directory(&root, walk_options).unwrap();
 
     // Verify that ignored files are not in the file list
     assert!(
         find_file(&files, "secrets.rs").is_none(),
-        "secrets.rs should be ignored by .digestignore"
+        "secrets.rs should be ignored by .context-creator-ignore"
     );
     assert!(
         find_file(&files, "lib_test.rs").is_none(),
@@ -1554,7 +1556,7 @@ pub fn helper() {
     );
 
     // Perform semantic analysis
-    code_digest::core::walker::perform_semantic_analysis(&mut files, &config, &cache).unwrap();
+    context_creator::core::walker::perform_semantic_analysis(&mut files, &config, &cache).unwrap();
 
     // Check that imports to ignored files are not resolved
     let main_file = find_file(&files, "main.rs").expect("main.rs should be found");

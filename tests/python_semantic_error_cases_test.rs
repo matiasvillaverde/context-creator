@@ -65,12 +65,12 @@ if __name__ == "__main__":
     )
     .unwrap();
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--trace-imports")
         .arg("--include-callers")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
@@ -164,12 +164,12 @@ def test_unicode():
     )
     .unwrap();
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--trace-imports")
         .arg("--include-callers")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
@@ -297,11 +297,11 @@ def eval_import():
     )
     .unwrap();
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--trace-imports")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     // Should handle dynamic imports without crashing
     assert!(output.status.success());
@@ -380,11 +380,11 @@ combinations = [
     )
     .unwrap();
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--trace-imports")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     assert!(output.status.success());
 }
@@ -473,11 +473,11 @@ if __name__ == "__main__":
     )
     .unwrap();
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--trace-imports")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     assert!(output.status.success());
 }
@@ -595,11 +595,11 @@ def process_files(filenames):
     )
     .unwrap();
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--trace-imports")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     assert!(output.status.success());
 }
@@ -651,11 +651,11 @@ def test():
     )
     .unwrap();
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--trace-imports")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     // Should handle various encodings
     assert!(output.status.success());
@@ -691,11 +691,11 @@ from pathlib import Path
     )
     .unwrap();
 
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_code-digest"))
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
         .arg(&src_dir)
         .arg("--trace-imports")
         .output()
-        .expect("Failed to execute code-digest");
+        .expect("Failed to execute context-creator");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 

@@ -1,6 +1,6 @@
-# Code Digest Examples
+# Code context Examples
 
-This directory contains example projects and configuration files to demonstrate the capabilities of `code-digest`.
+This directory contains example projects and configuration files to demonstrate the capabilities of `context-creator`.
 
 ## Directory Structure
 
@@ -29,7 +29,7 @@ A mixed-language project showing:
 - Python utility scripts
 - JavaScript tests
 - Multiple file types and structures
-- Custom `.digestignore` and `.digestkeep` files
+- Custom `.contextignore` and `.contextkeep` files
 
 ## Configuration Examples
 
@@ -50,20 +50,20 @@ Demonstrates all available configuration options:
 
 ## Testing the Tool
 
-You can test `code-digest` with these examples:
+You can test `context-creator` with these examples:
 
 ```bash
 # Process the Rust project
-code-digest -d examples/sample-rust-project
+context-creator -d examples/sample-rust-project
 
 # Process with token limit
-code-digest -d examples/sample-mixed-project --max-tokens 10000
+context-creator -d examples/sample-mixed-project --max-tokens 10000
 
 # Use custom configuration
-code-digest -d examples/sample-mixed-project -c examples/config-examples/comprehensive.toml
+context-creator -d examples/sample-mixed-project -c examples/config-examples/comprehensive.toml
 
 # Save output to file
-code-digest -d examples/sample-rust-project -o rust-project.md
+context-creator -d examples/sample-rust-project -o rust-project.md
 ```
 
 ## Creating Your Own Examples
@@ -72,8 +72,8 @@ To add new examples:
 
 1. Create a new directory under `examples/`
 2. Add relevant source files
-3. Include `.digestignore` for exclusions
-4. Include `.digestkeep` for priorities
+3. Include `.contextignore` for exclusions
+4. Include `.contextkeep` for priorities
 5. Add a README explaining the example
 
 ## Tips for Testing
