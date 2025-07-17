@@ -5,6 +5,7 @@ use crate::core::semantic::{
         AnalysisResult, FunctionCall, Import, LanguageAnalyzer, SemanticContext, SemanticResult,
         TypeReference,
     },
+    path_validator::{validate_import_path, validate_module_name},
     resolver::{ModuleResolver, ResolvedPath},
 };
 use crate::utils::error::CodeDigestError;
@@ -465,6 +466,9 @@ impl ModuleResolver for JavaScriptModuleResolver {
         from_file: &Path,
         base_dir: &Path,
     ) -> Result<ResolvedPath, CodeDigestError> {
+        // Validate module name for security
+        validate_module_name(module_path)?;
+
         // Handle node_modules imports
         if !module_path.starts_with('.') && !module_path.starts_with('/') {
             // Check if it's a built-in Node.js module
@@ -484,8 +488,9 @@ impl ModuleResolver for JavaScriptModuleResolver {
                 // Check package.json for main entry
                 let package_json = node_modules.join("package.json");
                 if package_json.exists() {
+                    let validated_path = validate_import_path(base_dir, &package_json)?;
                     return Ok(ResolvedPath {
-                        path: package_json,
+                        path: validated_path,
                         is_external: true,
                         confidence: 0.9,
                     });
@@ -494,8 +499,9 @@ impl ModuleResolver for JavaScriptModuleResolver {
                 // Try index.js
                 let index_js = node_modules.join("index.js");
                 if index_js.exists() {
+                    let validated_path = validate_import_path(base_dir, &index_js)?;
                     return Ok(ResolvedPath {
-                        path: index_js,
+                        path: validated_path,
                         is_external: true,
                         confidence: 0.8,
                     });
@@ -512,8 +518,10 @@ impl ModuleResolver for JavaScriptModuleResolver {
 
                 // Try exact path first
                 if path.exists() && path.is_file() {
+                    // Validate the resolved path for security
+                    let validated_path = validate_import_path(base_dir, &path)?;
                     return Ok(ResolvedPath {
-                        path,
+                        path: validated_path,
                         is_external: false,
                         confidence: 1.0,
                     });
@@ -523,8 +531,9 @@ impl ModuleResolver for JavaScriptModuleResolver {
                 for ext in &["js", "jsx", "mjs", "cjs", "json"] {
                     let with_ext = path.with_extension(ext);
                     if with_ext.exists() {
+                        let validated_path = validate_import_path(base_dir, &with_ext)?;
                         return Ok(ResolvedPath {
-                            path: with_ext,
+                            path: validated_path,
                             is_external: false,
                             confidence: 0.9,
                         });
@@ -536,8 +545,9 @@ impl ModuleResolver for JavaScriptModuleResolver {
                     for index_name in &["index.js", "index.jsx", "index.mjs"] {
                         let index_path = path.join(index_name);
                         if index_path.exists() {
+                            let validated_path = validate_import_path(base_dir, &index_path)?;
                             return Ok(ResolvedPath {
-                                path: index_path,
+                                path: validated_path,
                                 is_external: false,
                                 confidence: 0.8,
                             });
