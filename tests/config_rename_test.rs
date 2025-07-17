@@ -88,7 +88,7 @@ quiet = true
 fn test_ignore_file_patterns_updated() {
     let temp_dir = TempDir::new().unwrap();
 
-    // Create files with old ignore patterns
+    // Create files with old ignore patterns (these should be ignored)
     fs::write(temp_dir.path().join(".digestignore"), "*.tmp\n").unwrap();
     fs::write(temp_dir.path().join(".digestkeep"), "important.tmp\n").unwrap();
 

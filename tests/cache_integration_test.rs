@@ -22,7 +22,7 @@ fn test_single_file_read_per_file() {
         // Simulate token counter reading
         let _content2 = cache.get_or_load(file_path).unwrap();
 
-        // Simulate digest generator reading
+        // Simulate context generator reading
         let _content3 = cache.get_or_load(file_path).unwrap();
     }
 

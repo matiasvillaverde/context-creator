@@ -1,6 +1,6 @@
-# Code Digest Documentation
+# Code context Documentation
 
-Welcome to the code-digest documentation! This high-performance CLI tool converts codebases to Markdown format optimized for Large Language Model (LLM) consumption.
+Welcome to the context-creator documentation! This high-performance CLI tool converts codebases to Markdown format optimized for Large Language Model (LLM) consumption.
 
 ## Quick Links
 
@@ -12,9 +12,9 @@ Welcome to the code-digest documentation! This high-performance CLI tool convert
 - [Troubleshooting](troubleshooting.md)
 - [Contributing](../CONTRIBUTING.md)
 
-## What is Code Digest?
+## What is Code context?
 
-Code Digest is a Rust-based CLI tool that:
+Code context is a Rust-based CLI tool that:
 
 - **Converts** entire codebases to structured Markdown
 - **Prioritizes** files based on importance and token limits
@@ -40,7 +40,7 @@ Code Digest is a Rust-based CLI tool that:
 ### ⚙️ **Flexible Configuration**
 - TOML configuration files with inheritance
 - CLI argument overrides
-- .digestignore support (like .gitignore)
+- .contextignore support (like .gitignore)
 - Environment variable integration
 
 ### 🔧 **LLM Integration**
@@ -59,19 +59,19 @@ Code Digest is a Rust-based CLI tool that:
 
 ```bash
 # Install
-cargo install code-digest
+cargo install context-creator
 
 # Basic usage
-code-digest -d /path/to/project -o project.md
+context-creator -d /path/to/project -o project.md
 
 # With token limits
-code-digest -d /path/to/project --max-tokens 50000 -o project.md
+context-creator -d /path/to/project --max-tokens 50000 -o project.md
 
 # Direct LLM integration
-code-digest -d /path/to/project "Explain the architecture of this codebase"
+context-creator -d /path/to/project "Explain the architecture of this codebase"
 
 # With configuration
-code-digest -d /path/to/project -c config.toml -o project.md
+context-creator -d /path/to/project -c config.toml -o project.md
 ```
 
 ## Use Cases
@@ -164,8 +164,8 @@ code-digest -d /path/to/project -c config.toml -o project.md
 
 ## Community & Support
 
-- **Issues**: [GitHub Issues](https://github.com/matiasvillaverde/code-digest/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/matiasvillaverde/code-digest/discussions)
+- **Issues**: [GitHub Issues](https://github.com/matiasvillaverde/context-creator/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/matiasvillaverde/context-creator/discussions)
 - **Contributing**: See [CONTRIBUTING.md](../CONTRIBUTING.md)
 - **License**: MIT License
 

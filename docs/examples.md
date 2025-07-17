@@ -1,6 +1,6 @@
 # Examples
 
-Real-world examples of using code-digest for various scenarios and project types.
+Real-world examples of using context-creator for various scenarios and project types.
 
 ## Quick Start Examples
 
@@ -8,32 +8,32 @@ Real-world examples of using code-digest for various scenarios and project types
 
 ```bash
 # Analyze current directory
-code-digest
+context-creator
 
 # Analyze specific project
-code-digest -d ~/projects/my-app
+context-creator -d ~/projects/my-app
 
 # Save analysis to file
-code-digest -d ~/projects/my-app -o analysis.md
+context-creator -d ~/projects/my-app -o analysis.md
 
 # Get quick overview with token limit
-code-digest -d ~/projects/my-app --max-tokens 10000
+context-creator -d ~/projects/my-app --max-tokens 10000
 ```
 
 ### LLM Integration Examples
 
 ```bash
 # Ask specific questions about the codebase
-code-digest -d ~/projects/web-app "What does this application do?"
+context-creator -d ~/projects/web-app "What does this application do?"
 
-code-digest -d ~/projects/api "How is authentication implemented?"
+context-creator -d ~/projects/api "How is authentication implemented?"
 
-code-digest -d ~/projects/ml-model "Explain the machine learning pipeline"
+context-creator -d ~/projects/ml-model "Explain the machine learning pipeline"
 
 # Code review and analysis
-code-digest -d ~/projects/feature-branch "Review this code for security issues"
+context-creator -d ~/projects/feature-branch "Review this code for security issues"
 
-code-digest -d ~/projects/legacy-app "Identify technical debt and improvement opportunities"
+context-creator -d ~/projects/legacy-app "Identify technical debt and improvement opportunities"
 ```
 
 ## Project Type Examples
@@ -43,13 +43,13 @@ code-digest -d ~/projects/legacy-app "Identify technical debt and improvement op
 ```bash
 # Rust project with Cargo
 cd ~/rust-projects/web-server
-code-digest -d . -o rust-analysis.md --max-tokens 50000
+context-creator -d . -o rust-analysis.md --max-tokens 50000
 
 # Focus on core functionality
-code-digest -d src/ --max-tokens 25000 "Explain the main application architecture"
+context-creator -d src/ --max-tokens 25000 "Explain the main application architecture"
 
 # Configuration for Rust projects
-cat > .code-digest.toml << EOF
+cat > .context-creator.toml << EOF
 [defaults]
 max_tokens = 75000
 progress = true
@@ -79,13 +79,13 @@ EOF
 ```bash
 # Node.js project analysis
 cd ~/js-projects/express-api
-code-digest -d . -o nodejs-analysis.md
+context-creator -d . -o nodejs-analysis.md
 
 # Focus on source code, ignore dependencies
-code-digest -d src/ --max-tokens 40000
+context-creator -d src/ --max-tokens 40000
 
 # Configuration for Node.js projects
-cat > .code-digest.toml << EOF
+cat > .context-creator.toml << EOF
 [defaults]
 max_tokens = 60000
 progress = true
@@ -125,13 +125,13 @@ EOF
 ```bash
 # Python project analysis
 cd ~/python-projects/django-app
-code-digest -d . -o python-analysis.md
+context-creator -d . -o python-analysis.md
 
 # Django-specific analysis
-code-digest -d . "Explain the Django models and views structure"
+context-creator -d . "Explain the Django models and views structure"
 
 # Configuration for Python projects
-cat > .code-digest.toml << EOF
+cat > .context-creator.toml << EOF
 [defaults]
 max_tokens = 55000
 progress = true
@@ -184,10 +184,10 @@ EOF
 ```bash
 # Go project analysis
 cd ~/go-projects/api-server
-code-digest -d . -o go-analysis.md
+context-creator -d . -o go-analysis.md
 
 # Configuration for Go projects
-cat > .code-digest.toml << EOF
+cat > .context-creator.toml << EOF
 [defaults]
 max_tokens = 50000
 progress = true
@@ -231,10 +231,10 @@ EOF
 ```bash
 # Java/Maven project
 cd ~/java-projects/spring-boot-app
-code-digest -d . -o java-analysis.md
+context-creator -d . -o java-analysis.md
 
 # Configuration for Java projects
-cat > .code-digest.toml << EOF
+cat > .context-creator.toml << EOF
 [defaults]
 max_tokens = 65000
 progress = true
@@ -277,15 +277,15 @@ EOF
 
 ```bash
 # Comprehensive code review
-code-digest -d feature-branch "Perform a comprehensive code review focusing on:"
-code-digest -d feature-branch "1. Code quality and best practices"
-code-digest -d feature-branch "2. Security vulnerabilities"
-code-digest -d feature-branch "3. Performance optimization opportunities"
-code-digest -d feature-branch "4. Maintainability and documentation"
+context-creator -d feature-branch "Perform a comprehensive code review focusing on:"
+context-creator -d feature-branch "1. Code quality and best practices"
+context-creator -d feature-branch "2. Security vulnerabilities"
+context-creator -d feature-branch "3. Performance optimization opportunities"
+context-creator -d feature-branch "4. Maintainability and documentation"
 
 # Compare with main branch
 git diff main..feature-branch --name-only > changed-files.txt
-code-digest -d . --include-from changed-files.txt "Review only the changed files"
+context-creator -d . --include-from changed-files.txt "Review only the changed files"
 
 # Security-focused review
 cat > security-review.toml << EOF
@@ -316,24 +316,24 @@ pattern = "**/*token*"
 weight = 200.0
 EOF
 
-code-digest -c security-review.toml -d . "Analyze this code for security vulnerabilities"
+context-creator -c security-review.toml -d . "Analyze this code for security vulnerabilities"
 ```
 
 ### Documentation Generation
 
 ```bash
 # Generate API documentation
-code-digest -d src/api/ "Generate comprehensive API documentation with:"
-code-digest -d src/api/ "1. Endpoint descriptions"
-code-digest -d src/api/ "2. Request/response schemas"
-code-digest -d src/api/ "3. Authentication requirements"
-code-digest -d src/api/ "4. Usage examples"
+context-creator -d src/api/ "Generate comprehensive API documentation with:"
+context-creator -d src/api/ "1. Endpoint descriptions"
+context-creator -d src/api/ "2. Request/response schemas"
+context-creator -d src/api/ "3. Authentication requirements"
+context-creator -d src/api/ "4. Usage examples"
 
 # Architecture documentation
-code-digest -d . --max-tokens 40000 "Create system architecture documentation"
+context-creator -d . --max-tokens 40000 "Create system architecture documentation"
 
 # Onboarding guide
-code-digest -d . "Create a comprehensive onboarding guide for new developers"
+context-creator -d . "Create a comprehensive onboarding guide for new developers"
 
 # Configuration for documentation focus
 cat > docs-config.toml << EOF
@@ -364,14 +364,14 @@ EOF
 
 ```bash
 # Understand legacy codebase
-code-digest -d legacy-system "Help me understand this legacy codebase:"
-code-digest -d legacy-system "1. What is the main purpose and functionality?"
-code-digest -d legacy-system "2. What are the key components and their relationships?"
-code-digest -d legacy-system "3. What technologies and frameworks are used?"
-code-digest -d legacy-system "4. What are the main pain points and technical debt?"
+context-creator -d legacy-system "Help me understand this legacy codebase:"
+context-creator -d legacy-system "1. What is the main purpose and functionality?"
+context-creator -d legacy-system "2. What are the key components and their relationships?"
+context-creator -d legacy-system "3. What technologies and frameworks are used?"
+context-creator -d legacy-system "4. What are the main pain points and technical debt?"
 
 # Migration planning
-code-digest -d old-app "Create a migration plan from this PHP application to modern Node.js"
+context-creator -d old-app "Create a migration plan from this PHP application to modern Node.js"
 
 # Refactoring opportunities
 cat > refactor-analysis.toml << EOF
@@ -395,18 +395,18 @@ pattern = "**/*.php"
 weight = 150.0  # If migrating from PHP
 EOF
 
-code-digest -c refactor-analysis.toml -d . "Identify refactoring opportunities"
+context-creator -c refactor-analysis.toml -d . "Identify refactoring opportunities"
 ```
 
 ### Performance Analysis
 
 ```bash
 # Performance-focused analysis
-code-digest -d . "Analyze this codebase for performance bottlenecks:"
-code-digest -d . "1. Identify CPU-intensive operations"
-code-digest -d . "2. Find memory leaks and inefficient memory usage"
-code-digest -d . "3. Detect slow database queries"
-code-digest -d . "4. Suggest caching opportunities"
+context-creator -d . "Analyze this codebase for performance bottlenecks:"
+context-creator -d . "1. Identify CPU-intensive operations"
+context-creator -d . "2. Find memory leaks and inefficient memory usage"
+context-creator -d . "3. Detect slow database queries"
+context-creator -d . "4. Suggest caching opportunities"
 
 # Configuration for performance analysis
 cat > performance-config.toml << EOF
@@ -443,10 +443,10 @@ EOF
 
 ```bash
 # Test coverage analysis
-code-digest -d tests/ "Analyze test coverage and suggest improvements"
+context-creator -d tests/ "Analyze test coverage and suggest improvements"
 
 # Testing strategy
-code-digest -d . "Suggest a comprehensive testing strategy for this project"
+context-creator -d . "Suggest a comprehensive testing strategy for this project"
 
 # Quality metrics
 cat > quality-config.toml << EOF
@@ -482,7 +482,7 @@ pattern = "Cargo.toml"
 weight = 120.0  # For Rust test configuration
 EOF
 
-code-digest -c quality-config.toml -d . "Evaluate test quality and coverage"
+context-creator -c quality-config.toml -d . "Evaluate test quality and coverage"
 ```
 
 ## Workflow Integration Examples
@@ -496,7 +496,7 @@ cat > .git/hooks/pre-commit << 'EOF'
 # Generate code analysis before commit
 
 echo "Generating code analysis..."
-code-digest -d . -o .git/commit-analysis.md --max-tokens 20000 --quiet
+context-creator -d . -o .git/commit-analysis.md --max-tokens 20000 --quiet
 
 if [ $? -eq 0 ]; then
     echo "Code analysis generated successfully"
@@ -525,8 +525,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
-      - name: Install code-digest
-        run: cargo install code-digest
+      - name: Install context-creator
+        run: cargo install context-creator
       
       - name: Analyze changed files
         run: |
@@ -534,7 +534,7 @@ jobs:
           git diff --name-only origin/main..HEAD > changed-files.txt
           
           # Generate analysis
-          code-digest -d . --include-from changed-files.txt \
+          context-creator -d . --include-from changed-files.txt \
             --max-tokens 30000 -o pr-analysis.md
       
       - name: Comment on PR
@@ -562,7 +562,7 @@ jobs:
         {
             "label": "Generate Code Analysis",
             "type": "shell",
-            "command": "code-digest",
+            "command": "context-creator",
             "args": [
                 "-d", "${workspaceFolder}",
                 "-o", "${workspaceFolder}/docs/analysis.md",
@@ -581,7 +581,7 @@ jobs:
         {
             "label": "Quick Code Review",
             "type": "shell",
-            "command": "code-digest",
+            "command": "context-creator",
             "args": [
                 "-d", "${workspaceFolder}",
                 "--max-tokens", "20000",
@@ -598,7 +598,7 @@ jobs:
 ### Multi-Project Workspace
 
 ```toml
-# ~/.config/code-digest/config.toml
+# ~/.config/context-creator/config.toml
 [defaults]
 max_tokens = 50000
 progress = true
@@ -663,7 +663,7 @@ weight = 120.0
 pattern = "README.*"
 weight = 100.0
 
-# Use with: code-digest -c rust-template.toml -d project/
+# Use with: context-creator -c rust-template.toml -d project/
 ```
 
 ```toml
@@ -729,7 +729,7 @@ for project in "${PROJECTS[@]}"; do
     project_name=$(basename "$project")
     echo "Analyzing $project_name..."
     
-    code-digest -d "$project" \
+    context-creator -d "$project" \
         -o "$OUTPUT_DIR/${project_name}-analysis.md" \
         --max-tokens 50000 \
         --progress
@@ -746,7 +746,7 @@ echo "All analyses complete!"
 #!/bin/bash
 # interactive-analysis.sh - Interactive code analysis
 
-echo "Code Digest Interactive Analysis"
+echo "Code context Interactive Analysis"
 echo "================================"
 
 read -p "Enter project directory: " PROJECT_DIR
@@ -756,7 +756,7 @@ MAX_TOKENS=${MAX_TOKENS:-50000}
 read -p "Enter analysis question: " QUESTION
 
 echo "Analyzing project..."
-code-digest -d "$PROJECT_DIR" \
+context-creator -d "$PROJECT_DIR" \
     --max-tokens "$MAX_TOKENS" \
     --verbose \
     "$QUESTION"
@@ -779,12 +779,12 @@ fi
 echo "Monitoring $WATCH_DIR for changes..."
 
 # Generate initial analysis
-code-digest -d "$WATCH_DIR" -o "$OUTPUT_FILE" --max-tokens 40000
+context-creator -d "$WATCH_DIR" -o "$OUTPUT_FILE" --max-tokens 40000
 
 # Watch for changes
 fswatch -o "$WATCH_DIR" | while read change; do
     echo "Changes detected, regenerating analysis..."
-    code-digest -d "$WATCH_DIR" -o "$OUTPUT_FILE" --max-tokens 40000 --quiet
+    context-creator -d "$WATCH_DIR" -o "$OUTPUT_FILE" --max-tokens 40000 --quiet
     echo "Analysis updated at $(date)"
 done
 ```

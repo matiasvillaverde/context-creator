@@ -44,10 +44,10 @@ context-creator -o context.md
 > Stop pasting small snippets. Feed your entire codebase to Gemini in one go and ask **big-picture questions**.
 
 #### Blazing Fast
-> Built in Rust with parallel processing, `context-creator` is **dramatically faster** at digesting large repositories.
+> Built in Rust with parallel processing, `context-creator` is **dramatically faster** at contexting large repositories.
 
 #### Smart Token Management
-> It’s more than a `cat`. `context-creator` respects `.gitignore`, prioritizes critical files via `.digestkeep`, and trims intelligently based on token budgets.
+> It’s more than a `cat`. `context-creator` respects `.gitignore`, prioritizes critical files via `.contextkeep`, and trims intelligently based on token budgets.
 
 #### Give Claude Code Superpowers
 > Claude already excels at precise work. Teach it to use `context-creator`, and it gains a **satellite-level** view of your entire codebase—unlocking deeper context, better answers, and faster development cycles.
@@ -153,11 +153,11 @@ context-creator --include **/*.py
 
 Fine-tune how `context-creator` processes your repository:
 
-  * **`.digestignore`:** Exclude non-essential files and folders (e.g., `node_modules/`, `target/`).
-  * **`.digestkeep`:** Prioritize critical files (e.g., `src/main.rs`, `Cargo.toml`). This ensures the most important code is included when you're near the token limit.
+  * **`.contextignore`:** Exclude non-essential files and folders (e.g., `node_modules/`, `target/`).
+  * **`.contextkeep`:** Prioritize critical files (e.g., `src/main.rs`, `Cargo.toml`). This ensures the most important code is included when you're near the token limit.
   * **`.context-creator.toml`:** For advanced configuration like setting default token limits and priority weights.
 
-### .digestignore
+### .contextignore
 
 Exclude files from processing:
 
@@ -177,7 +177,7 @@ build/
 secrets/
 ```
 
-### .digestkeep
+### .contextkeep
 
 Prioritize important files:
 

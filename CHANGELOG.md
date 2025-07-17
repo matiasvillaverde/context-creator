@@ -57,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Token counting with tiktoken-rs
 - File prioritization system
 - Integration with gemini
-- Support for .gitignore and .digestignore
+- Support for .gitignore and .contextignore
 - Configuration file support
 - CLI interface with comprehensive options
 - Parallel processing for performance

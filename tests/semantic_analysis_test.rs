@@ -1383,7 +1383,7 @@ pub const API_URL: &str = "http://localhost:8000";
 }
 
 #[test]
-fn test_digestignore_integration() {
+fn test_contextignore_integration() {
     let (_temp_dir, root) = TestProjectBuilder::new()
         // Create .context-creator-ignore file
         .add_file(

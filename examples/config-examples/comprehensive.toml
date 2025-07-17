@@ -81,5 +81,5 @@ cache_enabled = true
 
 [logging]
 level = "debug"  # trace, debug, info, warn, error
-file = "code-digest.log"
+file = "context-creator.log"
 stderr = true

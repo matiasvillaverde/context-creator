@@ -1,6 +1,6 @@
 # Architecture Overview
 
-This document describes the high-level architecture of `code-digest`, a high-performance CLI tool for converting codebases to Markdown for LLM context.
+This document describes the high-level architecture of `context-creator`, a high-performance CLI tool for converting codebases to Markdown for LLM context.
 
 ## Design Principles
 
@@ -46,7 +46,7 @@ graph TD
 
 **Responsibilities:**
 - Traverse directory structures efficiently
-- Apply ignore patterns from `.gitignore` and `.digestignore`
+- Apply ignore patterns from `.gitignore` and `.contextignore`
 - Handle symbolic links safely
 - Detect and skip binary files
 
@@ -82,9 +82,9 @@ graph TD
 - Glob pattern matching for flexibility
 - Weight-based scoring system
 - Two-pass algorithm: collect then prioritize
-- Support for `.digestkeep` essential files
+- Support for `.contextkeep` essential files
 
-### 5. Markdown Generator (`src/core/digest.rs`)
+### 5. Markdown Generator (`src/core/context.rs`)
 
 **Responsibilities:**
 - Format files into structured Markdown
@@ -151,7 +151,7 @@ graph TD
 
 ### Error Types
 ```rust
-pub enum CodeDigestError {
+pub enum CodecontextError {
     // File system errors
     InvalidPath(String),
     ReadError(String),
@@ -171,7 +171,7 @@ pub enum CodeDigestError {
 ```
 
 ### Error Propagation
-- Use `Result<T, CodeDigestError>` throughout
+- Use `Result<T, CodecontextError>` throughout
 - Convert external errors at boundaries
 - Provide context with error messages
 - Fail fast for unrecoverable errors
@@ -180,7 +180,7 @@ pub enum CodeDigestError {
 
 ### Adding New File Types
 1. Update `file_ext.rs` with mappings
-2. Add special handling in `digest.rs` if needed
+2. Add special handling in `context.rs` if needed
 3. Update prioritization weights
 
 ### Supporting New LLMs
@@ -197,8 +197,8 @@ pub enum CodeDigestError {
 
 ### Precedence Order
 1. CLI arguments (highest)
-2. Project config file (`.code-digest.toml`)
-3. User config file (`~/.config/code-digest/config.toml`)
+2. Project config file (`.context-creator.toml`)
+3. User config file (`~/.config/context-creator/config.toml`)
 4. Default values (lowest)
 
 ### Configuration Schema
@@ -288,7 +288,7 @@ syntax_highlighting = true
 
 ## Conclusion
 
-The architecture of `code-digest` is designed to be:
+The architecture of `context-creator` is designed to be:
 - **Fast**: Parallel processing and efficient algorithms
 - **Flexible**: Easy to extend and configure
 - **Reliable**: Comprehensive error handling

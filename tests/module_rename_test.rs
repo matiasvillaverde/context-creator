@@ -33,7 +33,7 @@ fn main() {
 
 #[test]
 fn test_context_options_struct_works() {
-    // Test that ContextOptions (formerly DigestOptions) works by running a command
+    // Test that ContextOptions (formerly contextOptions) works by running a command
     // that would use these options
     let temp_dir = TempDir::new().unwrap();
 

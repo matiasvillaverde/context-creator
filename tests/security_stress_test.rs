@@ -92,7 +92,7 @@ fn test_parallel_error_handling_stress() {
         follow_links: false,
         include_hidden: false,
         parallel: true,
-        ignore_file: ".digestignore".to_string(),
+        ignore_file: ".context-creator-ignore".to_string(),
         ignore_patterns: vec![],
         include_patterns: vec!["../../../etc/passwd".to_string()],
         custom_priorities: vec![],

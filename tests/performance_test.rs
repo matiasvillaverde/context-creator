@@ -74,7 +74,7 @@ fn test_performance_1000_files_under_1_second() {
     let cache = Arc::new(FileCache::new());
 
     // Prioritize files with token limit
-    let digest_options = ContextOptions {
+    let context_options = ContextOptions {
         max_tokens: Some(100_000),
         include_tree: true,
         include_stats: true,
@@ -86,10 +86,10 @@ fn test_performance_1000_files_under_1_second() {
         enhanced_context: false,
     };
 
-    let prioritized_files = prioritize_files(files, &digest_options, cache.clone()).unwrap();
+    let prioritized_files = prioritize_files(files, &context_options, cache.clone()).unwrap();
 
     // Generate markdown
-    let _markdown = generate_markdown(prioritized_files, digest_options, cache).unwrap();
+    let _markdown = generate_markdown(prioritized_files, context_options, cache).unwrap();
 
     let elapsed = start.elapsed();
 
