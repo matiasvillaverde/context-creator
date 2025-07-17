@@ -212,8 +212,20 @@ fn common_ancestor(path1: &Path, path2: &Path) -> PathBuf {
         current = parent;
     }
 
-    // Fallback to root
-    PathBuf::from("/")
+    // Fallback to appropriate root for the platform
+    #[cfg(windows)]
+    {
+        // On Windows, try to get the root from one of the paths
+        if let Some(root) = path1.ancestors().last() {
+            root.to_path_buf()
+        } else {
+            PathBuf::from("C:\\")
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        PathBuf::from("/")
+    }
 }
 
 /// Find a type definition file by searching nearby paths
