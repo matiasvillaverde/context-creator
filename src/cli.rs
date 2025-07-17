@@ -50,6 +50,22 @@ USAGE EXAMPLES:
   
   # Read prompt from stdin
   echo \"Review this code\" | context-creator --stdin .
+  
+  # FLEXIBLE COMBINATIONS (NEW):
+  # Combine prompt with specific directories
+  context-creator --prompt \"Security audit\" src/auth/ src/security/
+  
+  # Combine prompt with GitHub repository
+  context-creator --prompt \"Find bugs\" --repo https://github.com/owner/repo
+  
+  # Combine stdin with specific directories
+  echo \"Analyze patterns\" | context-creator --stdin src/ tests/
+  
+  # Combine include patterns with GitHub repository
+  context-creator --include \"**/*.rs\" --repo https://github.com/owner/repo
+  
+  # Combine stdin with include patterns
+  echo \"Review code\" | context-creator --stdin --include \"**/*.py\"
 ";
 
 /// Supported LLM CLI tools
@@ -110,12 +126,6 @@ impl LlmTool {
 /// High-performance CLI tool to convert codebases to Markdown for LLM context
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None, after_help = AFTER_HELP_MSG)]
-#[command(group(
-    clap::ArgGroup::new("exclusive_inputs")
-        .required(false)
-        .args(&["paths", "repo", "read_stdin"])
-        .multiple(false),
-))]
 pub struct Config {
     /// The prompt to send to the LLM for processing
     #[arg(short = 'p', long = "prompt", help = "Process a text prompt directly")]
@@ -123,11 +133,7 @@ pub struct Config {
 
     /// One or more directory paths to process
     /// IMPORTANT: Use `get_directories()` to access the correct input paths.
-    #[arg(
-        value_name = "PATHS",
-        help = "Process directories",
-        conflicts_with = "include"
-    )]
+    #[arg(value_name = "PATHS", help = "Process directories")]
     pub paths: Option<Vec<PathBuf>>,
 
     /// Include files and directories matching glob patterns
@@ -269,31 +275,17 @@ impl Config {
             ));
         }
 
-        // Validate mutual exclusivity - prompt cannot be used with paths or repo
-        if self.get_prompt().is_some() && self.paths.is_some() {
-            return Err(ContextCreatorError::InvalidConfiguration(
-                "--prompt cannot be used with directory paths".to_string(),
-            ));
-        }
-
-        if self.get_prompt().is_some() && self.repo.is_some() {
-            return Err(ContextCreatorError::InvalidConfiguration(
-                "--prompt cannot be used with --repo".to_string(),
-            ));
-        }
-
-        // Validate include conflicts - include cannot be used with repo or stdin
-        if self.include.is_some() && self.repo.is_some() {
-            return Err(ContextCreatorError::InvalidConfiguration(
-                "--include cannot be used with --repo".to_string(),
-            ));
-        }
-
-        if self.include.is_some() && self.read_stdin {
-            return Err(ContextCreatorError::InvalidConfiguration(
-                "--include cannot be used with --stdin".to_string(),
-            ));
-        }
+        // Note: Removed overly restrictive validation rules per issue #34
+        // Now allowing flexible combinations like:
+        // - --prompt with paths (--prompt "text" src/)
+        // - --prompt with --repo (--prompt "text" --repo url)
+        // - --stdin with paths (echo "prompt" | context-creator --stdin src/)
+        // - --include with --repo (--include "**/*.rs" --repo url)
+        // - --include with --stdin (--stdin --include "**/*.rs")
+        //
+        // The only remaining restrictions are for legitimate conflicts:
+        // - --prompt with --output-file (can't send to LLM and write to file)
+        // - --copy with --output-file (can't copy to clipboard and write to file)
 
         // Validate repo URL if provided
         if let Some(repo_url) = &self.repo {
@@ -355,6 +347,15 @@ impl Config {
             ));
         }
 
+        // Validate repo and paths mutual exclusivity
+        // When --repo is specified, any positional paths are silently ignored in run()
+        // This prevents user confusion by failing early with a clear error message
+        if self.repo.is_some() && self.paths.is_some() {
+            return Err(ContextCreatorError::InvalidConfiguration(
+                "Cannot specify both --repo and local paths. Use --repo to analyze a remote repository, or provide local paths to analyze local directories.".to_string(),
+            ));
+        }
+
         Ok(())
     }
 
@@ -401,16 +402,17 @@ impl Config {
 
     /// Get all directories from paths argument
     /// When using --include patterns, this returns the default directory (current dir)
-    /// since patterns are handled separately by the walker
+    /// unless explicit paths are also provided (flexible combinations)
     pub fn get_directories(&self) -> Vec<PathBuf> {
-        if self.include.is_some() {
-            // When using include patterns, use current directory as base
+        // If explicit paths are provided, use them
+        if let Some(paths) = &self.paths {
+            paths.clone()
+        } else if self.include.is_some() {
+            // When using include patterns without explicit paths, use current directory as base
             vec![PathBuf::from(".")]
         } else {
-            self.paths
-                .as_ref()
-                .cloned()
-                .unwrap_or_else(|| vec![PathBuf::from(".")])
+            // Default to current directory
+            vec![PathBuf::from(".")]
         }
     }
 
@@ -543,28 +545,8 @@ mod tests {
     fn test_config_validation_valid_directory() {
         let temp_dir = TempDir::new().unwrap();
         let config = Config {
-            prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
-            include: None,
-            ignore: None,
-            repo: None,
-            read_stdin: false,
-            output_file: None,
-            max_tokens: None,
-            llm_tool: LlmTool::default(),
-            quiet: false,
-            verbose: false,
-            config: None,
-            progress: false,
-            copy: false,
-            enhanced_context: false,
-            trace_imports: false,
-            include_callers: false,
-            include_types: false,
-            semantic_depth: 3,
-            custom_priorities: vec![],
-            config_token_limits: None,
-            config_defaults_max_tokens: None,
+            ..Default::default()
         };
 
         assert!(config.validate().is_ok());

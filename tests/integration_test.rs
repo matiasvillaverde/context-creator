@@ -337,7 +337,7 @@ fn test_mutually_exclusive_options_error() {
         .arg("test prompt"); // Both output file and prompt
 
     cmd.assert().failure().stderr(
-        predicate::str::contains("cannot be used with")
+        predicate::str::contains("Cannot specify both --output and a prompt")
             .or(predicate::str::contains("Directory does not exist")),
     );
 }
