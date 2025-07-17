@@ -50,16 +50,28 @@ fn test_repo_argument() {
 }
 
 #[test]
-fn test_repo_and_directory_mutually_exclusive() {
-    let result = Config::try_parse_from([
+fn test_repo_and_directory_now_disallowed() {
+    // This combination is now disallowed to prevent silent overwriting bug
+    let config = Config::parse_from([
         "context-creator",
         "--repo",
         "https://github.com/owner/repo",
         ".",
     ]);
+
+    assert_eq!(
+        config.repo,
+        Some("https://github.com/owner/repo".to_string())
+    );
+    assert_eq!(config.paths, Some(vec![PathBuf::from(".")]));
+
+    // This should FAIL validation to prevent confusion where paths get silently ignored
+    let result = config.validate();
     assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert!(err.to_string().contains("cannot be used with"));
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("Cannot specify both --repo and local paths"));
 }
 
 #[test]
@@ -122,19 +134,15 @@ fn test_multiple_directories() {
 }
 
 #[test]
-fn test_prompt_and_paths_mutually_exclusive() {
-    let result = Config::try_parse_from(["context-creator", "--prompt", "test", "src"]);
+fn test_prompt_and_paths_now_allowed() {
+    // This combination is now allowed per issue #34
+    let config = Config::parse_from(["context-creator", "--prompt", "test", "src"]);
 
-    // Either parsing fails or validation fails
-    match result {
-        Err(err) => {
-            assert!(err.to_string().contains("cannot be used with"));
-        }
-        Ok(config) => {
-            // Parsing succeeded, so validation should fail
-            assert!(config.validate().is_err());
-        }
-    }
+    assert_eq!(config.get_prompt(), Some("test".to_string()));
+    assert_eq!(config.paths, Some(vec![PathBuf::from("src")]));
+
+    // This should pass validation with the new flexible combinations
+    assert!(config.validate().is_ok());
 }
 
 #[test]
@@ -244,13 +252,15 @@ fn test_include_three_paths() {
 }
 
 #[test]
-fn test_positional_and_include_conflict() {
-    let result = Config::try_parse_from(["context-creator", "src/", "--include", "tests/"]);
-    assert!(result.is_err());
-    assert!(result
-        .unwrap_err()
-        .to_string()
-        .contains("cannot be used with"));
+fn test_positional_and_include_now_allowed() {
+    // This combination is now allowed per issue #34
+    let config = Config::parse_from(["context-creator", "src/", "--include", "tests/"]);
+
+    assert_eq!(config.paths, Some(vec![PathBuf::from("src/")]));
+    assert_eq!(config.get_include_patterns(), vec!["tests/"]);
+
+    // This should pass validation with the new flexible combinations
+    assert!(config.validate().is_ok());
 }
 
 #[test]
@@ -265,8 +275,9 @@ fn test_include_with_prompt_success() {
 }
 
 #[test]
-fn test_include_with_repo_conflict() {
-    let result = Config::try_parse_from([
+fn test_include_with_repo_now_allowed() {
+    // This combination is now allowed per issue #34
+    let config = Config::parse_from([
         "context-creator",
         "--repo",
         "https://github.com/owner/repo",
@@ -274,32 +285,26 @@ fn test_include_with_repo_conflict() {
         "src/",
     ]);
 
-    // Either parsing fails or validation fails
-    match result {
-        Err(err) => {
-            assert!(err.to_string().contains("cannot be used with"));
-        }
-        Ok(config) => {
-            // Parsing succeeded, so validation should fail
-            assert!(config.validate().is_err());
-        }
-    }
+    assert_eq!(
+        config.repo,
+        Some("https://github.com/owner/repo".to_string())
+    );
+    assert_eq!(config.get_include_patterns(), vec!["src/"]);
+
+    // This should pass validation with the new flexible combinations
+    assert!(config.validate().is_ok());
 }
 
 #[test]
-fn test_include_with_stdin_conflict() {
-    let result = Config::try_parse_from(["context-creator", "--stdin", "--include", "src/"]);
+fn test_include_with_stdin_now_allowed() {
+    // This combination is now allowed per issue #34
+    let config = Config::parse_from(["context-creator", "--stdin", "--include", "src/"]);
 
-    // Either parsing fails or validation fails
-    match result {
-        Err(err) => {
-            assert!(err.to_string().contains("cannot be used with"));
-        }
-        Ok(config) => {
-            // Parsing succeeded, so validation should fail
-            assert!(config.validate().is_err());
-        }
-    }
+    assert!(config.read_stdin);
+    assert_eq!(config.get_include_patterns(), vec!["src/"]);
+
+    // This should pass validation with the new flexible combinations
+    assert!(config.validate().is_ok());
 }
 
 #[test]

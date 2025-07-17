@@ -171,11 +171,13 @@ impl ConfigFile {
             cli_config.quiet = self.defaults.quiet;
         }
 
-        // Apply directory default if CLI used default (".")
+        // Apply directory default if CLI used default (".") AND no repo is specified
+        // This prevents conflict with --repo validation
         let current_paths = cli_config.get_directories();
         if current_paths.len() == 1
             && current_paths[0] == PathBuf::from(".")
             && self.defaults.directory.is_some()
+            && cli_config.repo.is_none()
         {
             cli_config.paths = Some(vec![self.defaults.directory.clone().unwrap()]);
         }
