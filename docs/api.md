@@ -1,13 +1,13 @@
 # API Reference
 
-Complete API reference for using code-digest programmatically and integrating it into other applications.
+Complete API reference for using context-creator programmatically and integrating it into other applications.
 
 ## Library Usage
 
 ### Basic Library Integration
 
 ```rust
-use code_digest::{Config, run};
+use code_context::{Config, run};
 use std::path::PathBuf;
 
 fn main() -> anyhow::Result<()> {
@@ -19,12 +19,12 @@ fn main() -> anyhow::Result<()> {
         progress: true,
         verbose: false,
         quiet: false,
-        llm_tool: code_digest::cli::LlmTool::Gemini,
+        llm_tool: code_context::cli::LlmTool::Gemini,
         config: None,
         prompt: None,
     };
     
-    // Run code-digest
+    // Run context-creator
     run(config)?;
     
     Ok(())
@@ -34,10 +34,10 @@ fn main() -> anyhow::Result<()> {
 ### Advanced Configuration
 
 ```rust
-use code_digest::{
+use code_context::{
     Config,
     core::{
-        digest::{DigestOptions, generate_markdown},
+        context::{contextOptions, generate_markdown},
         walker::{WalkOptions, walk_directory},
         prioritizer::prioritize_files,
     },
@@ -63,8 +63,8 @@ fn advanced_usage() -> anyhow::Result<()> {
     // Walk directory
     let files = walk_directory(&directory, walk_options)?;
     
-    // Configure digest generation
-    let digest_options = DigestOptions {
+    // Configure context generation
+    let context_options = contextOptions {
         max_tokens: Some(50000),
         include_tree: true,
         include_stats: true,
@@ -76,10 +76,10 @@ fn advanced_usage() -> anyhow::Result<()> {
     };
     
     // Prioritize files based on token limits
-    let prioritized_files = prioritize_files(files, &digest_options)?;
+    let prioritized_files = prioritize_files(files, &context_options)?;
     
     // Generate markdown
-    let markdown = generate_markdown(prioritized_files, digest_options)?;
+    let markdown = generate_markdown(prioritized_files, context_options)?;
     
     // Write output
     std::fs::write("analysis.md", markdown)?;
@@ -92,7 +92,7 @@ fn advanced_usage() -> anyhow::Result<()> {
 
 ### Config
 
-Main configuration structure for code-digest.
+Main configuration structure for context-creator.
 
 ```rust
 pub struct Config {
@@ -126,10 +126,10 @@ pub struct Config {
 
 impl Config {
     /// Validate the configuration
-    pub fn validate(&self) -> Result<(), CodeDigestError>;
+    pub fn validate(&self) -> Result<(), CodecontextError>;
     
     /// Load configuration from file if specified
-    pub fn load_from_file(&mut self) -> Result<(), CodeDigestError>;
+    pub fn load_from_file(&mut self) -> Result<(), CodecontextError>;
 }
 ```
 
@@ -187,12 +187,12 @@ impl Default for WalkOptions {
 }
 ```
 
-### DigestOptions
+### contextOptions
 
 Configuration for markdown generation.
 
 ```rust
-pub struct DigestOptions {
+pub struct contextOptions {
     /// Maximum tokens allowed in the output
     pub max_tokens: Option<usize>,
     
@@ -218,12 +218,12 @@ pub struct DigestOptions {
     pub include_toc: bool,
 }
 
-impl DigestOptions {
-    /// Create DigestOptions from CLI config
+impl contextOptions {
+    /// Create contextOptions from CLI config
     pub fn from_config(config: &Config) -> Result<Self>;
 }
 
-impl Default for DigestOptions {
+impl Default for contextOptions {
     fn default() -> Self;
 }
 ```
@@ -305,7 +305,7 @@ pub fn walk_directory(
 **Example**:
 
 ```rust
-use code_digest::core::walker::{walk_directory, WalkOptions};
+use code_context::core::walker::{walk_directory, WalkOptions};
 use std::path::Path;
 
 let options = WalkOptions {
@@ -323,17 +323,17 @@ println!("Found {} files", files.len());
 /// Prioritize files based on their importance and token limits
 pub fn prioritize_files(
     files: Vec<FileInfo>,
-    options: &DigestOptions,
+    options: &contextOptions,
 ) -> Result<Vec<FileInfo>>;
 ```
 
 **Example**:
 
 ```rust
-use code_digest::core::prioritizer::prioritize_files;
-use code_digest::core::digest::DigestOptions;
+use code_context::core::prioritizer::prioritize_files;
+use code_context::core::context::contextOptions;
 
-let options = DigestOptions {
+let options = contextOptions {
     max_tokens: Some(50000),
     sort_by_priority: true,
     ..Default::default()
@@ -349,16 +349,16 @@ println!("Selected {} files after prioritization", prioritized.len());
 /// Generate markdown from a list of files
 pub fn generate_markdown(
     files: Vec<FileInfo>,
-    options: DigestOptions,
+    options: contextOptions,
 ) -> Result<String>;
 ```
 
 **Example**:
 
 ```rust
-use code_digest::core::digest::{generate_markdown, DigestOptions};
+use code_context::core::context::{generate_markdown, contextOptions};
 
-let options = DigestOptions {
+let options = contextOptions {
     include_tree: true,
     include_stats: true,
     include_toc: true,
@@ -374,7 +374,7 @@ std::fs::write("output.md", markdown)?;
 ### Token Counting
 
 ```rust
-use code_digest::core::token::TokenCounter;
+use code_context::core::token::TokenCounter;
 
 /// High-level token counting functions
 pub fn count_tokens(text: &str) -> Result<usize>;
@@ -392,7 +392,7 @@ pub struct TokenCounter {
 **Example**:
 
 ```rust
-use code_digest::core::token::{TokenCounter, count_tokens};
+use code_context::core::token::{TokenCounter, count_tokens};
 
 // Simple token counting
 let count = count_tokens("Hello, world!")?;
@@ -413,7 +413,7 @@ let counts = counter.count_tokens_parallel(&texts)?;
 ### Configuration Loading
 
 ```rust
-use code_digest::config::{ConfigFile, Priority};
+use code_context::config::{ConfigFile, Priority};
 
 /// Load configuration from TOML file
 let config = ConfigFile::load_from_file("config.toml")?;
@@ -466,7 +466,7 @@ pub struct Priority {
 
 ```rust
 #[derive(Debug, thiserror::Error)]
-pub enum CodeDigestError {
+pub enum CodecontextError {
     #[error("Invalid path: {0}")]
     InvalidPath(String),
     
@@ -499,7 +499,7 @@ pub enum CodeDigestError {
 ### Error Handling Examples
 
 ```rust
-use code_digest::{run, Config, CodeDigestError};
+use code_context::{run, Config, CodecontextError};
 
 fn handle_errors() -> anyhow::Result<()> {
     let config = Config::default();
@@ -507,15 +507,15 @@ fn handle_errors() -> anyhow::Result<()> {
     match run(config) {
         Ok(()) => println!("Success!"),
         Err(e) => {
-            match e.downcast_ref::<CodeDigestError>() {
-                Some(CodeDigestError::LlmToolNotFound { tool, install_instructions }) => {
+            match e.downcast_ref::<CodecontextError>() {
+                Some(CodecontextError::LlmToolNotFound { tool, install_instructions }) => {
                     eprintln!("LLM tool '{}' not found.", tool);
                     eprintln!("Install instructions: {}", install_instructions);
                 },
-                Some(CodeDigestError::InvalidPath(path)) => {
+                Some(CodecontextError::InvalidPath(path)) => {
                     eprintln!("Invalid path: {}", path);
                 },
-                Some(CodeDigestError::TokenCounting(msg)) => {
+                Some(CodecontextError::TokenCounting(msg)) => {
                     eprintln!("Token counting failed: {}", msg);
                 },
                 _ => {
@@ -534,7 +534,7 @@ fn handle_errors() -> anyhow::Result<()> {
 ### File Type Detection
 
 ```rust
-use code_digest::utils::file_ext::{detect_file_type, is_binary_file};
+use code_context::utils::file_ext::{detect_file_type, is_binary_file};
 
 /// Detect file type from path
 let file_type = detect_file_type(Path::new("src/main.rs"));
@@ -548,7 +548,7 @@ println!("Is binary: {}", is_binary);
 ### Pattern Matching
 
 ```rust
-use code_digest::utils::patterns::{matches_pattern, compile_patterns};
+use code_context::utils::patterns::{matches_pattern, compile_patterns};
 
 /// Test if path matches glob pattern
 let matches = matches_pattern("src/main.rs", "src/**/*.rs");
@@ -565,7 +565,7 @@ let matches = patterns.is_match("Cargo.toml");
 
 ```rust
 use clap::{Parser, Subcommand};
-use code_digest::{Config, run};
+use code_context::{Config, run};
 
 #[derive(Parser)]
 #[command(name = "my-analyzer")]
@@ -600,7 +600,7 @@ fn main() -> anyhow::Result<()> {
                 progress: true,
                 verbose: false,
                 quiet: false,
-                llm_tool: code_digest::cli::LlmTool::Gemini,
+                llm_tool: code_context::cli::LlmTool::Gemini,
                 config: None,
                 prompt: None,
             };
@@ -618,7 +618,7 @@ fn main() -> anyhow::Result<()> {
 ```rust
 use axum::{extract::Query, http::StatusCode, response::Json, routing::get, Router};
 use serde::{Deserialize, Serialize};
-use code_digest::{Config, run};
+use code_context::{Config, run};
 
 #[derive(Deserialize)]
 struct AnalyzeRequest {
@@ -641,7 +641,7 @@ async fn analyze_endpoint(Query(params): Query<AnalyzeRequest>) -> Json<AnalyzeR
         progress: false,
         verbose: false,
         quiet: true,
-        llm_tool: code_digest::cli::LlmTool::Gemini,
+        llm_tool: code_context::cli::LlmTool::Gemini,
         config: None,
         prompt: None,
     };
@@ -676,10 +676,10 @@ async fn main() {
 
 ```rust
 use tokio::task;
-use code_digest::{Config, run};
+use code_context::{Config, run};
 
 async fn async_analysis(directory: PathBuf) -> anyhow::Result<String> {
-    // Run code-digest in a blocking task
+    // Run context-creator in a blocking task
     let config = Config {
         directory,
         output_file: None,
@@ -687,7 +687,7 @@ async fn async_analysis(directory: PathBuf) -> anyhow::Result<String> {
         progress: false,
         verbose: false,
         quiet: true,
-        llm_tool: code_digest::cli::LlmTool::Gemini,
+        llm_tool: code_context::cli::LlmTool::Gemini,
         config: None,
         prompt: None,
     };
@@ -762,7 +762,7 @@ mod tests {
             progress: false,
             verbose: false,
             quiet: true,
-            llm_tool: code_digest::cli::LlmTool::Gemini,
+            llm_tool: code_context::cli::LlmTool::Gemini,
             config: None,
             prompt: None,
         };
@@ -770,7 +770,7 @@ mod tests {
         let markdown = run_and_capture_output(config)?;
         
         // Verify output
-        assert!(markdown.contains("# Code Digest"));
+        assert!(markdown.contains("# Code context"));
         assert!(markdown.contains("main.rs"));
         assert!(markdown.contains("lib.rs"));
         assert!(markdown.contains("Hello, world!"));
@@ -784,7 +784,7 @@ mod tests {
 
 ```rust
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use code_digest::{Config, run_and_capture_output};
+use code_context::{Config, run_and_capture_output};
 
 fn benchmark_analysis(c: &mut Criterion) {
     let config = Config {
@@ -794,7 +794,7 @@ fn benchmark_analysis(c: &mut Criterion) {
         progress: false,
         verbose: false,
         quiet: true,
-        llm_tool: code_digest::cli::LlmTool::Gemini,
+        llm_tool: code_context::cli::LlmTool::Gemini,
         config: None,
         prompt: None,
     };
@@ -815,7 +815,7 @@ criterion_main!(benches);
 ### Memory Management
 
 ```rust
-use code_digest::core::walker::WalkOptions;
+use code_context::core::walker::WalkOptions;
 
 // For large projects, use streaming approach
 let walk_options = WalkOptions {
@@ -835,7 +835,7 @@ for chunk in files.chunks(CHUNK_SIZE) {
 
 ```rust
 use rayon::prelude::*;
-use code_digest::core::token::TokenCounter;
+use code_context::core::token::TokenCounter;
 
 // Parallel token counting
 let counter = TokenCounter::new()?;
@@ -882,4 +882,4 @@ fn cached_analysis(path: &Path, cache: Cache) -> anyhow::Result<String> {
 }
 ```
 
-This API reference provides comprehensive documentation for integrating code-digest into other applications and using it programmatically.
+This API reference provides comprehensive documentation for integrating context-creator into other applications and using it programmatically.

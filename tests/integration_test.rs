@@ -148,7 +148,7 @@ fn test_process_with_token_limit() {
 
 /// Test processing with .context-creator-ignore file
 #[test]
-fn test_process_with_digestignore() {
+fn test_process_with_contextignore() {
     let temp_dir = TempDir::new().unwrap();
     let project_dir = temp_dir.path().join("test_project");
     fs::create_dir(&project_dir).unwrap();

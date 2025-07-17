@@ -1,6 +1,6 @@
 # Usage Guide
 
-This guide covers all aspects of using code-digest effectively, from basic commands to advanced workflows.
+This guide covers all aspects of using context-creator effectively, from basic commands to advanced workflows.
 
 ## Basic Usage
 
@@ -8,31 +8,31 @@ This guide covers all aspects of using code-digest effectively, from basic comma
 
 ```bash
 # Generate markdown for current directory
-code-digest
+context-creator
 
 # Process specific directory
-code-digest -d /path/to/project
+context-creator -d /path/to/project
 
 # Save to file
-code-digest -d /path/to/project -o project.md
+context-creator -d /path/to/project -o project.md
 
 # Process with progress indicators
-code-digest -d /path/to/project -o project.md --progress
+context-creator -d /path/to/project -o project.md --progress
 ```
 
 ### LLM Integration
 
 ```bash
 # Direct LLM interaction (requires gemini or codex)
-code-digest -d /path/to/project "Explain the architecture"
+context-creator -d /path/to/project "Explain the architecture"
 
 # With specific LLM tool
-code-digest -d /path/to/project --tool gemini "Review this code"
-code-digest -d /path/to/project --tool codex "Find potential bugs"
+context-creator -d /path/to/project --tool gemini "Review this code"
+context-creator -d /path/to/project --tool codex "Find potential bugs"
 
 # Analyze specific aspects
-code-digest -d /path/to/project "What are the main security concerns?"
-code-digest -d /path/to/project "How can we improve performance?"
+context-creator -d /path/to/project "What are the main security concerns?"
+context-creator -d /path/to/project "How can we improve performance?"
 ```
 
 ## Command Line Options
@@ -41,59 +41,59 @@ code-digest -d /path/to/project "How can we improve performance?"
 
 ```bash
 # Directory to process (default: current directory)
-code-digest -d /path/to/project
-code-digest --directory /path/to/project
+context-creator -d /path/to/project
+context-creator --directory /path/to/project
 
 # Output file (default: stdout)
-code-digest -o output.md
-code-digest --output output.md
+context-creator -o output.md
+context-creator --output output.md
 
 # Maximum tokens (for token-limited LLMs)
-code-digest --max-tokens 50000
-code-digest --max-tokens 100000
+context-creator --max-tokens 50000
+context-creator --max-tokens 100000
 
 # LLM tool selection
-code-digest -t gemini
-code-digest --tool codex
+context-creator -t gemini
+context-creator --tool codex
 
 # Configuration file
-code-digest -c config.toml
-code-digest --config /path/to/config.toml
+context-creator -c config.toml
+context-creator --config /path/to/config.toml
 ```
 
 ### Verbosity and Output
 
 ```bash
 # Quiet mode (suppress all output except errors)
-code-digest -q
-code-digest --quiet
+context-creator -q
+context-creator --quiet
 
 # Verbose mode (detailed logging)
-code-digest -v
-code-digest --verbose
+context-creator -v
+context-creator --verbose
 
 # Progress indicators
-code-digest --progress
+context-creator --progress
 
 # Combined options
-code-digest -d /path/to/project -o output.md --verbose --progress
+context-creator -d /path/to/project -o output.md --verbose --progress
 ```
 
 ### Help and Information
 
 ```bash
 # Show help
-code-digest -h
-code-digest --help
+context-creator -h
+context-creator --help
 
 # Show version
-code-digest --version
+context-creator --version
 
 # List supported file types
-code-digest --list-types
+context-creator --list-types
 
 # Show configuration schema
-code-digest --config-schema
+context-creator --config-schema
 ```
 
 ## Token Management
@@ -104,42 +104,42 @@ Token limits help optimize output for LLM context windows:
 
 ```bash
 # GPT-3.5 Turbo (4K context)
-code-digest --max-tokens 3000
+context-creator --max-tokens 3000
 
 # GPT-4 (8K context)
-code-digest --max-tokens 7000
+context-creator --max-tokens 7000
 
 # GPT-4 Turbo (128K context)
-code-digest --max-tokens 120000
+context-creator --max-tokens 120000
 
 # Claude-3 (200K context)
-code-digest --max-tokens 180000
+context-creator --max-tokens 180000
 ```
 
 ### Token Usage Examples
 
 ```bash
 # Small project analysis
-code-digest -d small-project --max-tokens 5000
+context-creator -d small-project --max-tokens 5000
 
 # Medium project with prioritization
-code-digest -d medium-project --max-tokens 25000 --verbose
+context-creator -d medium-project --max-tokens 25000 --verbose
 
 # Large project with careful selection
-code-digest -d large-project --max-tokens 100000 --progress
+context-creator -d large-project --max-tokens 100000 --progress
 
 # No token limit (include everything)
-code-digest -d project  # No --max-tokens
+context-creator -d project  # No --max-tokens
 ```
 
 ## File Filtering
 
-### Using .digestignore
+### Using .contextignore
 
-Create a `.digestignore` file in your project root:
+Create a `.contextignore` file in your project root:
 
 ```bash
-# Example .digestignore
+# Example .contextignore
 node_modules/
 target/
 .git/
@@ -177,7 +177,7 @@ include = [
 ### Basic Configuration
 
 ```toml
-# ~/.config/code-digest/config.toml
+# ~/.config/context-creator/config.toml
 
 [defaults]
 max_tokens = 50000
@@ -208,7 +208,7 @@ weight = 100.0
 
 ```bash
 # Create project config
-cat > .code-digest.toml << EOF
+cat > .context-creator.toml << EOF
 [defaults]
 max_tokens = 25000
 progress = true
@@ -221,7 +221,7 @@ weight = 200.0
 EOF
 
 # Use project config
-code-digest -c .code-digest.toml -d .
+context-creator -c .context-creator.toml -d .
 ```
 
 ## Workflow Examples
@@ -230,63 +230,63 @@ code-digest -c .code-digest.toml -d .
 
 ```bash
 # 1. Generate comprehensive review
-code-digest -d feature-branch --max-tokens 50000 -o review.md
+context-creator -d feature-branch --max-tokens 50000 -o review.md
 
 # 2. Focus on changes
 git diff main..feature-branch --name-only | while read file; do
     echo "## $file" >> changes.md
-    code-digest -d . --include "$file" >> changes.md
+    context-creator -d . --include "$file" >> changes.md
 done
 
 # 3. Interactive review with LLM
-code-digest -d feature-branch "Review this code for:"
-code-digest -d feature-branch "1. Security vulnerabilities"
-code-digest -d feature-branch "2. Performance issues"
-code-digest -d feature-branch "3. Code quality concerns"
+context-creator -d feature-branch "Review this code for:"
+context-creator -d feature-branch "1. Security vulnerabilities"
+context-creator -d feature-branch "2. Performance issues"
+context-creator -d feature-branch "3. Code quality concerns"
 ```
 
 ### Documentation Generation
 
 ```bash
 # Generate API documentation
-code-digest -d src/ --max-tokens 30000 "Generate API documentation"
+context-creator -d src/ --max-tokens 30000 "Generate API documentation"
 
 # Create onboarding guide
-code-digest -d . "Create a guide for new developers"
+context-creator -d . "Create a guide for new developers"
 
 # Architecture overview
-code-digest -d . --max-tokens 20000 "Explain the system architecture"
+context-creator -d . --max-tokens 20000 "Explain the system architecture"
 
 # Technical debt analysis
-code-digest -d . "Identify areas of technical debt"
+context-creator -d . "Identify areas of technical debt"
 ```
 
 ### Migration Planning
 
 ```bash
 # Analyze codebase for migration
-code-digest -d legacy-app "Analyze for Python 2 to 3 migration"
-code-digest -d js-app "Plan migration from JavaScript to TypeScript"
-code-digest -d . "Identify dependencies for cloud migration"
+context-creator -d legacy-app "Analyze for Python 2 to 3 migration"
+context-creator -d js-app "Plan migration from JavaScript to TypeScript"
+context-creator -d . "Identify dependencies for cloud migration"
 
 # Generate migration checklist
-code-digest -d . -o migration-analysis.md --max-tokens 40000
+context-creator -d . -o migration-analysis.md --max-tokens 40000
 ```
 
 ### Learning and Understanding
 
 ```bash
 # Understand new codebase
-code-digest -d unknown-project "Explain what this project does"
+context-creator -d unknown-project "Explain what this project does"
 
 # Learn specific patterns
-code-digest -d . "Show examples of the observer pattern"
+context-creator -d . "Show examples of the observer pattern"
 
 # Understand architecture
-code-digest -d . "Describe the microservices architecture"
+context-creator -d . "Describe the microservices architecture"
 
 # Find examples
-code-digest -d . "Show how authentication is implemented"
+context-creator -d . "Show how authentication is implemented"
 ```
 
 ## Advanced Usage
@@ -296,10 +296,10 @@ code-digest -d . "Show how authentication is implemented"
 ```bash
 # Control parallelism
 export RAYON_NUM_THREADS=8
-code-digest -d large-project
+context-creator -d large-project
 
 # Process multiple projects
-parallel -j4 'code-digest -d {} -o {/.}.md' ::: project1 project2 project3 project4
+parallel -j4 'context-creator -d {} -o {/.}.md' ::: project1 project2 project3 project4
 ```
 
 ### Batch Processing
@@ -310,7 +310,7 @@ parallel -j4 'code-digest -d {} -o {/.}.md' ::: project1 project2 project3 proje
 
 for project in projects/*/; do
     echo "Processing $project..."
-    code-digest -d "$project" -o "docs/$(basename "$project").md" --progress
+    context-creator -d "$project" -o "docs/$(basename "$project").md" --progress
 done
 ```
 
@@ -318,9 +318,9 @@ done
 
 ```bash
 # Using configuration templates
-code-digest -c templates/api-docs.toml -d api/
-code-digest -c templates/security-review.toml -d .
-code-digest -c templates/performance.toml -d critical-path/
+context-creator -c templates/api-docs.toml -d api/
+context-creator -c templates/security-review.toml -d .
+context-creator -c templates/performance.toml -d critical-path/
 ```
 
 ### Integration with CI/CD
@@ -339,12 +339,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
-      - name: Install code-digest
-        run: cargo install code-digest
+      - name: Install context-creator
+        run: cargo install context-creator
       
       - name: Generate documentation
         run: |
-          code-digest -d . -o docs/codebase.md --max-tokens 100000
+          context-creator -d . -o docs/codebase.md --max-tokens 100000
           
       - name: Commit documentation
         run: |
@@ -361,13 +361,13 @@ jobs:
 
 ```bash
 # Basic markdown output
-code-digest -d project -o project.md
+context-creator -d project -o project.md
 
 # With table of contents
-code-digest -d project -o project.md  # TOC included by default
+context-creator -d project -o project.md  # TOC included by default
 
 # File tree structure
-code-digest -d project -o project.md  # Tree included by default
+context-creator -d project -o project.md  # Tree included by default
 ```
 
 ### Custom Formatting
@@ -382,7 +382,7 @@ group_by_type = false
 sort_by_priority = true
 
 file_header_template = "## 📁 {path}"
-doc_header_template = "# 🚀 Code Digest: {directory}"
+doc_header_template = "# 🚀 Code context: {directory}"
 ```
 
 ## Performance Optimization
@@ -391,35 +391,35 @@ doc_header_template = "# 🚀 Code Digest: {directory}"
 
 ```bash
 # Use token limits for large projects
-code-digest -d huge-project --max-tokens 50000 --progress
+context-creator -d huge-project --max-tokens 50000 --progress
 
 # Exclude unnecessary files
-code-digest -d huge-project -c minimal-config.toml
+context-creator -d huge-project -c minimal-config.toml
 
 # Process in chunks
-find huge-project -type d -maxdepth 1 | xargs -I {} code-digest -d {} -o {}.md
+find huge-project -type d -maxdepth 1 | xargs -I {} context-creator -d {} -o {}.md
 ```
 
 ### Memory Management
 
 ```bash
 # For memory-constrained environments
-export CODE_DIGEST_CHUNK_SIZE=1000
-code-digest -d project --max-tokens 10000
+export CODE_context_CHUNK_SIZE=1000
+context-creator -d project --max-tokens 10000
 
 # Streaming mode for very large outputs
-code-digest -d project | head -n 10000 > partial.md
+context-creator -d project | head -n 10000 > partial.md
 ```
 
 ### Caching
 
 ```bash
 # Enable caching (experimental)
-export CODE_DIGEST_CACHE_DIR=~/.cache/code-digest
-code-digest -d project -o project.md
+export CODE_context_CACHE_DIR=~/.cache/context-creator
+context-creator -d project -o project.md
 
 # Clear cache
-rm -rf ~/.cache/code-digest
+rm -rf ~/.cache/context-creator
 ```
 
 ## Error Handling
@@ -429,35 +429,35 @@ rm -rf ~/.cache/code-digest
 ```bash
 # Permission denied
 sudo chown -R $(whoami) /path/to/project
-code-digest -d /path/to/project
+context-creator -d /path/to/project
 
 # Out of memory
-code-digest -d project --max-tokens 10000
+context-creator -d project --max-tokens 10000
 
 # LLM tool not found
 which gemini  # Check if installed
 export PATH="$PATH:/path/to/llm/tools"
-code-digest -d project --tool gemini "prompt"
+context-creator -d project --tool gemini "prompt"
 
 # Configuration error
-code-digest --config-schema > schema.json
-code-digest -c config.toml --validate-config
+context-creator --config-schema > schema.json
+context-creator -c config.toml --validate-config
 ```
 
 ### Debugging
 
 ```bash
 # Debug mode
-RUST_LOG=debug code-digest -d project --verbose
+RUST_LOG=debug context-creator -d project --verbose
 
 # Trace execution
-RUST_LOG=trace code-digest -d project 2> debug.log
+RUST_LOG=trace context-creator -d project 2> debug.log
 
 # Check configuration
-code-digest -c config.toml --dry-run
+context-creator -c config.toml --dry-run
 
 # Validate before processing
-code-digest -d project --validate-only
+context-creator -d project --validate-only
 ```
 
 ## Tips and Best Practices
@@ -465,7 +465,7 @@ code-digest -d project --validate-only
 ### Performance Tips
 
 1. **Use token limits** for large projects to avoid memory issues
-2. **Configure .digestignore** to exclude unnecessary files
+2. **Configure .contextignore** to exclude unnecessary files
 3. **Use --progress** for long-running operations
 4. **Set appropriate parallelism** with RAYON_NUM_THREADS
 5. **Cache frequently accessed projects** (when available)
@@ -480,7 +480,7 @@ code-digest -d project --validate-only
 
 ### Security Tips
 
-1. **Review .digestignore** to exclude secrets
+1. **Review .contextignore** to exclude secrets
 2. **Use configuration files** to avoid command-line exposure
 3. **Limit token output** for sensitive codebases
 4. **Check output files** for sensitive information

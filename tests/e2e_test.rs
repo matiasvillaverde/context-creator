@@ -991,7 +991,7 @@ pattern = "*.toml"
 weight = 150.0
 "#;
 
-    let config_file = temp_dir.path().join("digest-config.toml");
+    let config_file = temp_dir.path().join("context-config.toml");
     fs::write(&config_file, config_content).unwrap();
 
     let output_file = temp_dir.path().join("config_output.md");

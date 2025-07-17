@@ -1,6 +1,6 @@
 # Sample Mixed Project
 
-This is a sample project demonstrating a mixed-language codebase for testing `code-digest`.
+This is a sample project demonstrating a mixed-language codebase for testing `context-creator`.
 
 ## Features
 

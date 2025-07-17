@@ -768,7 +768,7 @@ mod tests {
     }
 
     #[test]
-    fn test_digest_options_from_config() {
+    fn test_context_options_from_config() {
         use crate::cli::Config;
         use tempfile::TempDir;
 

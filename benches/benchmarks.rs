@@ -147,7 +147,7 @@ fn bench_file_prioritization(c: &mut Criterion) {
         let walk_options = WalkOptions::default();
         let files = walk_directory(&project_dir, walk_options).unwrap();
 
-        let digest_options = ContextOptions {
+        let context_options = ContextOptions {
             max_tokens: Some(50000),
             include_tree: true,
             include_stats: true,
@@ -162,7 +162,7 @@ fn bench_file_prioritization(c: &mut Criterion) {
         group.throughput(Throughput::Elements(file_count as u64));
         group.bench_with_input(
             BenchmarkId::new("prioritize_files", file_count),
-            &(&files, &digest_options),
+            &(&files, &context_options),
             |b, (files, options)| {
                 b.iter(|| {
                     let files_clone = (*files).clone();
@@ -187,7 +187,7 @@ fn bench_markdown_generation(c: &mut Criterion) {
         let walk_options = WalkOptions::default();
         let files = walk_directory(&project_dir, walk_options).unwrap();
 
-        let digest_options = ContextOptions {
+        let context_options = ContextOptions {
             max_tokens: None,
             include_tree: true,
             include_stats: true,
@@ -202,7 +202,7 @@ fn bench_markdown_generation(c: &mut Criterion) {
         group.throughput(Throughput::Elements(file_count as u64));
         group.bench_with_input(
             BenchmarkId::new("generate_markdown", file_count),
-            &(&files, &digest_options),
+            &(&files, &context_options),
             |b, (files, options)| {
                 b.iter(|| {
                     let files_clone = (*files).clone();
@@ -239,7 +239,7 @@ fn bench_end_to_end_processing(c: &mut Criterion) {
                     let walk_options = WalkOptions::default();
                     let files = walk_directory(black_box(path), walk_options).unwrap();
 
-                    let digest_options = ContextOptions {
+                    let context_options = ContextOptions {
                         max_tokens: Some(100000),
                         include_tree: true,
                         include_stats: true,
@@ -253,9 +253,9 @@ fn bench_end_to_end_processing(c: &mut Criterion) {
 
                     let cache = Arc::new(FileCache::new());
                     let prioritized_files =
-                        prioritize_files(files, &digest_options, cache.clone()).unwrap();
+                        prioritize_files(files, &context_options, cache.clone()).unwrap();
                     let _markdown =
-                        generate_markdown(prioritized_files, digest_options, cache).unwrap();
+                        generate_markdown(prioritized_files, context_options, cache).unwrap();
 
                     black_box(());
                 });

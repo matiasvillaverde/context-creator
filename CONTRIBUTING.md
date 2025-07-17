@@ -111,7 +111,7 @@ Example:
 ```
 feat: add support for custom ignore patterns
 
-- Implement .digestignore file parsing
+- Implement .contextignore file parsing
 - Add tests for ignore pattern matching
 - Update documentation
 ```

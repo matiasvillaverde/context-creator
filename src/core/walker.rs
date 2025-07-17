@@ -1,4 +1,4 @@
-//! Directory walking functionality with .gitignore and .digestignore support
+//! Directory walking functionality with .gitignore and .context-creator-ignore support
 
 use crate::utils::error::ContextCreatorError;
 use crate::utils::file_ext::FileType;
@@ -61,7 +61,7 @@ pub struct WalkOptions {
     pub include_hidden: bool,
     /// Use parallel processing
     pub parallel: bool,
-    /// Custom ignore file name (default: .digestignore)
+    /// Custom ignore file name (default: .context-creator-ignore)
     pub ignore_file: String,
     /// Additional glob patterns to ignore
     pub ignore_patterns: Vec<String>,
@@ -598,7 +598,7 @@ mod tests {
     }
 
     #[test]
-    fn test_walk_with_digestignore() {
+    fn test_walk_with_contextignore() {
         let temp_dir = TempDir::new().unwrap();
         let root = temp_dir.path();
 
@@ -606,7 +606,7 @@ mod tests {
         File::create(root.join("main.rs")).unwrap();
         File::create(root.join("ignored.rs")).unwrap();
 
-        // Create .digestignore
+        // Create .context-creator-ignore
         fs::write(root.join(".context-creator-ignore"), "ignored.rs").unwrap();
 
         let options = WalkOptions::default();
