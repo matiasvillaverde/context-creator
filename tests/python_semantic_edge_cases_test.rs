@@ -429,7 +429,6 @@ if __name__ == "__main__":
 
 /// Test Python with async/await
 #[test]
-#[ignore = "Temporarily disabled to debug CI issue"]
 fn test_python_async_await() {
     let temp_dir = TempDir::new().unwrap();
     let src_dir = temp_dir.path().join("src");
@@ -844,7 +843,6 @@ if __name__ == "__main__":
 
 /// Test Python method calls and attribute access
 #[test]
-#[ignore = "Temporarily disabled to debug CI issue"]
 fn test_python_method_calls_and_attributes() {
     let temp_dir = TempDir::new().unwrap();
     let src_dir = temp_dir.path().join("src");
@@ -953,7 +951,6 @@ def use_processor():
 
 /// Test Python list/dict comprehensions with function calls
 #[test]
-#[ignore = "Temporarily disabled to debug CI issue"]
 fn test_python_comprehension_function_tracking() {
     let temp_dir = TempDir::new().unwrap();
     let src_dir = temp_dir.path().join("src");
