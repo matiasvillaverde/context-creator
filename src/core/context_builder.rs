@@ -1,4 +1,4 @@
-//! Markdown generation functionality
+//! Context creation functionality for LLM consumption
 
 use crate::core::cache::FileCache;
 use crate::core::walker::FileInfo;
@@ -8,9 +8,9 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
-/// Options for generating markdown digest
+/// Options for generating context for LLM consumption
 #[derive(Debug, Clone)]
-pub struct DigestOptions {
+pub struct ContextOptions {
     /// Maximum tokens allowed in the output
     pub max_tokens: Option<usize>,
     /// Include file tree in output
@@ -31,33 +31,33 @@ pub struct DigestOptions {
     pub enhanced_context: bool,
 }
 
-impl DigestOptions {
-    /// Create DigestOptions from CLI config
+impl ContextOptions {
+    /// Create ContextOptions from CLI config
     pub fn from_config(config: &crate::cli::Config) -> Result<Self> {
-        Ok(DigestOptions {
+        Ok(ContextOptions {
             max_tokens: config.get_effective_context_tokens(),
             include_tree: true,
             include_stats: true,
             group_by_type: false,
             sort_by_priority: true,
             file_header_template: "## {path}".to_string(),
-            doc_header_template: "# Code Digest: {directory}".to_string(),
+            doc_header_template: "# Code Context: {directory}".to_string(),
             include_toc: true,
             enhanced_context: config.enhanced_context,
         })
     }
 }
 
-impl Default for DigestOptions {
+impl Default for ContextOptions {
     fn default() -> Self {
-        DigestOptions {
+        ContextOptions {
             max_tokens: None,
             include_tree: true,
             include_stats: true,
             group_by_type: false,
             sort_by_priority: true,
             file_header_template: "## {path}".to_string(),
-            doc_header_template: "# Code Digest: {directory}".to_string(),
+            doc_header_template: "# Code Context: {directory}".to_string(),
             include_toc: true,
             enhanced_context: false,
         }
@@ -65,7 +65,7 @@ impl Default for DigestOptions {
 }
 
 /// Estimate the total size of the markdown output
-fn estimate_output_size(files: &[FileInfo], options: &DigestOptions, cache: &FileCache) -> usize {
+fn estimate_output_size(files: &[FileInfo], options: &ContextOptions, cache: &FileCache) -> usize {
     let mut size = 0;
 
     // Document header
@@ -112,7 +112,7 @@ fn estimate_output_size(files: &[FileInfo], options: &DigestOptions, cache: &Fil
 /// Generate markdown from a list of files
 pub fn generate_markdown(
     files: Vec<FileInfo>,
-    options: DigestOptions,
+    options: ContextOptions,
     cache: Arc<FileCache>,
 ) -> Result<String> {
     // Pre-allocate string with estimated capacity
@@ -190,7 +190,7 @@ pub fn generate_markdown(
 fn append_file_content(
     output: &mut String,
     file: &FileInfo,
-    options: &DigestOptions,
+    options: &ContextOptions,
     cache: &FileCache,
 ) -> Result<()> {
     // Read file content from cache
@@ -346,7 +346,7 @@ fn generate_statistics(files: &[FileInfo]) -> String {
 }
 
 /// Generate a file tree representation
-fn generate_file_tree(files: &[FileInfo], options: &DigestOptions) -> String {
+fn generate_file_tree(files: &[FileInfo], options: &ContextOptions) -> String {
     use std::collections::{BTreeMap, HashMap};
 
     #[derive(Default)]
@@ -390,7 +390,7 @@ fn generate_file_tree(files: &[FileInfo], options: &DigestOptions) -> String {
         _is_last: bool,
         current_path: &str,
         file_lookup: &HashMap<String, &FileInfo>,
-        options: &DigestOptions,
+        options: &ContextOptions,
     ) -> String {
         // Pre-allocate with estimated size
         let estimated_size = (node.dirs.len() + node.files.len()) * 100;
@@ -758,7 +758,7 @@ mod tests {
             },
         ];
 
-        let options = DigestOptions::default();
+        let options = ContextOptions::default();
         let tree = generate_file_tree(&files, &options);
         assert!(tree.contains("src/"));
         assert!(tree.contains("tests/"));
@@ -779,7 +779,7 @@ mod tests {
             ..Config::default()
         };
 
-        let options = DigestOptions::from_config(&config).unwrap();
+        let options = ContextOptions::from_config(&config).unwrap();
         assert_eq!(options.max_tokens, Some(100000));
         assert!(options.include_tree);
         assert!(options.include_stats);
@@ -790,14 +790,14 @@ mod tests {
     fn test_generate_markdown_structure_headers() {
         let files = vec![];
 
-        let options = DigestOptions {
+        let options = ContextOptions {
             max_tokens: None,
             include_tree: true,
             include_stats: true,
             group_by_type: true,
             sort_by_priority: true,
             file_header_template: "## {path}".to_string(),
-            doc_header_template: "# Code Digest".to_string(),
+            doc_header_template: "# Code Context".to_string(),
             include_toc: true,
             enhanced_context: false,
         };
@@ -806,7 +806,7 @@ mod tests {
         let markdown = generate_markdown(files, options, cache).unwrap();
 
         // Check that main structure is present even with no files
-        assert!(markdown.contains("# Code Digest"));
+        assert!(markdown.contains("# Code Context"));
         assert!(markdown.contains("## Statistics"));
     }
 
@@ -841,14 +841,14 @@ mod tests {
             },
         ];
 
-        let options = DigestOptions {
+        let options = ContextOptions {
             max_tokens: None,
             include_tree: true,
             include_stats: true,
             group_by_type: false,
             sort_by_priority: true,
             file_header_template: "## {path}".to_string(),
-            doc_header_template: "# Code Digest".to_string(),
+            doc_header_template: "# Code Context".to_string(),
             include_toc: true,
             enhanced_context: true,
         };
@@ -879,14 +879,14 @@ mod tests {
             type_references: Vec::new(),
         }];
 
-        let options = DigestOptions {
+        let options = ContextOptions {
             max_tokens: None,
             include_tree: true,
             include_stats: true,
             group_by_type: false,
             sort_by_priority: true,
             file_header_template: "## {path}".to_string(),
-            doc_header_template: "# Code Digest".to_string(),
+            doc_header_template: "# Code Context".to_string(),
             include_toc: true,
             enhanced_context: true,
         };
@@ -916,14 +916,14 @@ mod tests {
             type_references: Vec::new(),
         }];
 
-        let options = DigestOptions {
+        let options = ContextOptions {
             max_tokens: None,
             include_tree: true,
             include_stats: true,
             group_by_type: false,
             sort_by_priority: true,
             file_header_template: "## {path}".to_string(),
-            doc_header_template: "# Code Digest".to_string(),
+            doc_header_template: "# Code Context".to_string(),
             include_toc: true,
             enhanced_context: false,
         };

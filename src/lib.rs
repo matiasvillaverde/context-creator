@@ -1,4 +1,4 @@
-//! Code Digest - High-performance CLI tool to convert codebases to Markdown for LLM context
+//! Context Creator - High-performance CLI tool to convert codebases to Markdown for LLM context
 //!
 //! This library provides the core functionality for traversing directories,
 //! processing files, and generating formatted Markdown output suitable for
@@ -15,15 +15,15 @@ use std::path::Path;
 use std::sync::Arc;
 
 pub use cli::Config;
-pub use core::{cache::FileCache, digest::DigestOptions, walker::WalkOptions};
-pub use utils::error::CodeDigestError;
+pub use core::{cache::FileCache, context_builder::ContextOptions, walker::WalkOptions};
+pub use utils::error::ContextCreatorError;
 
-/// Main entry point for the code digest library
+/// Main entry point for the context creator library
 pub fn run(mut config: Config) -> Result<()> {
     // Handle remote repository if specified
     let _temp_dir = if let Some(repo_url) = &config.repo {
         if config.verbose {
-            eprintln!("🔧 Starting code-digest with remote repository: {repo_url}");
+            eprintln!("🔧 Starting context-creator with remote repository: {repo_url}");
         }
 
         // Fetch the repository
@@ -42,7 +42,7 @@ pub fn run(mut config: Config) -> Result<()> {
 
     // Setup logging based on verbosity
     if config.verbose {
-        eprintln!("🔧 Starting code-digest with configuration:");
+        eprintln!("🔧 Starting context-creator with configuration:");
         eprintln!("  Directories: {:?}", config.get_directories());
         eprintln!("  Max tokens: {:?}", config.max_tokens);
         eprintln!("  LLM tool: {}", config.llm_tool.command());
@@ -65,11 +65,11 @@ pub fn run(mut config: Config) -> Result<()> {
     }
     let walk_options = WalkOptions::from_config(&config)?;
 
-    // Create digest options
+    // Create context options
     if config.verbose {
-        eprintln!("📄 Creating markdown digest options...");
+        eprintln!("📄 Creating context generation options...");
     }
-    let digest_options = DigestOptions::from_config(&config)?;
+    let context_options = ContextOptions::from_config(&config)?;
 
     // Create shared file cache
     if config.verbose {
@@ -94,7 +94,7 @@ pub fn run(mut config: Config) -> Result<()> {
         let output = process_directory(
             directory,
             walk_options.clone(),
-            digest_options.clone(),
+            context_options.clone(),
             cache.clone(),
             &config,
         )?;
@@ -108,7 +108,7 @@ pub fn run(mut config: Config) -> Result<()> {
     } else {
         // Multiple directories - combine with headers
         let mut combined = String::new();
-        combined.push_str("# Code Digest - Multiple Directories\n\n");
+        combined.push_str("# Code Context - Multiple Directories\n\n");
 
         for (path, content) in all_outputs {
             combined.push_str(&format!("## Directory: {}\n\n", path.display()));
@@ -164,13 +164,13 @@ pub fn run(mut config: Config) -> Result<()> {
         }
         (Some(_), _, true) => {
             // This should have been caught by validation
-            return Err(CodeDigestError::InvalidConfiguration(
+            return Err(ContextCreatorError::InvalidConfiguration(
                 "Cannot specify both --copy and --output".to_string(),
             )
             .into());
         }
         (Some(_), Some(_), _) => {
-            return Err(CodeDigestError::InvalidConfiguration(
+            return Err(ContextCreatorError::InvalidConfiguration(
                 "Cannot specify both output file and prompt".to_string(),
             )
             .into());
@@ -184,7 +184,7 @@ pub fn run(mut config: Config) -> Result<()> {
 fn process_directory(
     path: &Path,
     walk_options: WalkOptions,
-    digest_options: DigestOptions,
+    context_options: ContextOptions,
     cache: Arc<FileCache>,
     config: &Config,
 ) -> Result<String> {
@@ -223,11 +223,11 @@ fn process_directory(
     }
 
     // Prioritize files if needed
-    let prioritized_files = if digest_options.max_tokens.is_some() {
+    let prioritized_files = if context_options.max_tokens.is_some() {
         if config.progress && !config.quiet {
             eprintln!("🎯 Prioritizing files for token limit...");
         }
-        core::prioritizer::prioritize_files(files, &digest_options, cache.clone())?
+        core::prioritizer::prioritize_files(files, &context_options, cache.clone())?
     } else {
         files
     };
@@ -240,7 +240,8 @@ fn process_directory(
     }
 
     // Generate markdown
-    let markdown = core::digest::generate_markdown(prioritized_files, digest_options, cache)?;
+    let markdown =
+        core::context_builder::generate_markdown(prioritized_files, context_options, cache)?;
 
     if config.progress && !config.quiet {
         eprintln!("✅ Markdown generation complete");
@@ -264,12 +265,12 @@ fn execute_with_llm(prompt: &str, context: &str, config: &Config) -> Result<()> 
         .spawn()
         .map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
-                CodeDigestError::LlmToolNotFound {
+                ContextCreatorError::LlmToolNotFound {
                     tool: tool_command.to_string(),
                     install_instructions: config.llm_tool.install_instructions().to_string(),
                 }
             } else {
-                CodeDigestError::SubprocessError(e.to_string())
+                ContextCreatorError::SubprocessError(e.to_string())
             }
         })?;
 
@@ -280,7 +281,7 @@ fn execute_with_llm(prompt: &str, context: &str, config: &Config) -> Result<()> 
 
     let status = child.wait()?;
     if !status.success() {
-        return Err(CodeDigestError::SubprocessError(format!(
+        return Err(ContextCreatorError::SubprocessError(format!(
             "{tool_command} exited with status: {status}"
         ))
         .into());
@@ -297,11 +298,12 @@ fn execute_with_llm(prompt: &str, context: &str, config: &Config) -> Result<()> 
 fn copy_to_clipboard(content: &str) -> Result<()> {
     use arboard::Clipboard;
 
-    let mut clipboard = Clipboard::new()
-        .map_err(|e| CodeDigestError::ClipboardError(format!("Failed to access clipboard: {e}")))?;
+    let mut clipboard = Clipboard::new().map_err(|e| {
+        ContextCreatorError::ClipboardError(format!("Failed to access clipboard: {e}"))
+    })?;
 
     clipboard.set_text(content).map_err(|e| {
-        CodeDigestError::ClipboardError(format!("Failed to copy to clipboard: {e}"))
+        ContextCreatorError::ClipboardError(format!("Failed to copy to clipboard: {e}"))
     })?;
 
     Ok(())

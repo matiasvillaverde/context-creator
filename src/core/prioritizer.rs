@@ -1,7 +1,7 @@
 //! File prioritization based on token limits
 
 use crate::core::cache::FileCache;
-use crate::core::digest::DigestOptions;
+use crate::core::context_builder::ContextOptions;
 use crate::core::token::{would_exceed_limit, TokenCounter};
 use crate::core::walker::FileInfo;
 use anyhow::Result;
@@ -18,7 +18,7 @@ struct FileWithTokens {
 /// Prioritize files based on their importance and token limits
 pub fn prioritize_files(
     mut files: Vec<FileInfo>,
-    options: &DigestOptions,
+    options: &ContextOptions,
     cache: Arc<FileCache>,
 ) -> Result<Vec<FileInfo>> {
     // Adjust priorities based on semantic dependencies
@@ -50,7 +50,7 @@ pub fn prioritize_files(
         .map(|file| {
             // Read file content from cache
             let content = cache.get_or_load(&file.path).map_err(|e| {
-                crate::utils::error::CodeDigestError::FileProcessingError {
+                crate::utils::error::ContextCreatorError::FileProcessingError {
                     path: file.path.display().to_string(),
                     error: format!("Could not read file: {e}"),
                 }
@@ -60,7 +60,7 @@ pub fn prioritize_files(
             let file_tokens = counter
                 .count_file_tokens(&content, &file.relative_path.to_string_lossy())
                 .map_err(
-                    |e| crate::utils::error::CodeDigestError::TokenCountingError {
+                    |e| crate::utils::error::ContextCreatorError::TokenCountingError {
                         path: file.path.display().to_string(),
                         error: e.to_string(),
                     },
@@ -129,7 +129,7 @@ pub fn prioritize_files(
 }
 
 /// Calculate token overhead for markdown structure
-fn calculate_structure_overhead(options: &DigestOptions, files: &[FileInfo]) -> Result<usize> {
+fn calculate_structure_overhead(options: &ContextOptions, files: &[FileInfo]) -> Result<usize> {
     let counter = TokenCounter::new()?;
     let mut overhead = 0;
 
@@ -295,7 +295,7 @@ mod tests {
 
         create_test_files(&temp_dir, &files);
         let cache = create_test_cache();
-        let options = DigestOptions::default();
+        let options = ContextOptions::default();
         let result = prioritize_files(files, &options, cache).unwrap();
 
         assert_eq!(result.len(), 2);
@@ -391,7 +391,7 @@ mod tests {
 
         create_test_files(&temp_dir, &files);
         let cache = create_test_cache();
-        let options = DigestOptions::default();
+        let options = ContextOptions::default();
         let result = prioritize_files(files, &options, cache).unwrap();
 
         // Should return all files when no limit
@@ -417,14 +417,14 @@ mod tests {
             type_references: Vec::new(),
         }];
 
-        let options = DigestOptions {
+        let options = ContextOptions {
             max_tokens: None,
             include_tree: true,
             include_stats: true,
             group_by_type: true,
             sort_by_priority: true,
             file_header_template: "## {path}".to_string(),
-            doc_header_template: "# Code Digest".to_string(),
+            doc_header_template: "# Code Context".to_string(),
             include_toc: true,
             enhanced_context: false,
         };
