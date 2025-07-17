@@ -5,6 +5,7 @@ use crate::core::semantic::{
         AnalysisResult, FunctionCall, Import, LanguageAnalyzer, SemanticContext, SemanticResult,
         TypeReference,
     },
+    path_validator::{validate_import_path, validate_module_name},
     resolver::{ModuleResolver, ResolvedPath, ResolverUtils},
 };
 use crate::utils::error::CodeDigestError;
@@ -457,6 +458,9 @@ impl ModuleResolver for RustModuleResolver {
         from_file: &Path,
         base_dir: &Path,
     ) -> Result<ResolvedPath, CodeDigestError> {
+        // Validate module name for security
+        validate_module_name(module_path)?;
+
         // Handle standard library imports
         if self.is_external_module(module_path) {
             return Ok(ResolvedPath {
@@ -473,8 +477,9 @@ impl ModuleResolver for RustModuleResolver {
             let full_path = base_dir.join("src").join(path);
 
             if let Some(resolved) = ResolverUtils::find_with_extensions(&full_path, &["rs"]) {
+                let validated_path = validate_import_path(base_dir, &resolved)?;
                 return Ok(ResolvedPath {
-                    path: resolved,
+                    path: validated_path,
                     is_external: false,
                     confidence: 0.9,
                 });
@@ -483,8 +488,9 @@ impl ModuleResolver for RustModuleResolver {
             // Try as a directory module (mod.rs)
             let mod_path = full_path.join("mod.rs");
             if mod_path.exists() {
+                let validated_path = validate_import_path(base_dir, &mod_path)?;
                 return Ok(ResolvedPath {
-                    path: mod_path,
+                    path: validated_path,
                     is_external: false,
                     confidence: 0.9,
                 });
@@ -509,8 +515,9 @@ impl ModuleResolver for RustModuleResolver {
                 // Try as a file
                 let file_path = parent.join(format!("{module_path}.rs"));
                 if file_path.exists() {
+                    let validated_path = validate_import_path(base_dir, &file_path)?;
                     return Ok(ResolvedPath {
-                        path: file_path,
+                        path: validated_path,
                         is_external: false,
                         confidence: 0.9,
                     });
@@ -519,8 +526,9 @@ impl ModuleResolver for RustModuleResolver {
                 // Try as a directory module
                 let mod_path = parent.join(module_path).join("mod.rs");
                 if mod_path.exists() {
+                    let validated_path = validate_import_path(base_dir, &mod_path)?;
                     return Ok(ResolvedPath {
-                        path: mod_path,
+                        path: validated_path,
                         is_external: false,
                         confidence: 0.9,
                     });
