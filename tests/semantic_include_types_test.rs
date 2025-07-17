@@ -215,33 +215,15 @@ impl<T> ApiResponse<T> {
         "Should include type definition files"
     );
 
-    // Debug: Print all expanded files to understand what's happening
-    eprintln!("DEBUG: Total expanded files: {}", expanded_files.len());
-    for (i, file) in expanded_files.iter().enumerate() {
-        eprintln!("DEBUG: File {}: {:?}", i, file.relative_path);
-    }
-
     // Verify specific files are included (platform-agnostic path checking)
     let has_user_model = expanded_files.iter().any(|f| {
         let path_str = f.relative_path.to_str().unwrap();
-        let contains_models_and_user = path_str.contains("models") && path_str.contains("user.rs");
-        eprintln!(
-            "DEBUG: Checking file '{path_str}' - contains models and user.rs: {contains_models_and_user}"
-        );
-        contains_models_and_user
+        path_str.contains("models") && path_str.contains("user.rs")
     });
     let has_api_response = expanded_files.iter().any(|f| {
         let path_str = f.relative_path.to_str().unwrap();
-        let contains_shared_types_mod = path_str.contains("shared")
-            && path_str.contains("types")
-            && path_str.contains("mod.rs");
-        eprintln!(
-            "DEBUG: Checking file '{path_str}' - contains shared, types and mod.rs: {contains_shared_types_mod}"
-        );
-        contains_shared_types_mod
+        path_str.contains("shared") && path_str.contains("types") && path_str.contains("mod.rs")
     });
-
-    eprintln!("DEBUG: has_user_model = {has_user_model}, has_api_response = {has_api_response}");
 
     assert!(has_user_model, "User model file should be included");
     assert!(has_api_response, "ApiResponse type file should be included");
