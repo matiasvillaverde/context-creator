@@ -60,6 +60,14 @@ pub enum CodeDigestError {
     #[error("Invalid glob pattern: {0}")]
     InvalidGlobPattern(String),
 
+    /// Mutex errors
+    #[error("Mutex was poisoned, indicating a previous panic")]
+    MutexPoisoned,
+
+    /// Security errors
+    #[error("Security error: {0}")]
+    SecurityError(String),
+
     /// Remote repository errors
     #[error("Remote fetch error: {0}")]
     RemoteFetchError(String),
