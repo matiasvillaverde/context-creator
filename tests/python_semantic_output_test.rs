@@ -453,7 +453,7 @@ def use_classes():
     // Check that files are included
     assert!(stdout.contains("base.py"));
     assert!(stdout.contains("derived.py"));
-    assert!(stdout.contains("sub/module.py"));
+    assert!(stdout.contains("sub/module.py") || stdout.contains("sub\\module.py"));
 
     // derived.py should import base
     let derived_section = stdout
