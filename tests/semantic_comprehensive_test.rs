@@ -18,7 +18,6 @@ fn find_file<'a>(files: &'a [FileInfo], path_parts: &[&str]) -> Option<&'a FileI
 }
 
 #[test]
-#[ignore = "Semantic data not yet included in markdown output"]
 fn test_multi_language_project_semantic_analysis() {
     let temp_dir = TempDir::new().unwrap();
     let root = temp_dir.path();
