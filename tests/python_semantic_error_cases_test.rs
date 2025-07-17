@@ -179,18 +179,23 @@ def test_unicode():
 
     // Check if Unicode function names are tracked
     if stdout.contains("Function calls:") {
-        let imports_section = stdout
-            .split("unicode_imports.py")
-            .nth(1)
-            .unwrap_or("")
-            .split("##")
-            .next()
-            .unwrap_or("");
+        // Look for the unicode_imports.py section and get everything until the next file or end
+        let content = if let Some(start_idx) = stdout.find("## unicode_imports.py") {
+            let section_start = &stdout[start_idx..];
+            // Find the next ## (another file) or use the whole remaining content
+            if let Some(next_file_idx) = section_start[21..].find("##") {
+                &section_start[..next_file_idx + 21]
+            } else {
+                section_start
+            }
+        } else {
+            ""
+        };
 
         // Should track Unicode function calls
         assert!(
-            imports_section.contains("计算面积") || imports_section.contains("Function calls"),
-            "Should handle Unicode function names"
+            content.contains("计算面积") || content.contains("Function calls"),
+            "Should handle Unicode function names. Content: {content}"
         );
     }
 }

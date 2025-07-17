@@ -231,15 +231,25 @@ fn append_file_content(
             .imports
             .iter()
             .map(|p| {
-                // Get the file name without extension for cleaner output
-                p.file_name()
-                    .and_then(|n| n.to_str())
-                    .map(|name| {
-                        // Remove .rs extension if present
-                        name.strip_suffix(".rs").unwrap_or(name)
-                    })
-                    .unwrap_or_else(|| p.to_str().unwrap_or("unknown"))
-                    .to_string()
+                let filename = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+
+                // For Python __init__.py files, use the parent directory name
+                if filename == "__init__.py" {
+                    p.parent()
+                        .and_then(|parent| parent.file_name())
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("unknown")
+                        .to_string()
+                } else {
+                    // Remove common extensions
+                    filename
+                        .strip_suffix(".py")
+                        .or_else(|| filename.strip_suffix(".rs"))
+                        .or_else(|| filename.strip_suffix(".js"))
+                        .or_else(|| filename.strip_suffix(".ts"))
+                        .unwrap_or(filename)
+                        .to_string()
+                }
             })
             .collect();
         output.push_str(&format!("{}\n\n", import_names.join(", ")));
@@ -267,9 +277,9 @@ fn append_file_content(
             .iter()
             .map(|fc| {
                 if let Some(module) = &fc.module {
-                    format!("{}.{}()", module, fc.name)
+                    format!("{}.{}", module, fc.name)
                 } else {
-                    format!("{}()", fc.name)
+                    fc.name.clone()
                 }
             })
             .collect();

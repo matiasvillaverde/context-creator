@@ -530,17 +530,22 @@ if __name__ == "__main__":
 
     // Check function calls tracking
     if stdout.contains("Function calls:") {
-        let main_section = stdout
-            .split("async_main.py")
-            .nth(1)
-            .unwrap_or("")
-            .split("##")
-            .next()
-            .unwrap_or("");
+        // Look for the async_main.py section and get everything until the next file or end
+        let content = if let Some(start_idx) = stdout.find("## async_main.py") {
+            let section_start = &stdout[start_idx..];
+            // Find the next ## (another file) or use the whole remaining content
+            if let Some(next_file_idx) = section_start[16..].find("##") {
+                &section_start[..next_file_idx + 16]
+            } else {
+                section_start
+            }
+        } else {
+            ""
+        };
 
         assert!(
-            main_section.contains("fetch_data") || main_section.contains("process_batch"),
-            "Should track async function calls"
+            content.contains("fetch_data") || content.contains("process_batch"),
+            "Should track async function calls. Content: {content}"
         );
     }
 }
@@ -929,13 +934,18 @@ def use_processor():
 
     // Should track method calls
     if stdout.contains("Function calls:") {
-        let content = stdout
-            .split("methods.py")
-            .nth(1)
-            .unwrap_or("")
-            .split("##")
-            .next()
-            .unwrap_or("");
+        // Look for the methods.py section and get everything until the next file or end
+        let content = if let Some(start_idx) = stdout.find("## methods.py") {
+            let section_start = &stdout[start_idx..];
+            // Find the next ## (another file) or use the whole remaining content
+            if let Some(next_file_idx) = section_start[14..].find("##") {
+                &section_start[..next_file_idx + 14]
+            } else {
+                section_start
+            }
+        } else {
+            ""
+        };
 
         // Should track various types of method calls
         assert!(
@@ -944,7 +954,7 @@ def use_processor():
                 || content.contains("json.load")
                 || content.contains("json.dumps")
                 || content.contains("Path.cwd"),
-            "Should track method calls including json.load, json.dumps, etc."
+            "Should track method calls including json.load, json.dumps, etc. Content: {content}"
         );
     }
 }
@@ -1044,13 +1054,18 @@ def transform_data(data):
 
     // Should track function calls inside comprehensions
     if stdout.contains("Function calls:") {
-        let content = stdout
-            .split("comprehensions.py")
-            .nth(1)
-            .unwrap_or("")
-            .split("##")
-            .next()
-            .unwrap_or("");
+        // Look for the comprehensions.py section and get everything until the next file or end
+        let content = if let Some(start_idx) = stdout.find("## comprehensions.py") {
+            let section_start = &stdout[start_idx..];
+            // Find the next ## (another file) or use the whole remaining content
+            if let Some(next_file_idx) = section_start[20..].find("##") {
+                &section_start[..next_file_idx + 20]
+            } else {
+                section_start
+            }
+        } else {
+            ""
+        };
 
         assert!(
             content.contains("process_item")
@@ -1058,7 +1073,7 @@ def transform_data(data):
                 || content.contains("transform_data")
                 || content.contains("math.sqrt")
                 || content.contains("math.pow"),
-            "Should track function calls inside comprehensions and lambdas"
+            "Should track function calls inside comprehensions and lambdas. Content: {content}"
         );
     }
 }
