@@ -334,8 +334,8 @@ fn test_library() {
     let stdout = String::from_utf8_lossy(&output.stdout);
 
     // Should distinguish between files with same name
-    assert!(stdout.contains("src/lib.rs"));
-    assert!(stdout.contains("tests/lib.rs"));
+    assert!(stdout.contains("src/lib.rs") || stdout.contains("src\\lib.rs"));
+    assert!(stdout.contains("tests/lib.rs") || stdout.contains("tests\\lib.rs"));
 }
 
 /// Test with type references edge cases
@@ -564,7 +564,7 @@ pub fn child_function() {
 
     // Should track imports from parent modules
     assert!(output.status.success());
-    assert!(stdout.contains("submodule/mod.rs"));
+    assert!(stdout.contains("submodule/mod.rs") || stdout.contains("submodule\\mod.rs"));
 }
 
 /// Test with external crate imports (won't be tracked but shouldn't crash)
