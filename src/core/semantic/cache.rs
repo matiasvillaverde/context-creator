@@ -2,7 +2,7 @@
 //! Provides bounded memory usage and timeout protection
 
 use crate::core::semantic::parser_pool::ParserPoolManager;
-use crate::utils::error::CodeDigestError;
+use crate::utils::error::ContextCreatorError;
 use moka::future::Cache;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -92,7 +92,7 @@ impl AstCacheV2 {
         path: &Path,
         content: &str,
         language: &str,
-    ) -> Result<Arc<Tree>, CodeDigestError> {
+    ) -> Result<Arc<Tree>, ContextCreatorError> {
         let key = CacheKey::new(path, content, language);
 
         // Clone for the async block
@@ -111,14 +111,14 @@ impl AstCacheV2 {
                     let mut parser = parser_pool.get_parser(&language_clone).await?;
 
                     let tree = parser.parse(&content_clone, None).ok_or_else(|| {
-                        CodeDigestError::ParseError(format!(
+                        ContextCreatorError::ParseError(format!(
                             "Failed to parse {} file: {}",
                             language_clone,
                             path_clone.display()
                         ))
                     })?;
 
-                    Ok::<Tree, CodeDigestError>(tree)
+                    Ok::<Tree, ContextCreatorError>(tree)
                 })
                 .await;
 
@@ -128,7 +128,7 @@ impl AstCacheV2 {
                         content: Arc::new(content_clone),
                     }),
                     Ok(Err(e)) => Err(e),
-                    Err(_) => Err(CodeDigestError::ParseError(format!(
+                    Err(_) => Err(ContextCreatorError::ParseError(format!(
                         "Parsing timed out after {:?} for file: {}",
                         timeout_duration,
                         path_clone.display()
@@ -137,7 +137,7 @@ impl AstCacheV2 {
             })
             .await
             .map_err(|e| {
-                CodeDigestError::ParseError(format!("Failed to cache parse result: {e}"))
+                ContextCreatorError::ParseError(format!("Failed to cache parse result: {e}"))
             })?;
 
         Ok(entry.tree.clone())

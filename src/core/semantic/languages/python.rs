@@ -8,7 +8,7 @@ use crate::core::semantic::{
     path_validator::{validate_import_path, validate_module_name},
     resolver::{ModuleResolver, ResolvedPath, ResolverUtils},
 };
-use crate::utils::error::CodeDigestError;
+use crate::utils::error::ContextCreatorError;
 use std::path::Path;
 use tree_sitter::{Node, Parser};
 
@@ -587,7 +587,7 @@ impl ModuleResolver for PythonModuleResolver {
         module_path: &str,
         from_file: &Path,
         base_dir: &Path,
-    ) -> Result<ResolvedPath, CodeDigestError> {
+    ) -> Result<ResolvedPath, ContextCreatorError> {
         // Validate module name for security
         validate_module_name(module_path)?;
 

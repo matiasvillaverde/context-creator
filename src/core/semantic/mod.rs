@@ -1,4 +1,4 @@
-//! Semantic analysis module for code-digest
+//! Semantic analysis module for context-creator
 //!
 //! This module provides language-agnostic semantic analysis capabilities including:
 //! - Import/dependency tracing
@@ -27,7 +27,7 @@ mod test;
 pub use analyzer::{LanguageAnalyzer, SemanticContext, SemanticResult};
 pub use resolver::{ModuleResolver, ResolvedPath};
 
-use crate::utils::error::CodeDigestError;
+use crate::utils::error::ContextCreatorError;
 use std::path::Path;
 
 /// Semantic analysis options
@@ -63,7 +63,7 @@ impl SemanticOptions {
 /// Get the appropriate language analyzer for a file
 pub fn get_analyzer_for_file(
     path: &Path,
-) -> Result<Option<Box<dyn LanguageAnalyzer>>, CodeDigestError> {
+) -> Result<Option<Box<dyn LanguageAnalyzer>>, ContextCreatorError> {
     let extension = path.extension().and_then(|ext| ext.to_str()).unwrap_or("");
 
     let analyzer: Option<Box<dyn LanguageAnalyzer>> = match extension {
@@ -96,7 +96,7 @@ pub fn get_analyzer_for_file(
 /// Get the appropriate module resolver for a file
 pub fn get_resolver_for_file(
     path: &Path,
-) -> Result<Option<Box<dyn ModuleResolver>>, CodeDigestError> {
+) -> Result<Option<Box<dyn ModuleResolver>>, ContextCreatorError> {
     let extension = path.extension().and_then(|ext| ext.to_str()).unwrap_or("");
 
     let resolver: Option<Box<dyn ModuleResolver>> = match extension {

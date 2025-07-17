@@ -1,11 +1,11 @@
 //! Base trait and types for language-specific semantic analyzers
 
-use crate::utils::error::CodeDigestError;
+use crate::utils::error::ContextCreatorError;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 /// Result type for semantic analysis operations
-pub type SemanticResult<T> = Result<T, CodeDigestError>;
+pub type SemanticResult<T> = Result<T, ContextCreatorError>;
 
 /// Context information for semantic analysis
 #[derive(Debug, Clone)]
