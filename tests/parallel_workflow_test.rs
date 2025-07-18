@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Tests for optimal parallel workflow with rayon
 //!
 //! The optimal workflow should be:

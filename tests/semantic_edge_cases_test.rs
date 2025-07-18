@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Edge case tests for semantic analysis in markdown output
 
 use std::fs;

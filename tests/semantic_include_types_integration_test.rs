@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Integration test for --include-types using the full processing flow
 
 use context_creator::{run, Config};

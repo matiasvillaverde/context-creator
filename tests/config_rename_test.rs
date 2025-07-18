@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Tests for configuration file loading after rename
 
 use assert_cmd::Command;

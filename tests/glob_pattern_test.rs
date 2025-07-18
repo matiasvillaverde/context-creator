@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Integration tests for glob pattern support in --include flag
 
 use assert_cmd::Command;

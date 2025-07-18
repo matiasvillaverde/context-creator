@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Integration tests for FileCache in the processing pipeline
 
 use context_creator::core::cache::FileCache;

@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Debug test for include-types functionality
 
 use context_creator::cli::Config;

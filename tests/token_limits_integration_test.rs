@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 use clap::Parser;
 use context_creator::cli::Config;
 use std::fs;

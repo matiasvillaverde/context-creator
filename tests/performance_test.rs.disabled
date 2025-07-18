@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Performance tests to verify optimization requirements
 
 use context_creator::core::cache::FileCache;

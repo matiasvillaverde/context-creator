@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Integration tests for context-creator
 //!
 //! These tests verify that the complete application workflows work correctly

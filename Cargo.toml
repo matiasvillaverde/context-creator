@@ -52,6 +52,18 @@ codegen-units = 1
 strip = true
 opt-level = 3
 
+[profile.dev]
+opt-level = 0
+debug = 1
+incremental = true
+codegen-units = 256
+
+[profile.test]
+opt-level = 0
+debug = 1
+incremental = true
+codegen-units = 256
+
 [[bench]]
 name = "benchmarks"
 harness = false

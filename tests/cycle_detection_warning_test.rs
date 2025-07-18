@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Test cycle detection warning output
 
 use context_creator::cli::Config;

@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! End-to-End tests for context-creator
 //!
 //! These tests verify complete user workflows from CLI invocation to final output,

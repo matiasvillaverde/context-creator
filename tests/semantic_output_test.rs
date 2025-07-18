@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Integration test to verify semantic analysis data is included in markdown output
 
 use std::fs;

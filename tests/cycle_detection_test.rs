@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Test cycle detection using Kahn's algorithm
 
 use context_creator::cli::Config;

@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Tests for dependency graph edge typing
 //!
 //! These tests verify that different types of dependencies (imports, function calls, inheritance)

@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Stress tests for security fixes to find potential bugs and edge cases
 
 use context_creator::core::walker::{sanitize_pattern, WalkOptions};

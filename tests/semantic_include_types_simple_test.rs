@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Simple failing test to demonstrate --include-types doesn't expand files yet
 
 use context_creator::cli::Config;

@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Test specifically for semantic information in markdown output
 
 use std::fs;

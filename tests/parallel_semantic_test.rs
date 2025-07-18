@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Test parallel semantic analysis performance
 
 use context_creator::cli::Config;
