@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Comprehensive semantic analysis integration tests
 
 use context_creator::cli::Config;

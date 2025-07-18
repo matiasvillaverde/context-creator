@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Reliability tests for semantic analysis
 //! Tests thread safety, error handling, and resource management
 

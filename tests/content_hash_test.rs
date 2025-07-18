@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Test content hash computation in semantic analysis
 
 use context_creator::cli::Config;

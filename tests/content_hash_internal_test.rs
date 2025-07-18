@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Test content hash computation with internal verification
 //! This test verifies that content hashes are actually being computed and stored
 

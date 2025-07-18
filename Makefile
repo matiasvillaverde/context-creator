@@ -7,7 +7,7 @@ CARGO := cargo
 .DEFAULT_GOAL := help
 
 # Phony targets ensure these commands run even if a file with the same name exists.
-.PHONY: help build release check test doc fmt fmt-check lint validate clean bench run-example install dev
+.PHONY: help build release check test test-fast doc fmt fmt-check lint validate clean bench run-example install dev
 
 # ====================================================================================
 # Main Targets
@@ -21,6 +21,12 @@ release: validate ## Build the project in release mode for production (runs all 
 
 test: fmt-check lint ## Run all tests (runs format and lint checks first).
 	$(CARGO) test --all-targets
+
+test-fast: ## Run essential tests quickly (for CI under 1 minute).
+	$(CARGO) test --lib --bins
+	$(CARGO) test --test semantic_include_types_test
+	$(CARGO) test --test cli_test
+	$(CARGO) test --test integration_test
 
 run-example: ## Run the tool with example usage.
 	$(CARGO) run -- --help

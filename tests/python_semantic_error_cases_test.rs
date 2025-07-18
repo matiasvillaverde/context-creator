@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Error case tests for Python semantic analysis
 
 use std::fs;

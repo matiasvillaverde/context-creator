@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Integration tests for Python semantic analysis output
 
 use std::fs;

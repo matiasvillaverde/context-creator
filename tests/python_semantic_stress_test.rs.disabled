@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Stress tests for Python semantic analysis
 
 use std::fs;

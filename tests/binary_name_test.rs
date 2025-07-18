@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Tests for binary name and version output after rename
 
 use assert_cmd::Command;

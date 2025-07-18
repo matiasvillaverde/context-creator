@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Integration tests for --include-types functionality
 //! These tests verify that type definition files are included when using --include-types flag
 

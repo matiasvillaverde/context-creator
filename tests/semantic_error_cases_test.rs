@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Error case tests for semantic analysis - handling malformed code and edge cases
 
 use std::fs;

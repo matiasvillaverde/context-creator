@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 use std::fs;

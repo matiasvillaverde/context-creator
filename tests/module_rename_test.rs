@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Tests for module imports after rename
 
 use assert_cmd::Command;

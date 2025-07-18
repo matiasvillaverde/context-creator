@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 //! Stress tests for semantic analysis - performance and scalability edge cases
 
 use std::fs;
