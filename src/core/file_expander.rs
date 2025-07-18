@@ -102,6 +102,8 @@ pub fn expand_file_list(
     }
 
     // Process work queue
+    // Note: Cycle prevention is handled by visited_paths HashSet which tracks all processed files.
+    // This prevents infinite loops in cases like A→B→C→A by not revisiting already processed files.
     while let Some((source_path, source_file, reason, depth)) = work_queue.pop_front() {
         // Check if we've exceeded the semantic depth limit
         if depth >= config.semantic_depth {
