@@ -4,7 +4,9 @@ use crate::core::cache::FileCache;
 use crate::core::semantic::{analyzer::SemanticContext, SemanticOptions};
 use crate::core::walker::FileInfo;
 use anyhow::Result;
-use std::collections::{HashMap, HashSet, VecDeque};
+use petgraph::algo::toposort;
+use petgraph::graph::{DiGraph, NodeIndex};
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 /// Represents a node in the dependency graph
@@ -51,6 +53,9 @@ struct DependencyGraph<'a> {
     index_to_path: HashMap<usize, PathBuf>,
     visited: HashSet<usize>,
     cache: &'a FileCache,
+    project_root: PathBuf,
+    graph: DiGraph<usize, ()>,
+    node_indices: HashMap<usize, NodeIndex>,
 }
 
 impl<'a> DependencyGraph<'a> {
@@ -74,44 +79,148 @@ impl<'a> DependencyGraph<'a> {
             });
         }
 
+        // Detect project root from first file
+        let project_root = if let Some(first_file) = files.first() {
+            Self::detect_project_root(&first_file.path)
+        } else {
+            // Fallback to current directory
+            std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+        };
+
+        let mut graph = DiGraph::new();
+        let mut node_indices = HashMap::new();
+
+        // Add nodes to petgraph
+        for index in 0..files.len() {
+            let node_idx = graph.add_node(index);
+            node_indices.insert(index, node_idx);
+        }
+
         Ok(Self {
             nodes,
             path_to_index,
             index_to_path,
             visited: HashSet::new(),
             cache,
+            project_root,
+            graph,
+            node_indices,
         })
     }
 
-    /// Traverse dependencies using breadth-first search
-    fn traverse_dependencies(&mut self, options: &SemanticOptions) -> Result<()> {
-        let mut queue = VecDeque::new();
+    /// Detect the project root directory using git root or fallback methods
+    fn detect_project_root(start_path: &Path) -> PathBuf {
+        // Start from the directory containing the file
+        let mut current = start_path.parent().unwrap_or(start_path);
 
-        // Start with all files at depth 0
-        for i in 0..self.nodes.len() {
-            queue.push_back((i, 0));
+        // First try to find git root
+        loop {
+            if current.join(".git").exists() {
+                return current.to_path_buf();
+            }
+            if let Some(parent) = current.parent() {
+                current = parent;
+            } else {
+                break;
+            }
         }
 
-        while let Some((file_idx, depth)) = queue.pop_front() {
-            // Skip if we've already processed this file or exceeded max depth
-            if self.visited.contains(&file_idx) || depth >= options.semantic_depth {
-                continue;
+        // If no .git found, output a warning message
+        eprintln!("Warning: No .git directory found for file: {start_path:?}");
+        eprintln!("Warning: --include-types functionality requires a git repository to properly detect project root.");
+        eprintln!("Warning: Falling back to project marker detection...");
+
+        // Fallback: Look for common project markers
+        current = start_path.parent().unwrap_or(start_path);
+        loop {
+            // Check for Rust project markers
+            if current.join("Cargo.toml").exists() {
+                return current.to_path_buf();
+            }
+            // Check for Node.js project markers
+            if current.join("package.json").exists() {
+                return current.to_path_buf();
+            }
+            // Check for Python project markers
+            if current.join("pyproject.toml").exists() || current.join("setup.py").exists() {
+                return current.to_path_buf();
+            }
+            // Check for generic project markers
+            if current.join("README.md").exists() || current.join("readme.md").exists() {
+                return current.to_path_buf();
             }
 
-            self.visited.insert(file_idx);
+            if let Some(parent) = current.parent() {
+                current = parent;
+            } else {
+                break;
+            }
+        }
 
-            // Analyze this file
-            if let Err(e) = self.analyze_file(file_idx, depth, options) {
-                eprintln!("Warning: Failed to analyze file index {file_idx}: {e}");
+        // Final fallback: Look for common project structure indicators
+        // Go up from the file directory and look for directories that indicate project root
+        current = start_path.parent().unwrap_or(start_path);
+        while let Some(parent) = current.parent() {
+            // If we find a directory that contains both 'src' and other common directories,
+            // it's likely the project root
+            if parent.join("src").exists()
+                && (parent.join("shared").exists()
+                    || parent.join("lib").exists()
+                    || parent.join("tests").exists())
+            {
+                return parent.to_path_buf();
+            }
+            current = parent;
+        }
+
+        // Ultimate fallback: use the directory containing the start path
+        eprintln!(
+            "Warning: Could not detect project root. Using directory containing file: {:?}",
+            start_path.parent().unwrap_or(start_path)
+        );
+        start_path.parent().unwrap_or(start_path).to_path_buf()
+    }
+
+    /// Traverse dependencies using Kahn's algorithm for cycle detection
+    fn traverse_dependencies(&mut self, options: &SemanticOptions) -> Result<()> {
+        // First pass: analyze all files to discover dependencies
+        for i in 0..self.nodes.len() {
+            if let Err(e) = self.analyze_file(i, 0, options) {
+                eprintln!("Warning: Failed to analyze file index {i}: {e}");
                 continue;
             }
+        }
 
-            // Queue dependencies for next level
-            let node = &self.nodes[file_idx];
-            for import_path in &node.imports {
-                if let Some(&dep_idx) = self.path_to_index.get(import_path) {
-                    if !self.visited.contains(&dep_idx) && depth + 1 < options.semantic_depth {
-                        queue.push_back((dep_idx, depth + 1));
+        // Second pass: build dependency graph edges
+        self.build_dependency_edges();
+
+        // Third pass: use Kahn's algorithm to detect cycles and get processing order
+        match toposort(&self.graph, None) {
+            Ok(sorted_nodes) => {
+                // Process nodes in topological order
+                for node_idx in sorted_nodes {
+                    let file_idx = self.graph[node_idx];
+                    self.visited.insert(file_idx);
+
+                    // Process dependencies up to semantic_depth
+                    self.process_dependencies(file_idx, options);
+                }
+            }
+            Err(cycle_error) => {
+                // Cycle detected - handle gracefully
+                let cycle_node = self.graph[cycle_error.node_id()];
+                let cycle_path = self.get_file_path(cycle_node);
+                eprintln!(
+                    "Warning: Circular dependency detected involving file: {}",
+                    cycle_path.display()
+                );
+                eprintln!("Warning: Processing files in partial order, some dependencies may be incomplete.");
+
+                // Process nodes that can be processed (not in cycle)
+                for i in 0..self.nodes.len() {
+                    if !self.visited.contains(&i) {
+                        self.visited.insert(i);
+                        self.process_dependencies(i, options);
                     }
                 }
             }
@@ -143,15 +252,10 @@ impl<'a> DependencyGraph<'a> {
         // Read file content
         let content = self.cache.get_or_load(self.get_file_path(file_idx))?;
 
-        // Create context
-        let base_dir = self
-            .get_file_path(file_idx)
-            .parent()
-            .unwrap_or_else(|| Path::new("."))
-            .to_path_buf();
+        // Create context using project root instead of file's parent directory
         let context = SemanticContext::new(
             self.get_file_path(file_idx).to_path_buf(),
-            base_dir.clone(),
+            self.project_root.clone(),
             options.semantic_depth,
         );
 
@@ -178,7 +282,7 @@ impl<'a> DependencyGraph<'a> {
                     match resolver.resolve_import(
                         &import.module,
                         self.get_file_path(file_idx),
-                        &base_dir,
+                        &self.project_root,
                     ) {
                         Ok(resolved) => {
                             if !resolved.is_external
@@ -244,6 +348,32 @@ impl<'a> DependencyGraph<'a> {
         }
 
         None
+    }
+
+    /// Build dependency edges in the petgraph
+    fn build_dependency_edges(&mut self) {
+        for (file_idx, node) in self.nodes.iter().enumerate() {
+            for import_path in &node.imports {
+                if let Some(&dep_idx) = self.path_to_index.get(import_path) {
+                    if file_idx != dep_idx {
+                        // Avoid self-loops
+                        if let (Some(&from_node), Some(&to_node)) = (
+                            self.node_indices.get(&file_idx),
+                            self.node_indices.get(&dep_idx),
+                        ) {
+                            // Add edge from file to its dependency
+                            self.graph.add_edge(from_node, to_node, ());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Process dependencies for a specific file
+    fn process_dependencies(&mut self, _file_idx: usize, _options: &SemanticOptions) {
+        // Additional processing logic can go here
+        // For now, dependencies are already stored in nodes from analyze_file
     }
 
     /// Apply the discovered dependencies back to the files

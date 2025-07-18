@@ -12,6 +12,52 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+/// Detect the project root directory using git root or fallback methods
+fn detect_project_root(start_path: &Path) -> PathBuf {
+    // First try to find git root
+    let mut current = start_path;
+    loop {
+        if current.join(".git").exists() {
+            return current.to_path_buf();
+        }
+        if let Some(parent) = current.parent() {
+            current = parent;
+        } else {
+            break;
+        }
+    }
+
+    // Fallback: Look for common project markers
+    current = start_path;
+    loop {
+        // Check for Rust project markers
+        if current.join("Cargo.toml").exists() {
+            return current.to_path_buf();
+        }
+        // Check for Node.js project markers
+        if current.join("package.json").exists() {
+            return current.to_path_buf();
+        }
+        // Check for Python project markers
+        if current.join("pyproject.toml").exists() || current.join("setup.py").exists() {
+            return current.to_path_buf();
+        }
+        // Check for generic project markers
+        if current.join("README.md").exists() || current.join("readme.md").exists() {
+            return current.to_path_buf();
+        }
+
+        if let Some(parent) = current.parent() {
+            current = parent;
+        } else {
+            break;
+        }
+    }
+
+    // Ultimate fallback: use the start path itself
+    start_path.to_path_buf()
+}
+
 /// Expand file list based on semantic relationships
 ///
 /// This function takes the initial set of files and expands it to include
@@ -25,6 +71,14 @@ pub fn expand_file_list(
     if !config.trace_imports && !config.include_callers && !config.include_types {
         return Ok(files_map);
     }
+
+    // Detect the project root for secure path validation
+    let project_root = if let Some((first_path, _)) = files_map.iter().next() {
+        detect_project_root(first_path)
+    } else {
+        // If no files, use current directory
+        std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+    };
 
     // Create work queue and visited set for BFS traversal
     let mut work_queue = VecDeque::new();
@@ -66,10 +120,8 @@ pub fn expand_file_list(
                     // If we have a definition path, add it
                     if let Some(ref def_path) = type_ref.definition_path {
                         if !visited_paths.contains(def_path) && def_path.exists() {
-                            // Validate the path for security
-                            // Use the common ancestor as the base directory
-                            let base_dir = common_ancestor(&source_path, def_path);
-                            match validate_import_path(&base_dir, def_path) {
+                            // Validate the path for security using the project root
+                            match validate_import_path(&project_root, def_path) {
                                 Ok(validated_path) => {
                                     visited_paths.insert(validated_path.clone());
 
@@ -102,10 +154,8 @@ pub fn expand_file_list(
                             cache,
                         ) {
                             if !visited_paths.contains(&def_path) {
-                                // Validate the path for security
-                                // Use the common ancestor as the base directory
-                                let base_dir = common_ancestor(&source_path, &def_path);
-                                match validate_import_path(&base_dir, &def_path) {
+                                // Validate the path for security using the project root
+                                match validate_import_path(&project_root, &def_path) {
                                     Ok(validated_path) => {
                                         visited_paths.insert(validated_path.clone());
 
@@ -195,24 +245,23 @@ fn create_file_info_for_path(
     })
 }
 
-/// Find common ancestor of two paths
+/// Find the lowest common ancestor (LCA) of two paths using a proper set-based approach
 fn common_ancestor(path1: &Path, path2: &Path) -> PathBuf {
-    let mut ancestors1 = Vec::new();
-    let mut current = path1;
-    while let Some(parent) = current.parent() {
-        ancestors1.push(parent);
-        current = parent;
-    }
+    use std::collections::HashSet;
 
-    let mut current = path2;
-    while let Some(parent) = current.parent() {
-        if ancestors1.contains(&parent) {
-            return parent.to_path_buf();
+    // Collect all ancestors of path1 into a set for efficient lookup
+    let ancestors1: HashSet<&Path> = path1.ancestors().collect();
+
+    // Find the first ancestor of path2 that is also in ancestors1
+    // This will be the lowest common ancestor since ancestors() returns in order from leaf to root
+    for ancestor in path2.ancestors() {
+        if ancestors1.contains(ancestor) {
+            return ancestor.to_path_buf();
         }
-        current = parent;
     }
 
-    // Fallback to appropriate root for the platform
+    // If no common ancestor found (shouldn't happen in normal filesystem),
+    // fallback to appropriate root for the platform
     #[cfg(windows)]
     {
         // On Windows, try to get the root from one of the paths
@@ -226,6 +275,87 @@ fn common_ancestor(path1: &Path, path2: &Path) -> PathBuf {
     {
         PathBuf::from("/")
     }
+}
+
+/// Check if a file contains a definition for a given type name using AST parsing.
+fn file_contains_definition(path: &Path, content: &str, type_name: &str) -> bool {
+    // Determine the language from the file extension.
+    let language = match path.extension().and_then(|s| s.to_str()) {
+        Some("rs") => Some(tree_sitter_rust::language()),
+        Some("py") => Some(tree_sitter_python::language()),
+        Some("ts") | Some("tsx") => Some(tree_sitter_typescript::language_typescript()),
+        Some("js") | Some("jsx") => Some(tree_sitter_javascript::language()),
+        _ => None,
+    };
+
+    if let Some(language) = language {
+        let mut parser = tree_sitter::Parser::new();
+        if parser.set_language(language).is_err() {
+            return false;
+        }
+
+        if let Some(tree) = parser.parse(content, None) {
+            // Language-specific queries for type definitions (without predicates)
+            let query_text = match path.extension().and_then(|s| s.to_str()) {
+                Some("rs") => {
+                    r#"
+                    [
+                      (struct_item name: (type_identifier) @name)
+                      (enum_item name: (type_identifier) @name)
+                      (trait_item name: (type_identifier) @name)
+                      (type_item name: (type_identifier) @name)
+                      (union_item name: (type_identifier) @name)
+                    ]
+                "#
+                }
+                Some("py") => {
+                    r#"
+                    [
+                      (class_definition name: (identifier) @name)
+                      (function_definition name: (identifier) @name)
+                    ]
+                "#
+                }
+                Some("ts") | Some("tsx") => {
+                    r#"
+                    [
+                      (interface_declaration name: (type_identifier) @name)
+                      (type_alias_declaration name: (type_identifier) @name)
+                      (class_declaration name: (type_identifier) @name)
+                      (enum_declaration name: (identifier) @name)
+                    ]
+                "#
+                }
+                Some("js") | Some("jsx") => {
+                    r#"
+                    [
+                      (class_declaration name: (identifier) @name)
+                      (function_declaration name: (identifier) @name)
+                    ]
+                "#
+                }
+                _ => return false,
+            };
+
+            if let Ok(query) = tree_sitter::Query::new(language, query_text) {
+                let mut cursor = tree_sitter::QueryCursor::new();
+                let matches = cursor.matches(&query, tree.root_node(), content.as_bytes());
+
+                // Check each match to see if the captured name matches our target type
+                for m in matches {
+                    for capture in m.captures {
+                        if let Ok(captured_text) = capture.node.utf8_text(content.as_bytes()) {
+                            if captured_text == type_name {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+        }
+    }
+    false
 }
 
 /// Find a type definition file by searching nearby paths
@@ -303,17 +433,8 @@ fn find_type_definition_file(
         if candidate.exists() {
             // Read the file to verify it contains the type definition
             if let Ok(content) = cache.get_or_load(&candidate) {
-                // Simple heuristic: check if the file contains the type name
-                // For a more robust solution, we'd use the language analyzer
-                if content.contains(&format!("struct {type_name}"))
-                    || content.contains(&format!("class {type_name}"))
-                    || content.contains(&format!("type {type_name} "))
-                    || content.contains(&format!("interface {type_name}"))
-                    || content.contains(&format!("enum {type_name}"))
-                    || content.contains(&format!("pub struct {type_name}"))
-                    || content.contains(&format!("trait {type_name}"))
-                    || content.contains(&format!("pub trait {type_name}"))
-                {
+                // Use AST-based validation to check for type definitions
+                if file_contains_definition(&candidate, &content, type_name) {
                     return Some(candidate);
                 }
             }
@@ -326,14 +447,7 @@ fn find_type_definition_file(
             let candidate = parent_dir.join(pattern);
             if candidate.exists() {
                 if let Ok(content) = cache.get_or_load(&candidate) {
-                    if content.contains(&format!("struct {type_name}"))
-                        || content.contains(&format!("class {type_name}"))
-                        || content.contains(&format!("type {type_name} "))
-                        || content.contains(&format!("interface {type_name}"))
-                        || content.contains(&format!("enum {type_name}"))
-                        || content.contains(&format!("trait {type_name}"))
-                        || content.contains(&format!("pub trait {type_name}"))
-                    {
+                    if file_contains_definition(&candidate, &content, type_name) {
                         return Some(candidate);
                     }
                 }
@@ -361,17 +475,7 @@ fn find_type_definition_file(
                 let candidate = search_dir.join(pattern);
                 if candidate.exists() {
                     if let Ok(content) = cache.get_or_load(&candidate) {
-                        if content.contains(&format!("struct {type_name}"))
-                            || content.contains(&format!("class {type_name}"))
-                            || content.contains(&format!("type {type_name} "))
-                            || content.contains(&format!("interface {type_name}"))
-                            || content.contains(&format!("enum {type_name}"))
-                            || content.contains(&format!("pub struct {type_name}"))
-                            || content.contains(&format!("export class {type_name}"))
-                            || content.contains(&format!("export interface {type_name}"))
-                            || content.contains(&format!("trait {type_name}"))
-                            || content.contains(&format!("pub trait {type_name}"))
-                        {
+                        if file_contains_definition(&candidate, &content, type_name) {
                             return Some(candidate);
                         }
                     }
@@ -453,11 +557,24 @@ mod tests {
             let ancestor = common_ancestor(&path1, &path2);
             assert_eq!(ancestor, PathBuf::from("C:\\Users\\user\\project"));
 
-            let path3 = PathBuf::from("C:\\Program Files\\tool");
-            let path4 = PathBuf::from("D:\\Users\\user\\file");
+            // Test with same directory
+            let path3 = PathBuf::from("C:\\Users\\user\\project\\main.rs");
+            let path4 = PathBuf::from("C:\\Users\\user\\project\\util.rs");
             let ancestor2 = common_ancestor(&path3, &path4);
+            assert_eq!(ancestor2, PathBuf::from("C:\\Users\\user\\project"));
+
+            // Test with nested paths
+            let path5 = PathBuf::from("C:\\Users\\user\\project\\src\\deep\\nested\\file.rs");
+            let path6 = PathBuf::from("C:\\Users\\user\\project\\src\\main.rs");
+            let ancestor3 = common_ancestor(&path5, &path6);
+            assert_eq!(ancestor3, PathBuf::from("C:\\Users\\user\\project\\src"));
+
+            // Test with completely different drives
+            let path7 = PathBuf::from("C:\\Program Files\\tool");
+            let path8 = PathBuf::from("D:\\Users\\user\\file");
+            let ancestor4 = common_ancestor(&path7, &path8);
             // Should fall back to C:\ (root from first path)
-            assert_eq!(ancestor2, PathBuf::from("C:\\"));
+            assert_eq!(ancestor4, PathBuf::from("C:\\"));
         }
 
         #[cfg(not(windows))]
@@ -467,10 +584,209 @@ mod tests {
             let ancestor = common_ancestor(&path1, &path2);
             assert_eq!(ancestor, PathBuf::from("/home/user/project"));
 
-            let path3 = PathBuf::from("/usr/local/bin/tool");
-            let path4 = PathBuf::from("/home/user/file");
+            // Test with same directory
+            let path3 = PathBuf::from("/home/user/project/main.rs");
+            let path4 = PathBuf::from("/home/user/project/util.rs");
             let ancestor2 = common_ancestor(&path3, &path4);
-            assert_eq!(ancestor2, PathBuf::from("/"));
+            assert_eq!(ancestor2, PathBuf::from("/home/user/project"));
+
+            // Test with nested paths
+            let path5 = PathBuf::from("/home/user/project/src/deep/nested/file.rs");
+            let path6 = PathBuf::from("/home/user/project/src/main.rs");
+            let ancestor3 = common_ancestor(&path5, &path6);
+            assert_eq!(ancestor3, PathBuf::from("/home/user/project/src"));
+
+            // Test with completely different top-level directories
+            let path7 = PathBuf::from("/usr/local/bin/tool");
+            let path8 = PathBuf::from("/home/user/file");
+            let ancestor4 = common_ancestor(&path7, &path8);
+            assert_eq!(ancestor4, PathBuf::from("/"));
+
+            // Test with one path being an ancestor of the other
+            let path9 = PathBuf::from("/home/user/project");
+            let path10 = PathBuf::from("/home/user/project/src/main.rs");
+            let ancestor5 = common_ancestor(&path9, &path10);
+            assert_eq!(ancestor5, PathBuf::from("/home/user/project"));
         }
+    }
+
+    #[test]
+    fn test_file_contains_definition() {
+        // Debug: Test simple tree-sitter parsing first
+        let rust_content = r#"
+            pub struct MyStruct {
+                field1: String,
+                field2: i32,
+            }
+            
+            pub enum MyEnum {
+                Variant1,
+                Variant2(String),
+            }
+            
+            pub trait MyTrait {
+                fn method(&self);
+            }
+        "#;
+
+        let mut parser = tree_sitter::Parser::new();
+        parser.set_language(tree_sitter_rust::language()).unwrap();
+        let tree = parser.parse(rust_content, None).unwrap();
+
+        // Test simple query without predicate first
+        let simple_query = r#"
+            [
+              (struct_item name: (type_identifier) @name)
+              (enum_item name: (type_identifier) @name)
+              (trait_item name: (type_identifier) @name)
+            ]
+        "#;
+
+        let query = tree_sitter::Query::new(tree_sitter_rust::language(), simple_query).unwrap();
+        let mut cursor = tree_sitter::QueryCursor::new();
+        let matches: Vec<_> = cursor
+            .matches(&query, tree.root_node(), rust_content.as_bytes())
+            .collect();
+
+        // Should find 3 definitions: MyStruct, MyEnum, MyTrait
+        assert_eq!(matches.len(), 3, "Should find exactly 3 type definitions");
+
+        // Test the actual function with a simpler approach
+        let rust_path = PathBuf::from("test.rs");
+        assert!(file_contains_definition(
+            &rust_path,
+            rust_content,
+            "MyStruct"
+        ));
+        assert!(file_contains_definition(&rust_path, rust_content, "MyEnum"));
+        assert!(file_contains_definition(
+            &rust_path,
+            rust_content,
+            "MyTrait"
+        ));
+        assert!(!file_contains_definition(
+            &rust_path,
+            rust_content,
+            "NonExistent"
+        ));
+
+        // Test Python class definition
+        let python_content = r#"
+            class MyClass:
+                def __init__(self):
+                    pass
+                    
+            def my_function():
+                pass
+        "#;
+
+        let python_path = PathBuf::from("test.py");
+        assert!(file_contains_definition(
+            &python_path,
+            python_content,
+            "MyClass"
+        ));
+        assert!(file_contains_definition(
+            &python_path,
+            python_content,
+            "my_function"
+        ));
+        assert!(!file_contains_definition(
+            &python_path,
+            python_content,
+            "NonExistent"
+        ));
+
+        // Test TypeScript interface definition
+        let typescript_content = r#"
+            export interface MyInterface {
+                prop1: string;
+                prop2: number;
+            }
+            
+            export type MyType = string | number;
+            
+            export class MyClass {
+                constructor() {}
+            }
+        "#;
+
+        let typescript_path = PathBuf::from("test.ts");
+        assert!(file_contains_definition(
+            &typescript_path,
+            typescript_content,
+            "MyInterface"
+        ));
+        assert!(file_contains_definition(
+            &typescript_path,
+            typescript_content,
+            "MyType"
+        ));
+        assert!(file_contains_definition(
+            &typescript_path,
+            typescript_content,
+            "MyClass"
+        ));
+        assert!(!file_contains_definition(
+            &typescript_path,
+            typescript_content,
+            "NonExistent"
+        ));
+    }
+
+    #[test]
+    fn test_query_engine_rust() {
+        use crate::core::semantic::query_engine::QueryEngine;
+        use tree_sitter::Parser;
+
+        let rust_content = r#"
+            use model::{Account, DatabaseFactory, Rule, RuleLevel, RuleName};
+            
+            pub fn create(
+                database: &mut dyn DatabaseFactory,
+                account: &Account,
+                rule_name: &RuleName,
+            ) -> Result<Rule, Box<dyn std::error::Error>> {
+                Ok(Rule::new())
+            }
+        "#;
+
+        let language = tree_sitter_rust::language();
+        let query_engine = QueryEngine::new(language, "rust").unwrap();
+
+        let mut parser = Parser::new();
+        parser.set_language(tree_sitter_rust::language()).unwrap();
+
+        let result = query_engine
+            .analyze_with_parser(&mut parser, rust_content)
+            .unwrap();
+
+        println!("Imports found: {:?}", result.imports);
+        println!("Type references found: {:?}", result.type_references);
+
+        // Should find imports
+        assert!(!result.imports.is_empty(), "Should find imports");
+
+        // Should find type references from the imports
+        assert!(
+            !result.type_references.is_empty(),
+            "Should find type references"
+        );
+
+        // Check specific types
+        let type_names: Vec<&str> = result
+            .type_references
+            .iter()
+            .map(|t| t.name.as_str())
+            .collect();
+        assert!(
+            type_names.contains(&"DatabaseFactory"),
+            "Should find DatabaseFactory type"
+        );
+        assert!(type_names.contains(&"Account"), "Should find Account type");
+        assert!(
+            type_names.contains(&"RuleName"),
+            "Should find RuleName type"
+        );
     }
 }
