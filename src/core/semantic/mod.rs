@@ -9,6 +9,7 @@
 
 pub mod analyzer;
 pub mod cache;
+pub mod cycle_detector;
 pub mod dependency_types;
 pub mod languages;
 pub mod parser_pool;

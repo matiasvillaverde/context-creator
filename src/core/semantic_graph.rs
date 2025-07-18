@@ -1,10 +1,10 @@
 //! Dependency graph traversal for semantic analysis with parallel processing
 
 use crate::core::cache::FileCache;
+use crate::core::semantic::cycle_detector::{CycleResolution, TarjanCycleDetector};
 use crate::core::semantic::{analyzer::SemanticContext, SemanticOptions};
 use crate::core::walker::FileInfo;
 use anyhow::Result;
-use petgraph::algo::toposort;
 use petgraph::graph::{DiGraph, NodeIndex};
 use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
@@ -204,11 +204,33 @@ impl<'a> DependencyGraph<'a> {
         // Phase 2: Build dependency graph from analysis results
         self.build_dependency_graph_from_results(&analysis_results);
 
-        // Phase 3: Use Kahn's algorithm to detect cycles and get processing order
-        match toposort(&self.graph, None) {
-            Ok(sorted_nodes) => {
-                // Process nodes in topological order
-                for node_idx in sorted_nodes {
+        // Phase 3: Use Tarjan's algorithm to detect cycles and get processing order
+        let mut cycle_detector = TarjanCycleDetector::new();
+        let cycle_result = cycle_detector.detect_cycles(&self.graph);
+
+        if cycle_result.has_cycles {
+            // Report all detected cycles
+            eprintln!(
+                "Warning: {} circular dependencies detected:",
+                cycle_result.cycles.len()
+            );
+            for (i, cycle) in cycle_result.cycles.iter().enumerate() {
+                eprintln!("\nCycle {}:", i + 1);
+                for &node_idx in cycle {
+                    let node = &self.graph[node_idx];
+                    eprintln!("  - {}", node.path.display());
+                }
+            }
+            eprintln!("\nWarning: Processing files in partial order, some dependencies may be incomplete.");
+        }
+
+        // Get resolution strategy
+        let resolution = cycle_detector.handle_cycles(&self.graph, cycle_result.cycles);
+
+        match resolution {
+            CycleResolution::PartialOrder(node_order) => {
+                // Process nodes in the computed order
+                for node_idx in node_order {
                     let rich_node = &self.graph[node_idx];
                     let file_idx = rich_node.file_index;
                     self.visited.insert(file_idx);
@@ -217,22 +239,13 @@ impl<'a> DependencyGraph<'a> {
                     self.process_dependencies(file_idx, options);
                 }
             }
-            Err(cycle_error) => {
-                // Cycle detected - handle gracefully
-                let cycle_node = &self.graph[cycle_error.node_id()];
-                eprintln!(
-                    "Warning: Circular dependency detected involving file: {}",
-                    cycle_node.path.display()
-                );
-                eprintln!("Warning: Processing files in partial order, some dependencies may be incomplete.");
-
-                // Process nodes that can be processed (not in cycle)
-                for i in 0..self.nodes.len() {
-                    if !self.visited.contains(&i) {
-                        self.visited.insert(i);
-                        self.process_dependencies(i, options);
-                    }
-                }
+            CycleResolution::BreakEdges(_) => {
+                // For future implementation of edge-breaking strategy
+                unimplemented!("Edge breaking strategy not yet implemented");
+            }
+            CycleResolution::MergeComponents(_) => {
+                // For future implementation of component merging strategy
+                unimplemented!("Component merging strategy not yet implemented");
             }
         }
 
