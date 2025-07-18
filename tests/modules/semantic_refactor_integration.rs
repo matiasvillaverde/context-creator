@@ -12,7 +12,7 @@ use context_creator::core::semantic::parallel_analyzer::{AnalysisOptions, Parall
 use context_creator::core::semantic_graph::perform_semantic_analysis_graph;
 use context_creator::core::walker::FileInfo;
 use context_creator::utils::file_ext::FileType;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -162,8 +162,9 @@ fn test_new_modular_architecture_works_together() {
     };
 
     let file_paths: Vec<_> = files.iter().map(|f| f.path.clone()).collect();
+    let valid_files: HashSet<PathBuf> = files.iter().map(|f| f.path.clone()).collect();
     let analysis_results = analyzer
-        .analyze_files(&file_paths, &project_root, &analysis_options)
+        .analyze_files(&file_paths, &project_root, &analysis_options, &valid_files)
         .unwrap();
 
     assert_eq!(analysis_results.len(), 4);
@@ -255,8 +256,10 @@ fn test_error_propagation_between_modules() {
 
     // ParallelAnalyzer should handle the error gracefully
     let analyzer = ParallelAnalyzer::new(&cache);
+    let file_paths = vec![files[0].path.clone()];
+    let valid_files: HashSet<PathBuf> = [files[0].path.clone()].iter().cloned().collect();
     let analysis_results = analyzer
-        .analyze_files(&[files[0].path.clone()], dir, &AnalysisOptions::default())
+        .analyze_files(&file_paths, dir, &AnalysisOptions::default(), &valid_files)
         .unwrap();
 
     assert_eq!(analysis_results.len(), 1);
@@ -376,8 +379,9 @@ pub struct TypeC {
     let cache = Arc::new(FileCache::new());
     let analyzer = ParallelAnalyzer::new(&cache);
     let file_paths: Vec<_> = files.iter().map(|f| f.path.clone()).collect();
+    let valid_files: HashSet<PathBuf> = files.iter().map(|f| f.path.clone()).collect();
     let _analysis_results = analyzer
-        .analyze_files(&file_paths, dir, &AnalysisOptions::default())
+        .analyze_files(&file_paths, dir, &AnalysisOptions::default(), &valid_files)
         .unwrap();
 
     let builder = GraphBuilder::new();
@@ -409,6 +413,7 @@ fn test_modules_work_together_seamlessly() {
     // 1. Analyze files in parallel
     let analyzer = ParallelAnalyzer::new(&cache);
     let file_paths: Vec<_> = files.iter().map(|f| f.path.clone()).collect();
+    let valid_files: HashSet<PathBuf> = files.iter().map(|f| f.path.clone()).collect();
     let analysis_results = analyzer
         .analyze_files(
             &file_paths,
@@ -419,6 +424,7 @@ fn test_modules_work_together_seamlessly() {
                 include_types: true,
                 include_functions: true,
             },
+            &valid_files,
         )
         .unwrap();
 

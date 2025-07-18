@@ -49,7 +49,12 @@ pub fn perform_semantic_analysis_graph(
     };
 
     let file_paths: Vec<_> = files.iter().map(|f| f.path.clone()).collect();
-    let analysis_results = analyzer.analyze_files(&file_paths, &project_root, &analysis_options)?;
+    let valid_files: std::collections::HashSet<PathBuf> = files
+        .iter()
+        .map(|f| f.path.canonicalize().unwrap_or_else(|_| f.path.clone()))
+        .collect();
+    let analysis_results =
+        analyzer.analyze_files(&file_paths, &project_root, &analysis_options, &valid_files)?;
 
     // Step 2: Build dependency graph
     let builder = GraphBuilder::new();
@@ -176,9 +181,9 @@ fn apply_import_relationships(
     path_to_index: &HashMap<PathBuf, usize>,
 ) {
     // First pass: collect all imports
-    for (file_idx, result) in analysis_results.iter().enumerate() {
-        if file_idx < files.len() {
-            let file = &mut files[file_idx];
+    for result in analysis_results {
+        if result.file_index < files.len() {
+            let file = &mut files[result.file_index];
 
             // Add resolved imports
             for (import_path, _) in &result.imports {
