@@ -86,6 +86,12 @@ pub struct TypeReference {
     pub module: Option<String>,
     /// Line number where reference appears
     pub line: usize,
+    /// Path to the file that defines this type
+    pub definition_path: Option<PathBuf>,
+    /// Whether this type is from an external dependency
+    pub is_external: bool,
+    /// External package name and version (e.g., "serde v1.0.197")
+    pub external_package: Option<String>,
 }
 
 /// Results from semantic analysis
@@ -152,4 +158,16 @@ pub trait LanguageAnalyzer: Send + Sync {
 
     /// Get file extensions this analyzer handles
     fn supported_extensions(&self) -> Vec<&'static str>;
+
+    /// Resolve a type reference to its definition file
+    /// Returns None if the type cannot be resolved or is external
+    fn resolve_type_definition(
+        &self,
+        _type_ref: &TypeReference,
+        _context: &SemanticContext,
+    ) -> Option<PathBuf> {
+        // Default implementation returns None
+        // Languages should override this to provide type resolution
+        None
+    }
 }

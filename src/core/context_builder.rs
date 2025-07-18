@@ -384,6 +384,7 @@ fn generate_file_tree(files: &[FileInfo], options: &ContextOptions) -> String {
     }
 
     // Render tree
+    #[allow(clippy::too_many_arguments)]
     fn render_tree(
         node: &TreeNode,
         prefix: &str,

@@ -1,23 +1,26 @@
 //! Semantic analyzer for JavaScript
 
 use crate::core::semantic::{
-    analyzer::{
-        AnalysisResult, FunctionCall, Import, LanguageAnalyzer, SemanticContext, SemanticResult,
-        TypeReference,
-    },
+    analyzer::{AnalysisResult, LanguageAnalyzer, SemanticContext, SemanticResult},
     path_validator::{validate_import_path, validate_module_name},
+    query_engine::QueryEngine,
     resolver::{ModuleResolver, ResolvedPath},
 };
 use crate::utils::error::ContextCreatorError;
 use std::path::Path;
-use tree_sitter::{Node, Parser, TreeCursor};
+use tree_sitter::Parser;
 
 #[allow(clippy::new_without_default)]
-pub struct JavaScriptAnalyzer {}
+pub struct JavaScriptAnalyzer {
+    query_engine: QueryEngine,
+}
 
 impl JavaScriptAnalyzer {
     pub fn new() -> Self {
-        Self {}
+        let language = tree_sitter_javascript::language();
+        let query_engine = QueryEngine::new(language, "javascript")
+            .expect("Failed to create JavaScript query engine");
+        Self { query_engine }
     }
 }
 
@@ -28,29 +31,25 @@ impl LanguageAnalyzer for JavaScriptAnalyzer {
 
     fn analyze_file(
         &self,
-        _path: &Path,
+        path: &Path,
         content: &str,
-        _context: &SemanticContext,
+        context: &SemanticContext,
     ) -> SemanticResult<AnalysisResult> {
-        let mut result = AnalysisResult::default();
-
-        // Create a new parser for this analysis
         let mut parser = Parser::new();
         parser
             .set_language(tree_sitter_javascript::language())
-            .unwrap();
+            .map_err(|e| ContextCreatorError::ParseError(format!("Failed to set language: {e}")))?;
 
-        // Parse the content with tree-sitter
-        let tree = match parser.parse(content, None) {
-            Some(tree) => tree,
-            None => return Ok(result), // Return empty result if parsing fails
-        };
+        let mut result = self
+            .query_engine
+            .analyze_with_parser(&mut parser, content)?;
 
-        let root_node = tree.root_node();
-        let mut cursor = root_node.walk();
-
-        // Walk the tree and extract semantic information
-        extract_semantic_info(&mut cursor, content, &mut result);
+        // Resolve type definitions for the type references found
+        self.query_engine.resolve_type_definitions(
+            &mut result.type_references,
+            path,
+            &context.base_dir,
+        )?;
 
         Ok(result)
     }
@@ -62,399 +61,6 @@ impl LanguageAnalyzer for JavaScriptAnalyzer {
     fn supported_extensions(&self) -> Vec<&'static str> {
         vec!["js", "jsx"]
     }
-}
-
-/// Extract semantic information from the AST
-fn extract_semantic_info(cursor: &mut TreeCursor, source: &str, result: &mut AnalysisResult) {
-    loop {
-        let node = cursor.node();
-
-        match node.kind() {
-            // Import handling
-            "import_statement" => {
-                if let Some(import) = parse_import_statement(&node, source) {
-                    result.imports.push(import);
-                }
-            }
-
-            // Function call handling
-            "call_expression" => {
-                // Check if it's a require() call
-                if let Some(import) = parse_require_call(&node, source) {
-                    result.imports.push(import);
-                }
-                if let Some(call) = parse_function_call(&node, source) {
-                    result.function_calls.push(call);
-                }
-            }
-
-            // Type reference handling - JSDoc type annotations
-            "type_annotation" => {
-                if let Some(type_ref) = parse_type_annotation(&node, source) {
-                    result.type_references.push(type_ref);
-                }
-            }
-
-            // JSX element handling - treat component names as type references
-            "jsx_element" | "jsx_self_closing_element" => {
-                if let Some(type_ref) = parse_jsx_element(&node, source) {
-                    result.type_references.push(type_ref);
-                }
-            }
-
-            _ => {}
-        }
-
-        // Traverse children
-        if cursor.goto_first_child() {
-            extract_semantic_info(cursor, source, result);
-            cursor.goto_parent();
-        }
-
-        if !cursor.goto_next_sibling() {
-            break;
-        }
-    }
-}
-
-/// Parse an import statement
-fn parse_import_statement(node: &Node, source: &str) -> Option<Import> {
-    let start = node.start_position();
-    let line = start.row + 1;
-
-    let mut module_path = String::new();
-    let mut imported_items = Vec::new();
-
-    let mut cursor = node.walk();
-    if cursor.goto_first_child() {
-        loop {
-            let child = cursor.node();
-            match child.kind() {
-                "import_clause" => {
-                    // Extract imported items
-                    imported_items.extend(extract_import_items(&child, source));
-                }
-                "string" => {
-                    // The module path in quotes
-                    if let Ok(path) = child.utf8_text(source.as_bytes()) {
-                        // Remove quotes
-                        module_path = path
-                            .trim_matches(|c| c == '"' || c == '\'' || c == '`')
-                            .to_string();
-                    }
-                }
-                _ => {}
-            }
-            if !cursor.goto_next_sibling() {
-                break;
-            }
-        }
-    }
-
-    if module_path.is_empty() {
-        return None;
-    }
-
-    let is_relative = module_path.starts_with('.') || module_path.starts_with('/');
-
-    Some(Import {
-        module: module_path,
-        items: imported_items,
-        is_relative,
-        line,
-    })
-}
-
-/// Extract imported items from import clause
-fn extract_import_items(node: &Node, source: &str) -> Vec<String> {
-    let mut items = Vec::new();
-    let mut cursor = node.walk();
-
-    if cursor.goto_first_child() {
-        loop {
-            let child = cursor.node();
-            match child.kind() {
-                "identifier" => {
-                    // Default import
-                    if let Ok(name) = child.utf8_text(source.as_bytes()) {
-                        items.push(name.to_string());
-                    }
-                }
-                "namespace_import" => {
-                    // import * as name
-                    let mut ns_cursor = child.walk();
-                    if ns_cursor.goto_first_child() {
-                        loop {
-                            if ns_cursor.node().kind() == "identifier" {
-                                if let Ok(name) = ns_cursor.node().utf8_text(source.as_bytes()) {
-                                    items.push(format!("* as {name}"));
-                                }
-                            }
-                            if !ns_cursor.goto_next_sibling() {
-                                break;
-                            }
-                        }
-                    }
-                }
-                "named_imports" => {
-                    // import { a, b, c }
-                    items.extend(extract_named_imports(&child, source));
-                }
-                _ => {}
-            }
-            if !cursor.goto_next_sibling() {
-                break;
-            }
-        }
-    }
-
-    items
-}
-
-/// Extract named imports { a, b as c }
-fn extract_named_imports(node: &Node, source: &str) -> Vec<String> {
-    let mut items = Vec::new();
-    let mut cursor = node.walk();
-
-    if cursor.goto_first_child() {
-        loop {
-            let child = cursor.node();
-            if child.kind() == "import_specifier" {
-                // Could be "name" or "name as alias"
-                let mut spec_cursor = child.walk();
-                if spec_cursor.goto_first_child() {
-                    if let Ok(name) = spec_cursor.node().utf8_text(source.as_bytes()) {
-                        items.push(name.to_string());
-                    }
-                }
-            }
-            if !cursor.goto_next_sibling() {
-                break;
-            }
-        }
-    }
-
-    items
-}
-
-/// Parse a require() call as an import
-fn parse_require_call(node: &Node, source: &str) -> Option<Import> {
-    let start = node.start_position();
-    let line = start.row + 1;
-
-    // Check if it's a require call
-    let mut cursor = node.walk();
-    if !cursor.goto_first_child() {
-        return None;
-    }
-
-    let function_node = cursor.node();
-
-    // Check if the function being called is "require"
-    if function_node.kind() != "identifier" {
-        return None;
-    }
-
-    if let Ok(func_name) = function_node.utf8_text(source.as_bytes()) {
-        if func_name != "require" {
-            return None;
-        }
-    } else {
-        return None;
-    }
-
-    // Get the argument (module path)
-    if !cursor.goto_next_sibling() {
-        return None;
-    }
-
-    let args_node = cursor.node();
-    if args_node.kind() != "arguments" {
-        return None;
-    }
-
-    // Parse the first argument as the module path
-    let mut args_cursor = args_node.walk();
-    if !args_cursor.goto_first_child() {
-        return None;
-    }
-
-    loop {
-        let arg_node = args_cursor.node();
-        if arg_node.kind() == "string" {
-            if let Ok(path) = arg_node.utf8_text(source.as_bytes()) {
-                let module_path = path
-                    .trim_matches(|c| c == '"' || c == '\'' || c == '`')
-                    .to_string();
-
-                let is_relative = module_path.starts_with('.') || module_path.starts_with('/');
-
-                return Some(Import {
-                    module: module_path,
-                    items: vec!["default".to_string()], // CommonJS imports are always default
-                    is_relative,
-                    line,
-                });
-            }
-        }
-
-        if !args_cursor.goto_next_sibling() {
-            break;
-        }
-    }
-
-    None
-}
-
-/// Parse a function call
-fn parse_function_call(node: &Node, source: &str) -> Option<FunctionCall> {
-    let start = node.start_position();
-    let line = start.row + 1;
-
-    // Get the function being called
-    let mut cursor = node.walk();
-    if !cursor.goto_first_child() {
-        return None;
-    }
-
-    let function_node = cursor.node();
-    let (function_name, module) = match function_node.kind() {
-        "identifier" => {
-            if let Ok(name) = function_node.utf8_text(source.as_bytes()) {
-                (name.to_string(), None)
-            } else {
-                return None;
-            }
-        }
-        "member_expression" => {
-            // Handle method calls like obj.method()
-            parse_member_expression(&function_node, source)?
-        }
-        _ => return None,
-    };
-
-    Some(FunctionCall {
-        name: function_name,
-        module,
-        line,
-    })
-}
-
-/// Parse a member expression (e.g., console.log, fs.readFile)
-fn parse_member_expression(node: &Node, source: &str) -> Option<(String, Option<String>)> {
-    let mut parts = Vec::new();
-    collect_member_parts(node, source, &mut parts);
-
-    if parts.is_empty() {
-        return None;
-    }
-
-    // The last part is the function/method name
-    let function_name = parts.pop()?;
-
-    // The rest is the object/module path
-    let module = if parts.is_empty() {
-        None
-    } else {
-        Some(parts.join("."))
-    };
-
-    Some((function_name, module))
-}
-
-/// Recursively collect parts of a member expression
-fn collect_member_parts(node: &Node, source: &str, parts: &mut Vec<String>) {
-    let mut cursor = node.walk();
-    if cursor.goto_first_child() {
-        loop {
-            let child = cursor.node();
-            match child.kind() {
-                "identifier" => {
-                    if let Ok(name) = child.utf8_text(source.as_bytes()) {
-                        parts.push(name.to_string());
-                    }
-                }
-                "property_identifier" => {
-                    if let Ok(name) = child.utf8_text(source.as_bytes()) {
-                        parts.push(name.to_string());
-                    }
-                }
-                "member_expression" => {
-                    collect_member_parts(&child, source, parts);
-                }
-                _ => {}
-            }
-            if !cursor.goto_next_sibling() {
-                break;
-            }
-        }
-    }
-}
-
-/// Parse a type annotation (JSDoc style)
-fn parse_type_annotation(node: &Node, source: &str) -> Option<TypeReference> {
-    let start = node.start_position();
-    let line = start.row + 1;
-
-    // Extract type name from JSDoc annotation
-    if let Ok(type_text) = node.utf8_text(source.as_bytes()) {
-        // Simple extraction - could be improved
-        let type_name = type_text.trim_start_matches('@').trim();
-
-        Some(TypeReference {
-            name: type_name.to_string(),
-            module: None,
-            line,
-        })
-    } else {
-        None
-    }
-}
-
-/// Parse JSX element as a type reference
-fn parse_jsx_element(node: &Node, source: &str) -> Option<TypeReference> {
-    let start = node.start_position();
-    let line = start.row + 1;
-
-    // Find the opening element or self-closing element
-    let mut cursor = node.walk();
-    if cursor.goto_first_child() {
-        loop {
-            let child = cursor.node();
-            match child.kind() {
-                "jsx_opening_element" | "jsx_self_closing_element" => {
-                    // Find the identifier (component name)
-                    let mut elem_cursor = child.walk();
-                    if elem_cursor.goto_first_child() {
-                        loop {
-                            let elem_child = elem_cursor.node();
-                            if elem_child.kind() == "identifier" {
-                                if let Ok(name) = elem_child.utf8_text(source.as_bytes()) {
-                                    // Only track capitalized identifiers (React components)
-                                    if name.chars().next().is_some_and(|c| c.is_uppercase()) {
-                                        return Some(TypeReference {
-                                            name: name.to_string(),
-                                            module: None,
-                                            line,
-                                        });
-                                    }
-                                }
-                            }
-                            if !elem_cursor.goto_next_sibling() {
-                                break;
-                            }
-                        }
-                    }
-                }
-                _ => {}
-            }
-            if !cursor.goto_next_sibling() {
-                break;
-            }
-        }
-    }
-
-    None
 }
 
 pub struct JavaScriptModuleResolver;
@@ -469,67 +75,29 @@ impl ModuleResolver for JavaScriptModuleResolver {
         // Validate module name for security
         validate_module_name(module_path)?;
 
-        // Handle node_modules imports
-        if !module_path.starts_with('.') && !module_path.starts_with('/') {
-            // Check if it's a built-in Node.js module
-            if self.is_external_module(module_path) {
-                return Ok(ResolvedPath {
-                    path: base_dir.join("package.json"),
-                    is_external: true,
-                    confidence: 1.0,
-                });
-            }
-
-            // Try to find in node_modules
-            let mut current = from_file.parent();
-            while let Some(dir) = current {
-                let node_modules = dir.join("node_modules").join(module_path);
-
-                // Check package.json for main entry
-                let package_json = node_modules.join("package.json");
-                if package_json.exists() {
-                    let validated_path = validate_import_path(base_dir, &package_json)?;
-                    return Ok(ResolvedPath {
-                        path: validated_path,
-                        is_external: true,
-                        confidence: 0.9,
-                    });
-                }
-
-                // Try index.js
-                let index_js = node_modules.join("index.js");
-                if index_js.exists() {
-                    let validated_path = validate_import_path(base_dir, &index_js)?;
-                    return Ok(ResolvedPath {
-                        path: validated_path,
-                        is_external: true,
-                        confidence: 0.8,
-                    });
-                }
-
-                current = dir.parent();
-            }
+        // Handle Node.js built-in modules
+        if self.is_external_module(module_path) {
+            return Ok(ResolvedPath {
+                path: base_dir.join("package.json"), // Point to package.json as indicator
+                is_external: true,
+                confidence: 1.0,
+            });
         }
 
-        // Handle relative imports
+        // Handle relative imports (./, ../)
         if module_path.starts_with('.') {
             if let Some(parent) = from_file.parent() {
-                let path = parent.join(module_path);
+                // Properly resolve relative paths by removing leading "./"
+                let clean_path = if let Some(stripped) = module_path.strip_prefix("./") {
+                    stripped // Remove "./" prefix
+                } else {
+                    module_path // Keep as-is for "../" or other relative paths
+                };
+                let resolved_path = parent.join(clean_path);
 
-                // Try exact path first
-                if path.exists() && path.is_file() {
-                    // Validate the resolved path for security
-                    let validated_path = validate_import_path(base_dir, &path)?;
-                    return Ok(ResolvedPath {
-                        path: validated_path,
-                        is_external: false,
-                        confidence: 1.0,
-                    });
-                }
-
-                // Try with extensions
-                for ext in &["js", "jsx", "mjs", "cjs", "json"] {
-                    let with_ext = path.with_extension(ext);
+                // Try different extensions
+                for ext in &["js", "jsx", "ts", "tsx"] {
+                    let with_ext = resolved_path.with_extension(ext);
                     if with_ext.exists() {
                         let validated_path = validate_import_path(base_dir, &with_ext)?;
                         return Ok(ResolvedPath {
@@ -540,24 +108,56 @@ impl ModuleResolver for JavaScriptModuleResolver {
                     }
                 }
 
-                // Try as directory with index.js
-                if path.is_dir() {
-                    for index_name in &["index.js", "index.jsx", "index.mjs"] {
-                        let index_path = path.join(index_name);
-                        if index_path.exists() {
-                            let validated_path = validate_import_path(base_dir, &index_path)?;
-                            return Ok(ResolvedPath {
-                                path: validated_path,
-                                is_external: false,
-                                confidence: 0.8,
-                            });
-                        }
+                // Try as directory with index file
+                for ext in &["js", "jsx", "ts", "tsx"] {
+                    let index_path = resolved_path.join(format!("index.{ext}"));
+                    if index_path.exists() {
+                        let validated_path = validate_import_path(base_dir, &index_path)?;
+                        return Ok(ResolvedPath {
+                            path: validated_path,
+                            is_external: false,
+                            confidence: 0.9,
+                        });
                     }
                 }
             }
         }
 
-        // Otherwise, assume it's an external module
+        // Handle absolute imports from node_modules or project root
+        let search_paths = vec![
+            base_dir.to_path_buf(),
+            from_file.parent().unwrap_or(base_dir).to_path_buf(),
+        ];
+
+        for search_path in &search_paths {
+            // Try as a file
+            for ext in &["js", "jsx", "ts", "tsx"] {
+                let file_path = search_path.join(format!("{module_path}.{ext}"));
+                if file_path.exists() {
+                    let validated_path = validate_import_path(base_dir, &file_path)?;
+                    return Ok(ResolvedPath {
+                        path: validated_path,
+                        is_external: false,
+                        confidence: 0.8,
+                    });
+                }
+            }
+
+            // Try as a directory with index file
+            for ext in &["js", "jsx", "ts", "tsx"] {
+                let index_path = search_path.join(module_path).join(format!("index.{ext}"));
+                if index_path.exists() {
+                    let validated_path = validate_import_path(base_dir, &index_path)?;
+                    return Ok(ResolvedPath {
+                        path: validated_path,
+                        is_external: false,
+                        confidence: 0.8,
+                    });
+                }
+            }
+        }
+
+        // Otherwise, assume it's an external package
         Ok(ResolvedPath {
             path: base_dir.join("package.json"),
             is_external: true,
@@ -566,47 +166,88 @@ impl ModuleResolver for JavaScriptModuleResolver {
     }
 
     fn get_file_extensions(&self) -> Vec<&'static str> {
-        vec!["js", "jsx", "mjs", "cjs"]
+        vec!["js", "jsx"]
     }
 
     fn is_external_module(&self, module_path: &str) -> bool {
-        // Common Node.js built-in modules
+        // Node.js built-in modules
         let builtin_modules = [
-            "fs",
-            "path",
-            "http",
-            "https",
-            "crypto",
-            "os",
-            "util",
-            "stream",
-            "events",
-            "child_process",
-            "cluster",
-            "net",
-            "dgram",
-            "dns",
-            "readline",
-            "repl",
-            "vm",
             "assert",
             "buffer",
-            "console",
-            "process",
+            "child_process",
+            "cluster",
+            "crypto",
+            "dgram",
+            "dns",
+            "domain",
+            "events",
+            "fs",
+            "http",
+            "https",
+            "net",
+            "os",
+            "path",
+            "punycode",
             "querystring",
+            "readline",
+            "repl",
+            "stream",
             "string_decoder",
-            "timers",
             "tls",
             "tty",
             "url",
+            "util",
+            "v8",
+            "vm",
             "zlib",
-            "async_hooks",
-            "http2",
-            "perf_hooks",
-            "worker_threads",
+            "process",
+            "console",
+            "timers",
+            "module",
         ];
 
-        let module_name = module_path.split('/').next().unwrap_or(module_path);
-        builtin_modules.contains(&module_name)
+        // Common npm packages
+        let common_packages = [
+            "react",
+            "react-dom",
+            "vue",
+            "angular",
+            "lodash",
+            "express",
+            "next",
+            "webpack",
+            "babel",
+            "eslint",
+            "typescript",
+            "jest",
+            "mocha",
+            "chai",
+            "sinon",
+            "axios",
+            "moment",
+            "dayjs",
+            "socket.io",
+            "cors",
+            "helmet",
+            "bcrypt",
+            "jsonwebtoken",
+            "passport",
+            "multer",
+            "nodemailer",
+            "mongoose",
+            "sequelize",
+            "prisma",
+            "graphql",
+            "apollo",
+            "redux",
+            "mobx",
+            "zustand",
+            "styled-components",
+            "emotion",
+            "tailwindcss",
+        ];
+
+        let first_part = module_path.split('/').next().unwrap_or("");
+        builtin_modules.contains(&first_part) || common_packages.contains(&first_part)
     }
 }
