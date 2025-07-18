@@ -15,29 +15,29 @@ fn test_python_circular_imports() {
     // Create circular import: a.py -> b.py -> c.py -> a.py
     fs::write(
         src_dir.join("a.py"),
-        r#"
+        r"
 from b import function_b
 
 def function_a():
     return function_b() + 1
-"#,
+",
     )
     .unwrap();
 
     fs::write(
         src_dir.join("b.py"),
-        r#"
+        r"
 from c import function_c
 
 def function_b():
     return function_c() + 2
-"#,
+",
     )
     .unwrap();
 
     fs::write(
         src_dir.join("c.py"),
-        r#"
+        r"
 # Circular import - typically would cause issues at runtime
 # from a import function_a
 
@@ -45,7 +45,7 @@ def function_c():
     # Lazy import to avoid circular import error
     from a import function_a
     return 10
-"#,
+",
     )
     .unwrap();
 
@@ -801,10 +801,10 @@ fn test_python_many_imports() {
         fs::write(
             src_dir.join(format!("module{i}.py")),
             format!(
-                r#"
+                r"
 def function{i}():
     return {i}
-"#
+"
             ),
         )
         .unwrap();
@@ -1155,13 +1155,13 @@ def init_package():
     // Create referenced modules
     fs::write(
         pkg.join("core.py"),
-        r#"
+        r"
 class Engine:
     pass
 
 class Config:
     pass
-"#,
+",
     )
     .unwrap();
 
@@ -1179,58 +1179,58 @@ def utility_function():
 
     fs::write(
         pkg.join("constants.py"),
-        r#"
+        r"
 DEFAULT_TIMEOUT = 30
 MAX_RETRIES = 3
-"#,
+",
     )
     .unwrap();
 
     fs::write(
         pkg.join("processor.py"),
-        r#"
+        r"
 class DataProcessor:
     pass
-"#,
+",
     )
     .unwrap();
 
     fs::write(
         pkg.join("types.py"),
-        r#"
+        r"
 class TypeA:
     pass
 
 class TypeB:
     pass
-"#,
+",
     )
     .unwrap();
 
     fs::write(
         pkg.join("modern.py"),
-        r#"
+        r"
 class ModernFeature:
     pass
-"#,
+",
     )
     .unwrap();
 
     fs::write(
         pkg.join("legacy.py"),
-        r#"
+        r"
 class LegacyFeature:
     pass
-"#,
+",
     )
     .unwrap();
 
     fs::write(
         pkg.join("setup.py"),
-        r#"
+        r"
 def configure():
     pass
-"#,
+",
     )
     .unwrap();
 

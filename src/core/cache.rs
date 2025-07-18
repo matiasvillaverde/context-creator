@@ -5,6 +5,7 @@
 
 use anyhow::Result;
 use dashmap::DashMap;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -32,11 +33,11 @@ impl FileCache {
         }
 
         // Load from disk
-        let content = std::fs::read_to_string(&canonical_path)?;
+        let content = fs::read_to_string(&canonical_path)?;
         let arc_content: Arc<str> = Arc::from(content.as_str());
 
         // Store in cache
-        self.cache.insert(canonical_path, arc_content.clone());
+        let _ = self.cache.insert(canonical_path, arc_content.clone());
 
         Ok(arc_content)
     }

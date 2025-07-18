@@ -7,6 +7,7 @@
 use crate::cli::{Config as CliConfig, LlmTool};
 use crate::utils::error::ContextCreatorError;
 use serde::{Deserialize, Serialize};
+use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Configuration file structure
@@ -90,7 +91,7 @@ impl ConfigFile {
             )));
         }
 
-        let content = std::fs::read_to_string(path).map_err(|e| {
+        let content = fs::read_to_string(path).map_err(|e| {
             ContextCreatorError::ConfigError(format!(
                 "Failed to read config file {}: {}",
                 path.display(),
@@ -176,10 +177,11 @@ impl ConfigFile {
         let current_paths = cli_config.get_directories();
         if current_paths.len() == 1
             && current_paths[0] == PathBuf::from(".")
-            && self.defaults.directory.is_some()
             && cli_config.repo.is_none()
         {
-            cli_config.paths = Some(vec![self.defaults.directory.clone().unwrap()]);
+            if let Some(ref default_dir) = self.defaults.directory {
+                cli_config.paths = Some(vec![default_dir.clone()]);
+            }
         }
 
         // Apply output file default if not specified
@@ -205,7 +207,7 @@ impl ConfigFile {
 pub fn create_example_config() -> String {
     let example = ConfigFile {
         defaults: Defaults {
-            max_tokens: Some(150000),
+            max_tokens: Some(150_000),
             llm_tool: Some("gemini".to_string()),
             progress: true,
             verbose: false,
@@ -275,7 +277,7 @@ include = [
 ]
 
 [defaults]
-max_tokens = 100000
+max_tokens = 100_000
 llm_tool = "gemini"
 progress = true
 
@@ -290,7 +292,7 @@ weight = 50.0
 
         let config: ConfigFile = toml::from_str(config_content).unwrap();
 
-        assert_eq!(config.defaults.max_tokens, Some(100000));
+        assert_eq!(config.defaults.max_tokens, Some(100_000));
         assert_eq!(config.defaults.llm_tool, Some("gemini".to_string()));
         assert!(config.defaults.progress);
         assert_eq!(config.priorities.len(), 2);
@@ -305,16 +307,16 @@ weight = 50.0
         let temp_dir = TempDir::new().unwrap();
         let config_path = temp_dir.path().join("config.toml");
 
-        let config_content = r#"
+        let config_content = r"
 [defaults]
-max_tokens = 50000
+max_tokens = 50_000
 progress = true
-"#;
+";
 
         fs::write(&config_path, config_content).unwrap();
 
         let config = ConfigFile::load_from_file(&config_path).unwrap();
-        assert_eq!(config.defaults.max_tokens, Some(50000));
+        assert_eq!(config.defaults.max_tokens, Some(50_000));
         assert!(config.defaults.progress);
     }
 
@@ -322,7 +324,7 @@ progress = true
     fn test_apply_to_cli_config() {
         let config_file = ConfigFile {
             defaults: Defaults {
-                max_tokens: Some(75000),
+                max_tokens: Some(75_000),
                 llm_tool: Some("codex".to_string()),
                 progress: true,
                 verbose: true,
@@ -363,7 +365,7 @@ progress = true
 
         config_file.apply_to_cli_config(&mut cli_config);
 
-        assert_eq!(cli_config.config_defaults_max_tokens, Some(75000));
+        assert_eq!(cli_config.config_defaults_max_tokens, Some(75_000));
         assert_eq!(cli_config.llm_tool, LlmTool::Codex);
         assert!(cli_config.progress);
         assert!(cli_config.verbose);
@@ -386,14 +388,14 @@ progress = true
 
     #[test]
     fn test_token_limits_parsing() {
-        let config_content = r#"
+        let config_content = r"
 [tokens]
-gemini = 2000000
-codex = 1500000
+gemini = 2_000_000
+codex = 1_500_000
 
 [defaults]
-max_tokens = 100000
-"#;
+max_tokens = 100_000
+";
 
         let config: ConfigFile = toml::from_str(config_content).unwrap();
         assert_eq!(config.tokens.gemini, Some(2_000_000));
@@ -403,14 +405,14 @@ max_tokens = 100000
 
     #[test]
     fn test_token_limits_partial_parsing() {
-        let config_content = r#"
+        let config_content = r"
 [tokens]
-gemini = 3000000
+gemini = 3_000_000
 # codex not specified, should use default
 
 [defaults]
-max_tokens = 150000
-"#;
+max_tokens = 150_000
+";
 
         let config: ConfigFile = toml::from_str(config_content).unwrap();
         assert_eq!(config.tokens.gemini, Some(3_000_000));
@@ -419,13 +421,13 @@ max_tokens = 150000
 
     #[test]
     fn test_token_limits_empty_section() {
-        let config_content = r#"
+        let config_content = r"
 [tokens]
 # No limits specified
 
 [defaults]
-max_tokens = 200000
-"#;
+max_tokens = 200_000
+";
 
         let config: ConfigFile = toml::from_str(config_content).unwrap();
         assert_eq!(config.tokens.gemini, None);
@@ -436,7 +438,7 @@ max_tokens = 200000
     fn test_apply_to_cli_config_with_token_limits() {
         let config_file = ConfigFile {
             defaults: Defaults {
-                max_tokens: Some(75000),
+                max_tokens: Some(75_000),
                 llm_tool: Some("gemini".to_string()),
                 progress: true,
                 verbose: false,
@@ -481,7 +483,7 @@ max_tokens = 200000
         config_file.apply_to_cli_config(&mut cli_config);
 
         // Token limits should be stored but not directly applied to max_tokens
-        assert_eq!(cli_config.config_defaults_max_tokens, Some(75000)); // From defaults
+        assert_eq!(cli_config.config_defaults_max_tokens, Some(75_000)); // From defaults
         assert!(cli_config.config_token_limits.is_some());
         let token_limits = cli_config.config_token_limits.as_ref().unwrap();
         assert_eq!(token_limits.gemini, Some(2_500_000));

@@ -6,7 +6,7 @@ mod tests {
     #[test]
     fn test_rust_mod_declaration_parsing() {
         let analyzer = RustAnalyzer::new();
-        let content = r#"
+        let content = r"
 mod lib;
 mod utils;
 
@@ -14,7 +14,7 @@ fn main() {
     lib::hello();
     utils::helper();
 }
-"#;
+";
         let path = PathBuf::from("main.rs");
         let context = SemanticContext::new(path.clone(), PathBuf::from("."), 3);
 
@@ -35,14 +35,14 @@ fn main() {
     #[test]
     fn test_rust_use_declaration_parsing() {
         let analyzer = RustAnalyzer::new();
-        let content = r#"
+        let content = r"
 use std::collections::HashMap;
 use crate::utils::helper;
 
 fn main() {
     let map = HashMap::new();
 }
-"#;
+";
         let path = PathBuf::from("main.rs");
         let context = SemanticContext::new(path.clone(), PathBuf::from("."), 3);
 

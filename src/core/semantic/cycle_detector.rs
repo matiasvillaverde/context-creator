@@ -5,7 +5,7 @@
 //! for handling circular dependencies.
 
 use petgraph::graph::{DiGraph, NodeIndex};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// Result of cycle detection analysis
 #[derive(Debug, Clone)]
@@ -139,30 +139,30 @@ impl TarjanCycleDetector {
         }
 
         // Build a set of all nodes that are in cycles
-        let mut nodes_in_cycles = std::collections::HashSet::new();
+        let mut nodes_in_cycles = HashSet::new();
         for cycle in &cycles {
             for &node in cycle {
-                nodes_in_cycles.insert(node);
+                let _ = nodes_in_cycles.insert(node);
             }
         }
 
         // Use a modified topological sort that treats cycle nodes as a single unit
-        let mut visited = std::collections::HashSet::new();
+        let mut visited = HashSet::new();
         let mut partial_order = Vec::new();
 
         // Helper function for DFS traversal
         fn visit<N, E>(
             node: NodeIndex,
             graph: &DiGraph<N, E>,
-            visited: &mut std::collections::HashSet<NodeIndex>,
+            visited: &mut HashSet<NodeIndex>,
             partial_order: &mut Vec<NodeIndex>,
-            nodes_in_cycles: &std::collections::HashSet<NodeIndex>,
+            nodes_in_cycles: &HashSet<NodeIndex>,
         ) {
             if visited.contains(&node) {
                 return;
             }
 
-            visited.insert(node);
+            let _ = visited.insert(node);
 
             // Visit dependencies first (unless they're in the same cycle)
             for neighbor in graph.neighbors(node) {
@@ -196,11 +196,11 @@ impl TarjanCycleDetector {
     /// Core Tarjan's algorithm implementation
     fn strong_connect<N, E>(&mut self, graph: &DiGraph<N, E>, v: NodeIndex) {
         // Set the depth index for v
-        self.indices.insert(v, self.index);
-        self.low_links.insert(v, self.index);
+        let _ = self.indices.insert(v, self.index);
+        let _ = self.low_links.insert(v, self.index);
         self.index += 1;
         self.stack.push(v);
-        self.on_stack.insert(v, true);
+        let _ = self.on_stack.insert(v, true);
 
         // Consider successors of v
         for neighbor in graph.neighbors(v) {
@@ -209,12 +209,12 @@ impl TarjanCycleDetector {
                 self.strong_connect(graph, neighbor);
                 let v_low = *self.low_links.get(&v).unwrap();
                 let neighbor_low = *self.low_links.get(&neighbor).unwrap();
-                self.low_links.insert(v, v_low.min(neighbor_low));
+                let _ = self.low_links.insert(v, v_low.min(neighbor_low));
             } else if *self.on_stack.get(&neighbor).unwrap_or(&false) {
                 // Successor is in stack and hence in the current SCC
                 let v_low = *self.low_links.get(&v).unwrap();
                 let neighbor_index = *self.indices.get(&neighbor).unwrap();
-                self.low_links.insert(v, v_low.min(neighbor_index));
+                let _ = self.low_links.insert(v, v_low.min(neighbor_index));
             }
         }
 
@@ -223,7 +223,7 @@ impl TarjanCycleDetector {
             let mut scc = Vec::new();
             loop {
                 let w = self.stack.pop().unwrap();
-                self.on_stack.insert(w, false);
+                let _ = self.on_stack.insert(w, false);
                 scc.push(w);
                 if w == v {
                     break;
@@ -245,8 +245,8 @@ mod tests {
         let mut graph = DiGraph::new();
         let a = graph.add_node("A");
         let b = graph.add_node("B");
-        graph.add_edge(a, b, ());
-        graph.add_edge(b, a, ());
+        let _ = graph.add_edge(a, b, ());
+        let _ = graph.add_edge(b, a, ());
 
         let mut detector = TarjanCycleDetector::new();
         let result = detector.detect_cycles(&graph);
@@ -263,9 +263,9 @@ mod tests {
         let a = graph.add_node("A");
         let b = graph.add_node("B");
         let c = graph.add_node("C");
-        graph.add_edge(a, b, ());
-        graph.add_edge(b, c, ());
-        graph.add_edge(c, a, ());
+        let _ = graph.add_edge(a, b, ());
+        let _ = graph.add_edge(b, c, ());
+        let _ = graph.add_edge(c, a, ());
 
         let mut detector = TarjanCycleDetector::new();
         let result = detector.detect_cycles(&graph);
@@ -283,16 +283,16 @@ mod tests {
         // First cycle: A → B → A
         let a = graph.add_node("A");
         let b = graph.add_node("B");
-        graph.add_edge(a, b, ());
-        graph.add_edge(b, a, ());
+        let _ = graph.add_edge(a, b, ());
+        let _ = graph.add_edge(b, a, ());
 
         // Second cycle: C → D → E → C
         let c = graph.add_node("C");
         let d = graph.add_node("D");
         let e = graph.add_node("E");
-        graph.add_edge(c, d, ());
-        graph.add_edge(d, e, ());
-        graph.add_edge(e, c, ());
+        let _ = graph.add_edge(c, d, ());
+        let _ = graph.add_edge(d, e, ());
+        let _ = graph.add_edge(e, c, ());
 
         let mut detector = TarjanCycleDetector::new();
         let result = detector.detect_cycles(&graph);
@@ -313,8 +313,8 @@ mod tests {
         let a = graph.add_node("A");
         let b = graph.add_node("B");
         let c = graph.add_node("C");
-        graph.add_edge(a, b, ());
-        graph.add_edge(b, c, ());
+        let _ = graph.add_edge(a, b, ());
+        let _ = graph.add_edge(b, c, ());
 
         let mut detector = TarjanCycleDetector::new();
         let result = detector.detect_cycles(&graph);
@@ -328,7 +328,7 @@ mod tests {
         // Create a self-cycle: A → A
         let mut graph = DiGraph::new();
         let a = graph.add_node("A");
-        graph.add_edge(a, a, ());
+        let _ = graph.add_edge(a, a, ());
 
         let mut detector = TarjanCycleDetector::new();
         let result = detector.detect_cycles(&graph);
@@ -347,8 +347,8 @@ mod tests {
         // SCC 1: A → B → A
         let a = graph.add_node("A");
         let b = graph.add_node("B");
-        graph.add_edge(a, b, ());
-        graph.add_edge(b, a, ());
+        let _ = graph.add_edge(a, b, ());
+        let _ = graph.add_edge(b, a, ());
 
         // SCC 2: Single node C
         let c = graph.add_node("C");
@@ -357,13 +357,13 @@ mod tests {
         let d = graph.add_node("D");
         let e = graph.add_node("E");
         let f = graph.add_node("F");
-        graph.add_edge(d, e, ());
-        graph.add_edge(e, f, ());
-        graph.add_edge(f, d, ());
+        let _ = graph.add_edge(d, e, ());
+        let _ = graph.add_edge(e, f, ());
+        let _ = graph.add_edge(f, d, ());
 
         // Connect SCCs
-        graph.add_edge(a, c, ());
-        graph.add_edge(c, d, ());
+        let _ = graph.add_edge(a, c, ());
+        let _ = graph.add_edge(c, d, ());
 
         let mut detector = TarjanCycleDetector::new();
         let sccs = detector.find_strongly_connected_components(&graph);
@@ -388,12 +388,12 @@ mod tests {
         let d = graph.add_node("D");
 
         // Create cycle: A → B → C → A
-        graph.add_edge(a, b, ());
-        graph.add_edge(b, c, ());
-        graph.add_edge(c, a, ());
+        let _ = graph.add_edge(a, b, ());
+        let _ = graph.add_edge(b, c, ());
+        let _ = graph.add_edge(c, a, ());
 
         // Add non-cycle node
-        graph.add_edge(c, d, ());
+        let _ = graph.add_edge(c, d, ());
 
         let mut detector = TarjanCycleDetector::new();
         let result = detector.detect_cycles(&graph);

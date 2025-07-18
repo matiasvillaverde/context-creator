@@ -128,7 +128,8 @@ fn clone_with_gh(
 ) -> Result<bool, ContextCreatorError> {
     let repo_spec = format!("{owner}/{repo}");
     let mut cmd = Command::new("gh");
-    cmd.arg("repo")
+    let _ = cmd
+        .arg("repo")
         .arg("clone")
         .arg(&repo_spec)
         .arg(target_dir.join(repo))
@@ -158,7 +159,8 @@ fn clone_with_git(
     })?;
 
     let mut cmd = Command::new("git");
-    cmd.arg("clone")
+    let _ = cmd
+        .arg("clone")
         .arg("--depth")
         .arg("1")
         .arg(repo_url)

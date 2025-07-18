@@ -42,7 +42,7 @@ impl TokenCounter {
 
         // Store in cache
         if let Ok(mut cache) = self.cache.lock() {
-            cache.insert(hash, count);
+            let _ = cache.insert(hash, count);
         }
 
         Ok(count)
@@ -97,7 +97,7 @@ impl TokenCounter {
 
 impl Default for TokenCounter {
     fn default() -> Self {
-        Self::new().expect("Failed to create token counter")
+        Self::new().expect("Failed to initialize TokenCounter")
     }
 }
 

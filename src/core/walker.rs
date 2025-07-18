@@ -6,6 +6,7 @@ use anyhow::Result;
 use glob::Pattern;
 use ignore::{Walk, WalkBuilder};
 use rayon::prelude::*;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -274,7 +275,7 @@ fn build_walker(root: &Path, options: &WalkOptions) -> Result<Walk> {
     let mut builder = WalkBuilder::new(root);
 
     // Configure the walker
-    builder
+    let _ = builder
         .follow_links(options.follow_links)
         .hidden(!options.include_hidden)
         .git_ignore(true)
@@ -310,7 +311,7 @@ fn build_walker(root: &Path, options: &WalkOptions) -> Result<Walk> {
                 let sanitized_pattern = sanitize_pattern(pattern)?;
 
                 // Include patterns are added directly (not as negations)
-                override_builder.add(&sanitized_pattern).map_err(|e| {
+                let _ = override_builder.add(&sanitized_pattern).map_err(|e| {
                     ContextCreatorError::InvalidConfiguration(format!(
                         "Invalid include pattern '{pattern}': {e}"
                     ))
@@ -324,7 +325,7 @@ fn build_walker(root: &Path, options: &WalkOptions) -> Result<Walk> {
             ))
         })?;
 
-        builder.overrides(overrides);
+        let _ = builder.overrides(overrides);
     }
 
     Ok(builder.build())
@@ -417,7 +418,7 @@ fn walk_parallel(walker: Walk, root: &Path, options: &WalkOptions) -> Result<Vec
 /// Process a single file
 fn process_file(path: &Path, root: &Path, options: &WalkOptions) -> Result<Option<FileInfo>> {
     // Get file metadata
-    let metadata = match std::fs::metadata(path) {
+    let metadata = match fs::metadata(path) {
         Ok(meta) => meta,
         Err(_) => return Ok(None), // Skip files we can't read
     };
@@ -577,10 +578,10 @@ mod tests {
         let root = temp_dir.path();
 
         // Create test files
-        File::create(root.join("main.rs")).unwrap();
-        File::create(root.join("lib.rs")).unwrap();
+        let _ = File::create(root.join("main.rs")).unwrap();
+        let _ = File::create(root.join("lib.rs")).unwrap();
         fs::create_dir(root.join("src")).unwrap();
-        File::create(root.join("src/utils.rs")).unwrap();
+        let _ = File::create(root.join("src/utils.rs")).unwrap();
 
         let options = WalkOptions::default();
         let files = walk_directory(root, options).unwrap();
@@ -603,8 +604,8 @@ mod tests {
         let root = temp_dir.path();
 
         // Create test files
-        File::create(root.join("main.rs")).unwrap();
-        File::create(root.join("ignored.rs")).unwrap();
+        let _ = File::create(root.join("main.rs")).unwrap();
+        let _ = File::create(root.join("ignored.rs")).unwrap();
 
         // Create .context-creator-ignore
         fs::write(root.join(".context-creator-ignore"), "ignored.rs").unwrap();
@@ -637,7 +638,7 @@ mod tests {
         fs::write(&large_file, &data).unwrap();
 
         // Create a small file
-        File::create(root.join("small.txt")).unwrap();
+        let _ = File::create(root.join("small.txt")).unwrap();
 
         let options = WalkOptions {
             max_file_size: Some(512 * 1024), // 512KB limit
@@ -687,9 +688,9 @@ mod tests {
         let root = temp_dir.path();
 
         // Create test files
-        File::create(root.join("main.rs")).unwrap();
-        File::create(root.join("test.rs")).unwrap();
-        File::create(root.join("readme.md")).unwrap();
+        let _ = File::create(root.join("main.rs")).unwrap();
+        let _ = File::create(root.join("test.rs")).unwrap();
+        let _ = File::create(root.join("readme.md")).unwrap();
 
         let options = WalkOptions {
             ignore_patterns: vec!["*.md".to_string()],
@@ -714,9 +715,9 @@ mod tests {
         let root = temp_dir.path();
 
         // Create test files
-        File::create(root.join("main.rs")).unwrap();
-        File::create(root.join("lib.rs")).unwrap();
-        File::create(root.join("README.md")).unwrap();
+        let _ = File::create(root.join("main.rs")).unwrap();
+        let _ = File::create(root.join("lib.rs")).unwrap();
+        let _ = File::create(root.join("README.md")).unwrap();
 
         let options = WalkOptions {
             include_patterns: vec!["*.rs".to_string()],
@@ -743,9 +744,9 @@ mod tests {
         // Create nested structure
         fs::create_dir(root.join("src")).unwrap();
         fs::create_dir(root.join("src").join("utils")).unwrap();
-        File::create(root.join("main.rs")).unwrap();
-        File::create(root.join("src").join("lib.rs")).unwrap();
-        File::create(root.join("src").join("utils").join("helpers.rs")).unwrap();
+        let _ = File::create(root.join("main.rs")).unwrap();
+        let _ = File::create(root.join("src").join("lib.rs")).unwrap();
+        let _ = File::create(root.join("src").join("utils").join("helpers.rs")).unwrap();
 
         let options = WalkOptions::default();
         let files = walk_directory(root, options).unwrap();
@@ -922,10 +923,10 @@ mod tests {
         let root = temp_dir.path();
 
         // Create test files that will match our patterns
-        File::create(root.join("high_priority.rs")).unwrap();
-        File::create(root.join("normal.txt")).unwrap();
+        let _ = File::create(root.join("high_priority.rs")).unwrap();
+        let _ = File::create(root.join("normal.txt")).unwrap();
         fs::create_dir(root.join("logs")).unwrap();
-        File::create(root.join("logs/app.log")).unwrap();
+        let _ = File::create(root.join("logs/app.log")).unwrap();
 
         // Arrange: Create config with custom priorities
         let config_file = ConfigFile {

@@ -112,7 +112,7 @@ fn bench_token_counting(c: &mut Criterion) {
     let mut group = c.benchmark_group("token_counting");
     let token_counter = TokenCounter::new().unwrap();
 
-    for &file_size in &[1000, 5000, 10000, 50000] {
+    for &file_size in &[1000, 5000, 10_000, 50_000] {
         let temp_dir = TempDir::new().unwrap();
         let project_dir = create_test_project(temp_dir.path(), 10, file_size);
         let walk_options = WalkOptions::default();
@@ -148,7 +148,7 @@ fn bench_file_prioritization(c: &mut Criterion) {
         let files = walk_directory(&project_dir, walk_options).unwrap();
 
         let context_options = ContextOptions {
-            max_tokens: Some(50000),
+            max_tokens: Some(50_000),
             include_tree: true,
             include_stats: true,
             group_by_type: false,
@@ -240,7 +240,7 @@ fn bench_end_to_end_processing(c: &mut Criterion) {
                     let files = walk_directory(black_box(path), walk_options).unwrap();
 
                     let context_options = ContextOptions {
-                        max_tokens: Some(100000),
+                        max_tokens: Some(100_000),
                         include_tree: true,
                         include_stats: true,
                         group_by_type: false,

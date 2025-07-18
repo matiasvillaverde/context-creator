@@ -84,7 +84,7 @@ impl QueryEngine {
     ) -> Result<Query, ContextCreatorError> {
         let query_text = match language_name {
             "rust" => {
-                r#"
+                r"
                 ; Use declarations
                 (use_declaration) @rust_import
 
@@ -97,10 +97,10 @@ impl QueryEngine {
                 (extern_crate_declaration
                   name: (identifier) @crate_name
                 ) @extern_crate
-            "#
+            "
             }
             "python" => {
-                r#"
+                r"
                 ; Simple import statements (import os, import sys)
                 (import_statement
                   (dotted_name) @module_name
@@ -145,7 +145,7 @@ impl QueryEngine {
                     name: (dotted_name) @import_item
                   )
                 ) @relative_from_import_aliased
-            "#
+            "
             }
             "javascript" => {
                 r#"
@@ -222,7 +222,7 @@ impl QueryEngine {
     ) -> Result<Query, ContextCreatorError> {
         let query_text = match language_name {
             "rust" => {
-                r#"
+                r"
                 ; Simple function calls (helper)
                 (call_expression
                   function: (identifier) @fn_name
@@ -258,10 +258,10 @@ impl QueryEngine {
                 (macro_invocation
                   macro: (identifier) @macro_name
                 ) @macro_call
-            "#
+            "
             }
             "python" => {
-                r#"
+                r"
                 ; Simple function calls (print, len)
                 (call
                   function: (identifier) @fn_name
@@ -281,10 +281,10 @@ impl QueryEngine {
                     attribute: (identifier) @fn_name
                   )
                 ) @nested_call
-            "#
+            "
             }
             "javascript" => {
-                r#"
+                r"
                 ; Function calls
                 (call_expression
                   function: [
@@ -295,10 +295,10 @@ impl QueryEngine {
                     )
                   ]
                 ) @call
-            "#
+            "
             }
             "typescript" => {
-                r#"
+                r"
                 ; Function calls
                 (call_expression
                   function: [
@@ -309,7 +309,7 @@ impl QueryEngine {
                     )
                   ]
                 ) @call
-            "#
+            "
             }
             _ => {
                 return Err(ContextCreatorError::ParseError(format!(
@@ -388,7 +388,7 @@ impl QueryEngine {
             "#
             }
             "python" => {
-                r#"
+                r"
                 ; Type identifiers in type positions
                 (type (identifier) @type_name)
 
@@ -402,7 +402,7 @@ impl QueryEngine {
 
                 ; Generic/subscript type references
                 (subscript (identifier) @subscript_type)
-            "#
+            "
             }
             "javascript" => {
                 r#"
@@ -422,7 +422,7 @@ impl QueryEngine {
             "#
             }
             "typescript" => {
-                r#"
+                r"
                 ; Type annotations
                 (type_annotation
                   (type_identifier) @type_name
@@ -447,7 +447,7 @@ impl QueryEngine {
                 (type_alias_declaration
                   name: (type_identifier) @type_alias
                 )
-            "#
+            "
             }
             _ => {
                 return Err(ContextCreatorError::ParseError(format!(
@@ -675,7 +675,7 @@ impl QueryEngine {
                         | "trait_name" | "imported_type" | "interface_name" | "type_alias"
                         | "jsx_type" | "parent_class" | "type_arg" | "base_type"
                         | "subscript_type" => {
-                            names.insert(capture_name.to_string(), text.to_string());
+                            let _ = names.insert(capture_name.to_string(), text.to_string());
                         }
                         "module_name" => {
                             module = Some(text.to_string());
@@ -885,13 +885,13 @@ impl QueryEngine {
         let language = match path.extension().and_then(|s| s.to_str()) {
             Some("rs") => Some(tree_sitter_rust::language()),
             Some("py") => Some(tree_sitter_python::language()),
-            Some("ts") | Some("tsx") => Some(tree_sitter_typescript::language_typescript()),
-            Some("js") | Some("jsx") => Some(tree_sitter_javascript::language()),
+            Some("ts" | "tsx") => Some(tree_sitter_typescript::language_typescript()),
+            Some("js" | "jsx") => Some(tree_sitter_javascript::language()),
             _ => None,
         };
 
         if let Some(language) = language {
-            let mut parser = tree_sitter::Parser::new();
+            let mut parser = Parser::new();
             if parser.set_language(language).is_err() {
                 return Ok(false);
             }
@@ -900,7 +900,7 @@ impl QueryEngine {
                 // Language-specific queries for type definitions
                 let query_text = match path.extension().and_then(|s| s.to_str()) {
                     Some("rs") => {
-                        r#"
+                        r"
                         [
                           (struct_item name: (type_identifier) @name)
                           (enum_item name: (type_identifier) @name)
@@ -908,39 +908,39 @@ impl QueryEngine {
                           (type_item name: (type_identifier) @name)
                           (union_item name: (type_identifier) @name)
                         ]
-                    "#
+                    "
                     }
                     Some("py") => {
-                        r#"
+                        r"
                         [
                           (class_definition name: (identifier) @name)
                           (function_definition name: (identifier) @name)
                         ]
-                    "#
+                    "
                     }
-                    Some("ts") | Some("tsx") => {
-                        r#"
+                    Some("ts" | "tsx") => {
+                        r"
                         [
                           (interface_declaration name: (type_identifier) @name)
                           (type_alias_declaration name: (type_identifier) @name)
                           (class_declaration name: (type_identifier) @name)
                           (enum_declaration name: (identifier) @name)
                         ]
-                    "#
+                    "
                     }
-                    Some("js") | Some("jsx") => {
-                        r#"
+                    Some("js" | "jsx") => {
+                        r"
                         [
                           (class_declaration name: (identifier) @name)
                           (function_declaration name: (identifier) @name)
                         ]
-                    "#
+                    "
                     }
                     _ => return Ok(false),
                 };
 
-                if let Ok(query) = tree_sitter::Query::new(language, query_text) {
-                    let mut cursor = tree_sitter::QueryCursor::new();
+                if let Ok(query) = Query::new(language, query_text) {
+                    let mut cursor = QueryCursor::new();
                     let matches = cursor.matches(&query, tree.root_node(), content.as_bytes());
 
                     // Check each match to see if the captured name matches our target type
@@ -965,8 +965,8 @@ impl QueryEngine {
         match current_file.extension().and_then(|s| s.to_str()) {
             Some("rs") => vec!["rs"],
             Some("py") => vec!["py"],
-            Some("ts") | Some("tsx") => vec!["ts", "tsx", "js", "jsx"],
-            Some("js") | Some("jsx") => vec!["js", "jsx", "ts", "tsx"],
+            Some("ts" | "tsx") => vec!["ts", "tsx", "js", "jsx"],
+            Some("js" | "jsx") => vec!["js", "jsx", "ts", "tsx"],
             _ => vec!["rs", "py", "ts", "js"], // Default fallback
         }
     }
@@ -975,7 +975,7 @@ impl QueryEngine {
     #[allow(dead_code)]
     fn parse_rust_use_tree(
         &self,
-        node: tree_sitter::Node,
+        node: tree_sitter::Node<'_>,
         content: &str,
     ) -> (String, Vec<String>, bool) {
         // Implementation would recursively parse the use tree structure
@@ -992,7 +992,7 @@ impl QueryEngine {
     /// Parse Rust module declaration structure
     fn parse_rust_module_declaration(
         &self,
-        node: tree_sitter::Node,
+        node: tree_sitter::Node<'_>,
         content: &str,
     ) -> (String, Vec<String>, bool) {
         // Parse module declaration like "mod config;"
@@ -1015,7 +1015,7 @@ impl QueryEngine {
     /// Parse Rust use declaration structure
     fn parse_rust_use_declaration(
         &self,
-        node: tree_sitter::Node,
+        node: tree_sitter::Node<'_>,
         content: &str,
     ) -> (String, Vec<String>, bool) {
         // Parse the entire use declaration

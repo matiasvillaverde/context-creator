@@ -9,6 +9,7 @@ use crate::core::semantic::dependency_types::{DependencyEdgeType, FileAnalysisRe
 use crate::core::semantic::{get_analyzer_for_file, get_resolver_for_file};
 use anyhow::Result;
 use rayon::prelude::*;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -65,11 +66,11 @@ impl<'a> ParallelAnalyzer<'a> {
         files: &[PathBuf],
         project_root: &Path,
         options: &AnalysisOptions,
-        valid_files: &std::collections::HashSet<PathBuf>,
+        valid_files: &HashSet<PathBuf>,
     ) -> Result<Vec<FileAnalysisResult>> {
         // Configure thread pool if specified
         if let Some(count) = self.thread_count {
-            rayon::ThreadPoolBuilder::new()
+            let _ = rayon::ThreadPoolBuilder::new()
                 .num_threads(count)
                 .build_global()
                 .ok(); // Ignore error if already initialized
@@ -122,7 +123,7 @@ impl<'a> ParallelAnalyzer<'a> {
         file_path: &Path,
         project_root: &Path,
         options: &AnalysisOptions,
-        valid_files: &std::collections::HashSet<PathBuf>,
+        valid_files: &HashSet<PathBuf>,
     ) -> Result<FileAnalysisResult> {
         // Get analyzer for the file type
         let analyzer = match get_analyzer_for_file(file_path)? {
@@ -203,7 +204,7 @@ impl<'a> ParallelAnalyzer<'a> {
         file_path: &Path,
         project_root: &Path,
         imports: &[crate::core::semantic::analyzer::Import],
-        _valid_files: &std::collections::HashSet<PathBuf>,
+        _valid_files: &HashSet<PathBuf>,
     ) -> Result<Vec<(PathBuf, DependencyEdgeType)>> {
         let mut typed_imports = Vec::new();
 

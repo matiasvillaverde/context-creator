@@ -76,7 +76,7 @@ impl ParserPoolManager {
         };
 
         // Rust
-        pools.insert(
+        let _ = pools.insert(
             "rust",
             Pool::builder(ParserManager::new(tree_sitter_rust::language(), "rust"))
                 .config(pool_config)
@@ -85,7 +85,7 @@ impl ParserPoolManager {
         );
 
         // JavaScript
-        pools.insert(
+        let _ = pools.insert(
             "javascript",
             Pool::builder(ParserManager::new(
                 tree_sitter_javascript::language(),
@@ -97,7 +97,7 @@ impl ParserPoolManager {
         );
 
         // Python
-        pools.insert(
+        let _ = pools.insert(
             "python",
             Pool::builder(ParserManager::new(tree_sitter_python::language(), "python"))
                 .config(pool_config)
@@ -106,7 +106,7 @@ impl ParserPoolManager {
         );
 
         // TypeScript
-        pools.insert(
+        let _ = pools.insert(
             "typescript",
             Pool::builder(ParserManager::new(
                 tree_sitter_typescript::language_typescript(),
@@ -118,7 +118,7 @@ impl ParserPoolManager {
         );
 
         // Go
-        pools.insert(
+        let _ = pools.insert(
             "go",
             Pool::builder(ParserManager::new(tree_sitter_go::language(), "go"))
                 .config(pool_config)
@@ -127,7 +127,7 @@ impl ParserPoolManager {
         );
 
         // Java
-        pools.insert(
+        let _ = pools.insert(
             "java",
             Pool::builder(ParserManager::new(tree_sitter_java::language(), "java"))
                 .config(pool_config)

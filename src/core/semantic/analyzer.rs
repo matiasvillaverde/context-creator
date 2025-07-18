@@ -48,7 +48,7 @@ impl SemanticContext {
         let mut child = self.clone();
         child.current_file = file.clone();
         child.current_depth += 1;
-        child.visited_files.insert(file);
+        let _ = child.visited_files.insert(file);
         Some(child)
     }
 }

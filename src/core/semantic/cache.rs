@@ -220,7 +220,7 @@ mod tests {
         assert!(result.is_ok());
 
         // Give cache time to update
-        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+        tokio::time::sleep(Duration::from_millis(10)).await;
 
         // Moka cache has eventual consistency, so len() might not reflect immediately
         // Instead check that we can retrieve the cached item
@@ -229,7 +229,7 @@ mod tests {
 
         // Clear cache
         cache.clear().await;
-        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+        tokio::time::sleep(Duration::from_millis(10)).await;
     }
 
     #[tokio::test]
@@ -293,7 +293,7 @@ mod tests {
         }
 
         // Give cache time to update
-        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+        tokio::time::sleep(Duration::from_millis(50)).await;
 
         // With eventual consistency, just verify operations succeeded
         // The important part is that parsing didn't happen 10 times

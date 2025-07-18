@@ -630,7 +630,7 @@ mod tests {
         assert_eq!(format_size(512), "512 B");
         assert_eq!(format_size(1024), "1.00 KB");
         assert_eq!(format_size(1536), "1.50 KB");
-        assert_eq!(format_size(1048576), "1.00 MB");
+        assert_eq!(format_size(1_048_576), "1.00 MB");
     }
 
     #[test]
@@ -776,12 +776,12 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let config = Config {
             paths: Some(vec![temp_dir.path().to_path_buf()]),
-            max_tokens: Some(100000),
+            max_tokens: Some(100_000),
             ..Config::default()
         };
 
         let options = ContextOptions::from_config(&config).unwrap();
-        assert_eq!(options.max_tokens, Some(100000));
+        assert_eq!(options.max_tokens, Some(100_000));
         assert!(options.include_tree);
         assert!(options.include_stats);
         assert!(!options.group_by_type); // Default is false according to implementation

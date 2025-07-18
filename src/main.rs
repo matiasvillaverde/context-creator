@@ -13,7 +13,7 @@ fn main() -> Result<()> {
     if config.should_read_stdin() {
         use std::io::Read;
         let mut buffer = String::new();
-        std::io::stdin().read_to_string(&mut buffer)?;
+        let _ = std::io::stdin().read_to_string(&mut buffer)?;
 
         // Set the prompt from stdin if not already set
         if config.prompt.is_none() {

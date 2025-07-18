@@ -1,26 +1,59 @@
+# Rust version requirement
 msrv = "1.74.0"
 
+# Testing allowances
 allow-unwrap-in-tests = true
 allow-expect-in-tests = true
 allow-dbg-in-tests = true
 allow-print-in-tests = true
 
+# API stability
 avoid-breaking-exported-api = false
+
+# Macro formatting preferences
 standard-macro-braces = [
-    { name = "format", brace = "(" },
-    { name = "format_args", brace = "(" },
-    { name = "vec", brace = "[" },
-    { name = "matches", brace = "(" },
+  { name = "format", brace = "(" },
+  { name = "format_args", brace = "(" },
+  { name = "vec", brace = "[" },
+  { name = "matches", brace = "(" },
 ]
 
-disallowed-names = ["foo", "bar", "baz", "quux", "tmp", "temp", "test"]
-cognitive-complexity-threshold = 30
+# Naming restrictions
+disallowed-names = [
+  "foo",
+  "bar",
+  "baz",
+  "quux",
+  "tmp",
+  "temp",
+  "test",
+  "data",
+  "obj",
+  "thing",
+]
+
+# Complexity thresholds (stricter for better code quality)
+cognitive-complexity-threshold = 20     # Reduced from 30
+too-many-lines-threshold = 100          # Reduced from 400
+too-many-arguments-threshold = 5        # Keep at 5
+type-complexity-threshold = 100         # Reduced from 250
 single-char-binding-names-threshold = 4
-too-many-lines-threshold = 400
-too-many-arguments-threshold = 5
-type-complexity-threshold = 250
 literal-representation-threshold = 16
 enum-variant-name-threshold = 3
 struct-field-name-threshold = 3
 max-trait-bounds = 3
+
+# Numeric literal formatting
 unreadable-literal-lint-fractions = false
+
+# Additional thresholds for better code quality
+max-fn-params-bools = 3
+max-struct-bools = 3
+vec-box-size-threshold = 4096
+trivial-copy-size-limit = 2
+large-error-threshold = 128
+future-size-threshold = 16384
+
+# Module and type restrictions
+max-include-file-size = 1000000
+enum-variant-size-threshold = 200

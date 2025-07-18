@@ -94,7 +94,7 @@ impl TypeResolver {
         }
 
         // Mark type as visited
-        self.visited_types.insert(cache_key.clone());
+        let _ = self.visited_types.insert(cache_key.clone());
 
         // Simulate type resolution (in real implementation, this would call actual resolution logic)
         let result = if type_ref.is_external {
@@ -106,7 +106,7 @@ impl TypeResolver {
         };
 
         // Cache the result
-        self.resolution_cache.insert(cache_key, result.clone());
+        let _ = self.resolution_cache.insert(cache_key, result.clone());
 
         Ok(result)
     }

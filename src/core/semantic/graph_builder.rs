@@ -47,7 +47,7 @@ impl GraphBuilder {
 
             let node_idx = graph.add_node(rich_node);
             // Only store the last occurrence if there are duplicates
-            node_map.insert(file.path.clone(), node_idx);
+            let _ = node_map.insert(file.path.clone(), node_idx);
         }
 
         Ok((graph, node_map))
@@ -63,7 +63,7 @@ impl GraphBuilder {
     ) {
         // Avoid self-loops
         if from != to {
-            graph.add_edge(from, to, edge_type);
+            let _ = graph.add_edge(from, to, edge_type);
         }
     }
 

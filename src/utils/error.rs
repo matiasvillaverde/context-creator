@@ -108,8 +108,8 @@ mod tests {
         assert_eq!(err.to_string(), "Invalid path: /invalid/path");
 
         let err = ContextCreatorError::TokenLimitExceeded {
-            current: 200000,
-            max: 150000,
+            current: 200_000,
+            max: 150_000,
         };
         assert_eq!(
             err.to_string(),

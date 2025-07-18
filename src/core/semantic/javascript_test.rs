@@ -6,7 +6,7 @@ mod tests {
     #[test]
     fn test_javascript_import_parsing() {
         let analyzer = JavaScriptAnalyzer::new();
-        let content = r#"
+        let content = r"
 import React from 'react';
 import { useState, useEffect } from 'react';
 import * as utils from './utils';
@@ -17,7 +17,7 @@ const { readFile } = require('fs/promises');
 export default function App() {
     return <div>Hello</div>;
 }
-"#;
+";
         let path = PathBuf::from("App.js");
         let context = SemanticContext::new(path.clone(), PathBuf::from("."), 3);
 

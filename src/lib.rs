@@ -11,6 +11,8 @@ pub mod remote;
 pub mod utils;
 
 use anyhow::Result;
+use std::collections::HashMap;
+use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -34,8 +36,8 @@ pub fn run(mut config: Config) -> Result<()> {
         }
 
         // Fetch the repository
-        let temp_dir = crate::remote::fetch_repository(repo_url, config.verbose)?;
-        let repo_path = crate::remote::get_repo_path(&temp_dir, repo_url)?;
+        let temp_dir = remote::fetch_repository(repo_url, config.verbose)?;
+        let repo_path = remote::get_repo_path(&temp_dir, repo_url)?;
 
         // Update config to use the cloned repository
         config.paths = Some(vec![repo_path]);
@@ -110,7 +112,15 @@ pub fn run(mut config: Config) -> Result<()> {
     // Combine outputs from all directories
     let output = if all_outputs.len() == 1 {
         // Single directory - return output as-is
-        all_outputs.into_iter().next().unwrap().1
+        all_outputs
+            .into_iter()
+            .next()
+            .ok_or_else(|| {
+                ContextCreatorError::InvalidConfiguration(
+                    "No outputs available to combine".to_string(),
+                )
+            })?
+            .1
     } else {
         // Multiple directories - combine with headers
         let mut combined = String::new();
@@ -134,7 +144,7 @@ pub fn run(mut config: Config) -> Result<()> {
     ) {
         (Some(file), None, false) => {
             // Write to file
-            std::fs::write(file, output)?;
+            fs::write(file, output)?;
             if !config.quiet {
                 println!(" Written to {}", file.display());
             }
@@ -222,9 +232,9 @@ fn process_directory(
         }
 
         // Convert Vec<FileInfo> to HashMap for expansion
-        let mut files_map = std::collections::HashMap::new();
+        let mut files_map = HashMap::new();
         for file in files {
-            files_map.insert(file.path.clone(), file);
+            let _ = files_map.insert(file.path.clone(), file);
         }
 
         // Expand the file list

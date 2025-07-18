@@ -69,11 +69,11 @@ mod glob_pattern_integration_tests {
         // Create nested structure
         fs::create_dir_all(root.join("src/core")).unwrap();
         fs::create_dir_all(root.join("tests")).unwrap();
-        File::create(root.join("main.rs")).unwrap();
-        File::create(root.join("src/lib.rs")).unwrap();
-        File::create(root.join("src/core/mod.rs")).unwrap();
-        File::create(root.join("tests/test.rs")).unwrap();
-        File::create(root.join("README.md")).unwrap();
+        let _ = File::create(root.join("main.rs")).unwrap();
+        let _ = File::create(root.join("src/lib.rs")).unwrap();
+        let _ = File::create(root.join("src/core/mod.rs")).unwrap();
+        let _ = File::create(root.join("tests/test.rs")).unwrap();
+        let _ = File::create(root.join("README.md")).unwrap();
 
         let mut cmd = Command::cargo_bin("context-creator").unwrap();
         cmd.current_dir(root)
@@ -102,12 +102,12 @@ mod glob_pattern_integration_tests {
         // Create test files
         fs::create_dir_all(root.join("src/api")).unwrap();
         fs::create_dir_all(root.join("tests")).unwrap();
-        File::create(root.join("src/main.py")).unwrap();
-        File::create(root.join("src/app.js")).unwrap();
-        File::create(root.join("src/api/handler.py")).unwrap();
-        File::create(root.join("src/api/client.js")).unwrap();
-        File::create(root.join("tests/test.py")).unwrap(); // Should not match
-        File::create(root.join("src/config.toml")).unwrap(); // Should not match
+        let _ = File::create(root.join("src/main.py")).unwrap();
+        let _ = File::create(root.join("src/app.js")).unwrap();
+        let _ = File::create(root.join("src/api/handler.py")).unwrap();
+        let _ = File::create(root.join("src/api/client.js")).unwrap();
+        let _ = File::create(root.join("tests/test.py")).unwrap(); // Should not match
+        let _ = File::create(root.join("src/config.toml")).unwrap(); // Should not match
 
         let mut cmd = Command::cargo_bin("context-creator").unwrap();
         cmd.current_dir(root)
@@ -136,13 +136,13 @@ mod glob_pattern_integration_tests {
 
         // Create test files
         fs::create_dir_all(root.join("tests")).unwrap();
-        File::create(root.join("test1.py")).unwrap();
-        File::create(root.join("test2.py")).unwrap();
-        File::create(root.join("test9.py")).unwrap();
-        File::create(root.join("tests/test3.py")).unwrap();
-        File::create(root.join("test.py")).unwrap(); // Should not match
-        File::create(root.join("test10.py")).unwrap(); // Should not match
-        File::create(root.join("testA.py")).unwrap(); // Should not match
+        let _ = File::create(root.join("test1.py")).unwrap();
+        let _ = File::create(root.join("test2.py")).unwrap();
+        let _ = File::create(root.join("test9.py")).unwrap();
+        let _ = File::create(root.join("tests/test3.py")).unwrap();
+        let _ = File::create(root.join("test.py")).unwrap(); // Should not match
+        let _ = File::create(root.join("test10.py")).unwrap(); // Should not match
+        let _ = File::create(root.join("testA.py")).unwrap(); // Should not match
 
         let mut cmd = Command::cargo_bin("context-creator").unwrap();
         cmd.current_dir(root)
@@ -175,14 +175,14 @@ mod glob_pattern_integration_tests {
         fs::create_dir_all(root.join("src/api")).unwrap();
         fs::create_dir_all(root.join("db/migrations")).unwrap();
 
-        File::create(root.join("src/user_repository.py")).unwrap();
-        File::create(root.join("src/api/auth_service.py")).unwrap();
-        File::create(root.join("src/user_model.py")).unwrap();
-        File::create(root.join("src/db/models/base.py")).unwrap();
-        File::create(root.join("src/db/connection.py")).unwrap();
-        File::create(root.join("db/migrations/001.sql")).unwrap();
-        File::create(root.join("src/utils.py")).unwrap(); // Should not match first pattern
-        File::create(root.join("src/config.py")).unwrap(); // Should not match first pattern
+        let _ = File::create(root.join("src/user_repository.py")).unwrap();
+        let _ = File::create(root.join("src/api/auth_service.py")).unwrap();
+        let _ = File::create(root.join("src/user_model.py")).unwrap();
+        let _ = File::create(root.join("src/db/models/base.py")).unwrap();
+        let _ = File::create(root.join("src/db/connection.py")).unwrap();
+        let _ = File::create(root.join("db/migrations/001.sql")).unwrap();
+        let _ = File::create(root.join("src/utils.py")).unwrap(); // Should not match first pattern
+        let _ = File::create(root.join("src/config.py")).unwrap(); // Should not match first pattern
 
         let mut cmd = Command::cargo_bin("context-creator").unwrap();
         cmd.current_dir(root)
@@ -237,7 +237,7 @@ mod glob_pattern_integration_tests {
         let temp_dir = TempDir::new().unwrap();
         let root = temp_dir.path();
 
-        File::create(root.join("test.py")).unwrap();
+        let _ = File::create(root.join("test.py")).unwrap();
 
         let mut cmd = Command::cargo_bin("context-creator").unwrap();
         cmd.current_dir(root)
@@ -261,10 +261,10 @@ mod glob_pattern_integration_tests {
         let temp_dir = TempDir::new().unwrap();
         let root = temp_dir.path();
 
-        File::create(root.join("main.py")).unwrap();
-        File::create(root.join("app.js")).unwrap();
-        File::create(root.join("config.rs")).unwrap();
-        File::create(root.join("README.md")).unwrap();
+        let _ = File::create(root.join("main.py")).unwrap();
+        let _ = File::create(root.join("app.js")).unwrap();
+        let _ = File::create(root.join("config.rs")).unwrap();
+        let _ = File::create(root.join("README.md")).unwrap();
 
         let mut cmd = Command::cargo_bin("context-creator").unwrap();
         cmd.current_dir(root)
@@ -292,9 +292,9 @@ mod glob_pattern_integration_tests {
         let root = temp_dir.path();
 
         fs::create_dir_all(root.join("src")).unwrap();
-        File::create(root.join("src/main.rs")).unwrap();
-        File::create(root.join("src/lib.rs")).unwrap();
-        File::create(root.join("test.py")).unwrap();
+        let _ = File::create(root.join("src/main.rs")).unwrap();
+        let _ = File::create(root.join("src/lib.rs")).unwrap();
+        let _ = File::create(root.join("test.py")).unwrap();
 
         // Test with quoted pattern
         let mut cmd = Command::cargo_bin("context-creator").unwrap();
@@ -323,8 +323,8 @@ mod edge_case_tests {
         let temp_dir = TempDir::new().unwrap();
         let root = temp_dir.path();
 
-        File::create(root.join("test.py")).unwrap();
-        File::create(root.join("README.md")).unwrap();
+        let _ = File::create(root.join("test.py")).unwrap();
+        let _ = File::create(root.join("README.md")).unwrap();
 
         let mut cmd = Command::cargo_bin("context-creator").unwrap();
         cmd.current_dir(root)
@@ -348,9 +348,9 @@ mod edge_case_tests {
 
         // Create the src directory and some files
         fs::create_dir_all(root.join("src")).unwrap();
-        File::create(root.join("src/test.py")).unwrap();
-        File::create(root.join("src/main.rs")).unwrap();
-        File::create(root.join("other.py")).unwrap();
+        let _ = File::create(root.join("src/test.py")).unwrap();
+        let _ = File::create(root.join("src/main.rs")).unwrap();
+        let _ = File::create(root.join("other.py")).unwrap();
 
         let mut cmd = Command::cargo_bin("context-creator").unwrap();
         cmd.current_dir(root)

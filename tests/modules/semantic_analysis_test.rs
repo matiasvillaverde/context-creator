@@ -5,6 +5,7 @@
 use context_creator::cli::Config;
 use context_creator::core::cache::FileCache;
 use context_creator::core::walker::{walk_directory, WalkOptions};
+use std::ffi::OsStr;
 use std::fs;
 use std::sync::Arc;
 use tempfile::TempDir;
@@ -1347,7 +1348,7 @@ pub const API_URL: &str = "http://localhost:8000";
     // Python imports should resolve to .py files (or __init__.py)
     let py_imports_valid = server_py.imports.iter().all(|p| {
         let ext = p.extension().and_then(|e| e.to_str());
-        ext == Some("py") || p.file_name() == Some(std::ffi::OsStr::new("__init__.py"))
+        ext == Some("py") || p.file_name() == Some(OsStr::new("__init__.py"))
     });
 
     // TypeScript imports should resolve to .ts files

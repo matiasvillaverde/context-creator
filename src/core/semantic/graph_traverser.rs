@@ -55,7 +55,7 @@ impl GraphTraverser {
 
         // Initialize with start node at depth 0
         queue.push_back((start, 0));
-        seen.insert(start);
+        let _ = seen.insert(start);
 
         while let Some((node, depth)) = queue.pop_front() {
             // Check depth limit
@@ -68,7 +68,7 @@ impl GraphTraverser {
             // Add neighbors to queue if not seen
             for neighbor in graph.neighbors(node) {
                 if !seen.contains(&neighbor) {
-                    seen.insert(neighbor);
+                    let _ = seen.insert(neighbor);
                     queue.push_back((neighbor, depth + 1));
                 }
             }
@@ -87,7 +87,7 @@ impl GraphTraverser {
         let mut visited = Vec::new();
         let mut dfs = Dfs::new(graph, start);
         let mut depths = HashMap::new();
-        depths.insert(start, 0);
+        let _ = depths.insert(start, 0);
 
         while let Some(node) = dfs.next(graph) {
             let current_depth = *depths.get(&node).unwrap_or(&0);
@@ -98,7 +98,7 @@ impl GraphTraverser {
 
                 // Set depth for neighbors
                 for neighbor in graph.neighbors(node) {
-                    depths.entry(neighbor).or_insert(current_depth + 1);
+                    let _ = depths.entry(neighbor).or_insert(current_depth + 1);
                 }
             }
         }
@@ -129,7 +129,7 @@ impl GraphTraverser {
         let mut dfs = Dfs::new(graph, start);
 
         while let Some(node) = dfs.next(graph) {
-            reachable.insert(node);
+            let _ = reachable.insert(node);
         }
 
         reachable
@@ -147,7 +147,7 @@ impl GraphTraverser {
         let mut seen = HashSet::new();
 
         queue.push_back((start, 0));
-        seen.insert(start);
+        let _ = seen.insert(start);
 
         while let Some((node, depth)) = queue.pop_front() {
             if depth == target_depth {
@@ -156,7 +156,7 @@ impl GraphTraverser {
                 // Add neighbors to queue
                 for neighbor in graph.neighbors(node) {
                     if !seen.contains(&neighbor) {
-                        seen.insert(neighbor);
+                        let _ = seen.insert(neighbor);
                         queue.push_back((neighbor, depth + 1));
                     }
                 }

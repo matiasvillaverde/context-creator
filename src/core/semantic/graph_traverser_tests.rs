@@ -30,17 +30,17 @@ fn create_simple_graph() -> (DiGraph<RichNode, DependencyEdgeType>, Vec<NodeInde
     let node_d = graph.add_node(create_test_node("src/d.rs", 3));
 
     // Create dependencies: A -> B -> C, A -> D
-    graph.add_edge(
+    let _ = graph.add_edge(
         node_a,
         node_b,
         DependencyEdgeType::Import { symbols: vec![] },
     );
-    graph.add_edge(
+    let _ = graph.add_edge(
         node_b,
         node_c,
         DependencyEdgeType::Import { symbols: vec![] },
     );
-    graph.add_edge(
+    let _ = graph.add_edge(
         node_a,
         node_d,
         DependencyEdgeType::Import { symbols: vec![] },
@@ -175,17 +175,17 @@ fn test_cyclic_graph_handling() {
     let node_c = graph.add_node(create_test_node("src/c.rs", 2));
 
     // Create cycle: A -> B -> C -> A
-    graph.add_edge(
+    let _ = graph.add_edge(
         node_a,
         node_b,
         DependencyEdgeType::Import { symbols: vec![] },
     );
-    graph.add_edge(
+    let _ = graph.add_edge(
         node_b,
         node_c,
         DependencyEdgeType::Import { symbols: vec![] },
     );
-    graph.add_edge(
+    let _ = graph.add_edge(
         node_c,
         node_a,
         DependencyEdgeType::Import { symbols: vec![] },
@@ -220,14 +220,14 @@ fn test_disconnected_graph() {
     let node_d = graph.add_node(create_test_node("src/d.rs", 3));
 
     // Component 1: A -> B
-    graph.add_edge(
+    let _ = graph.add_edge(
         node_a,
         node_b,
         DependencyEdgeType::Import { symbols: vec![] },
     );
 
     // Component 2: C -> D (disconnected from A-B)
-    graph.add_edge(
+    let _ = graph.add_edge(
         node_c,
         node_d,
         DependencyEdgeType::Import { symbols: vec![] },

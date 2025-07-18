@@ -888,14 +888,14 @@ mod tests {
     fn test_get_effective_context_tokens_with_prompt() {
         let config = Config {
             prompt: Some("This is a test prompt".to_string()),
-            max_tokens: Some(10000),
+            max_tokens: Some(10_000),
             llm_tool: LlmTool::Gemini,
             ..Config::new_for_test(None)
         };
 
         let context_tokens = config.get_effective_context_tokens().unwrap();
         // Should be less than max_tokens due to prompt + safety buffer reservation
-        assert!(context_tokens < 10000);
+        assert!(context_tokens < 10_000);
         // Should be at least max_tokens - 1000 (safety buffer) - prompt tokens
         assert!(context_tokens > 8000); // Conservative estimate
     }
@@ -904,13 +904,13 @@ mod tests {
     fn test_get_effective_context_tokens_no_prompt() {
         let config = Config {
             prompt: None,
-            max_tokens: Some(10000),
+            max_tokens: Some(10_000),
             llm_tool: LlmTool::Gemini,
             ..Config::new_for_test(None)
         };
 
         // Without prompt, should use full token budget
-        assert_eq!(config.get_effective_context_tokens(), Some(10000));
+        assert_eq!(config.get_effective_context_tokens(), Some(10_000));
     }
 
     #[test]
@@ -935,16 +935,16 @@ mod tests {
             max_tokens: None, // Use config limits instead
             llm_tool: LlmTool::Gemini,
             config_token_limits: Some(TokenLimits {
-                gemini: Some(50000),
-                codex: Some(40000),
+                gemini: Some(50_000),
+                codex: Some(40_000),
             }),
             ..Config::new_for_test(None)
         };
 
         let context_tokens = config.get_effective_context_tokens().unwrap();
         // Should be less than config limit due to prompt reservation
-        assert!(context_tokens < 50000);
-        assert!(context_tokens > 45000); // Should be most of the budget
+        assert!(context_tokens < 50_000);
+        assert!(context_tokens > 45_000); // Should be most of the budget
     }
 
     #[test]

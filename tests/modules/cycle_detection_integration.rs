@@ -46,11 +46,11 @@ fn create_file_dependency_graph() -> (
     name_to_node.insert("api".to_string(), api_node);
 
     // Add edges based on imports
-    graph.add_edge(auth_node, database_node, ());
-    graph.add_edge(auth_node, user_node, ());
-    graph.add_edge(database_node, user_node, ());
-    graph.add_edge(user_node, auth_node, ()); // Creates cycle: auth → user → auth
-    graph.add_edge(api_node, auth_node, ());
+    let _ = graph.add_edge(auth_node, database_node, ());
+    let _ = graph.add_edge(auth_node, user_node, ());
+    let _ = graph.add_edge(database_node, user_node, ());
+    let _ = graph.add_edge(user_node, auth_node, ()); // Creates cycle: auth → user → auth
+    let _ = graph.add_edge(api_node, auth_node, ());
 
     (graph, name_to_node)
 }
@@ -141,13 +141,13 @@ fn test_complex_multi_cycle_scenario() {
     name_to_node.insert("module_f".to_string(), f);
 
     // Add edges
-    graph.add_edge(a, b, ());
-    graph.add_edge(a, c, ());
-    graph.add_edge(b, d, ());
-    graph.add_edge(c, d, ());
-    graph.add_edge(d, a, ()); // Cycle: A → B → D → A and A → C → D → A
-    graph.add_edge(e, f, ());
-    graph.add_edge(f, e, ()); // Cycle: E → F → E
+    let _ = graph.add_edge(a, b, ());
+    let _ = graph.add_edge(a, c, ());
+    let _ = graph.add_edge(b, d, ());
+    let _ = graph.add_edge(c, d, ());
+    let _ = graph.add_edge(d, a, ()); // Cycle: A → B → D → A and A → C → D → A
+    let _ = graph.add_edge(e, f, ());
+    let _ = graph.add_edge(f, e, ()); // Cycle: E → F → E
 
     let mut detector = TarjanCycleDetector::new();
     let result = detector.detect_cycles(&graph);
@@ -221,10 +221,10 @@ fn test_no_cycles_in_dag() {
     });
 
     // Add edges (no cycles)
-    graph.add_edge(root, lib, ());
-    graph.add_edge(lib, utils, ());
-    graph.add_edge(lib, config, ());
-    graph.add_edge(utils, config, ());
+    let _ = graph.add_edge(root, lib, ());
+    let _ = graph.add_edge(lib, utils, ());
+    let _ = graph.add_edge(lib, config, ());
+    let _ = graph.add_edge(utils, config, ());
 
     let mut detector = TarjanCycleDetector::new();
     let result = detector.detect_cycles(&graph);

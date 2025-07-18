@@ -11,6 +11,8 @@ use crate::core::walker::FileInfo;
 use crate::utils::error::ContextCreatorError;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::ffi::OsStr;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -110,7 +112,7 @@ pub fn expand_file_list(
 
     // Initialize with files that have semantic relationships
     for (path, file_info) in &files_map {
-        visited_paths.insert(path.clone());
+        let _ = visited_paths.insert(path.clone());
 
         // Queue files based on enabled features (depth 0 for initial files)
         if config.include_types && !file_info.type_references.is_empty() {
@@ -170,7 +172,7 @@ pub fn expand_file_list(
                             // Validate the path for security using the project root
                             match validate_import_path(&project_root, def_path) {
                                 Ok(validated_path) => {
-                                    visited_paths.insert(validated_path.clone());
+                                    let _ = visited_paths.insert(validated_path.clone());
 
                                     // Create FileInfo for the definition file
                                     let mut file_info =
@@ -210,7 +212,7 @@ pub fn expand_file_list(
                                 // Validate the path for security using the project root
                                 match validate_import_path(&project_root, &def_path) {
                                     Ok(validated_path) => {
-                                        visited_paths.insert(validated_path.clone());
+                                        let _ = visited_paths.insert(validated_path.clone());
 
                                         // Create FileInfo for the definition file
                                         let mut file_info = create_file_info_for_path(
@@ -246,7 +248,7 @@ pub fn expand_file_list(
                         // Validate the import path for security
                         match validate_import_path(&project_root, import_path) {
                             Ok(validated_path) => {
-                                visited_paths.insert(validated_path.clone());
+                                let _ = visited_paths.insert(validated_path.clone());
 
                                 // Create FileInfo for the imported file
                                 let mut file_info =
@@ -332,7 +334,7 @@ pub fn expand_file_list(
 
     // Add new files to the map
     for (path, file_info) in files_to_add {
-        files_map.insert(path, file_info);
+        let _ = files_map.insert(path, file_info);
     }
 
     // Update imported_by relationships for proper prioritization
@@ -352,7 +354,7 @@ pub fn expand_file_list(
             .collect();
 
         for ignored_path in ignored_files {
-            files_map.remove(&ignored_path);
+            let _ = files_map.remove(&ignored_path);
         }
     }
 
@@ -435,8 +437,8 @@ fn file_contains_definition(path: &Path, content: &str, type_name: &str) -> bool
     let language = match path.extension().and_then(|s| s.to_str()) {
         Some("rs") => Some(tree_sitter_rust::language()),
         Some("py") => Some(tree_sitter_python::language()),
-        Some("ts") | Some("tsx") => Some(tree_sitter_typescript::language_typescript()),
-        Some("js") | Some("jsx") => Some(tree_sitter_javascript::language()),
+        Some("ts" | "tsx") => Some(tree_sitter_typescript::language_typescript()),
+        Some("js" | "jsx") => Some(tree_sitter_javascript::language()),
         _ => None,
     };
 
@@ -450,7 +452,7 @@ fn file_contains_definition(path: &Path, content: &str, type_name: &str) -> bool
             // Language-specific queries for type definitions (without predicates)
             let query_text = match path.extension().and_then(|s| s.to_str()) {
                 Some("rs") => {
-                    r#"
+                    r"
                     [
                       (struct_item name: (type_identifier) @name)
                       (enum_item name: (type_identifier) @name)
@@ -458,33 +460,33 @@ fn file_contains_definition(path: &Path, content: &str, type_name: &str) -> bool
                       (type_item name: (type_identifier) @name)
                       (union_item name: (type_identifier) @name)
                     ]
-                "#
+                "
                 }
                 Some("py") => {
-                    r#"
+                    r"
                     [
                       (class_definition name: (identifier) @name)
                       (function_definition name: (identifier) @name)
                     ]
-                "#
+                "
                 }
-                Some("ts") | Some("tsx") => {
-                    r#"
+                Some("ts" | "tsx") => {
+                    r"
                     [
                       (interface_declaration name: (type_identifier) @name)
                       (type_alias_declaration name: (type_identifier) @name)
                       (class_declaration name: (type_identifier) @name)
                       (enum_declaration name: (identifier) @name)
                     ]
-                "#
+                "
                 }
-                Some("js") | Some("jsx") => {
-                    r#"
+                Some("js" | "jsx") => {
+                    r"
                     [
                       (class_declaration name: (identifier) @name)
                       (function_declaration name: (identifier) @name)
                     ]
-                "#
+                "
                 }
                 _ => return false,
             };
@@ -529,7 +531,7 @@ fn find_type_definition_file(
             break;
         }
         // If current dir is named "src", its parent is likely the project root
-        if project_root.file_name() == Some(std::ffi::OsStr::new("src")) {
+        if project_root.file_name() == Some(OsStr::new("src")) {
             project_root = parent;
             break;
         }
@@ -656,12 +658,8 @@ fn resolve_import_to_path(
     match importing_file.extension().and_then(|s| s.to_str()) {
         Some("rs") => resolve_rust_import(module_name, source_dir, project_root),
         Some("py") => resolve_python_import(module_name, source_dir, project_root),
-        Some("js") | Some("jsx") => {
-            resolve_javascript_import(module_name, source_dir, project_root)
-        }
-        Some("ts") | Some("tsx") => {
-            resolve_typescript_import(module_name, source_dir, project_root)
-        }
+        Some("js" | "jsx") => resolve_javascript_import(module_name, source_dir, project_root),
+        Some("ts" | "tsx") => resolve_typescript_import(module_name, source_dir, project_root),
         Some("go") => resolve_go_import(module_name, source_dir, project_root),
         _ => None,
     }
@@ -723,7 +721,7 @@ fn resolve_rust_import(
 ) -> Option<PathBuf> {
     // Handle crate:: prefix
     let module_path = if module_name.starts_with("crate::") {
-        module_name.strip_prefix("crate::").unwrap()
+        module_name.strip_prefix("crate::").unwrap_or(module_name)
     } else {
         module_name
     };
@@ -839,9 +837,9 @@ fn resolve_javascript_import(
         }
 
         // Try with .jsx extension
-        let jsx_file = path.with_extension("jsx");
-        if jsx_file.exists() {
-            return Some(jsx_file);
+        let jsx_path = path.with_extension("jsx");
+        if jsx_path.exists() {
+            return Some(jsx_path);
         }
 
         // Try as directory with index.js
@@ -877,9 +875,9 @@ fn resolve_typescript_import(
         }
 
         // Try with .tsx extension
-        let tsx_file = path.with_extension("tsx");
-        if tsx_file.exists() {
-            return Some(tsx_file);
+        let tsx_path = path.with_extension("tsx");
+        if tsx_path.exists() {
+            return Some(tsx_path);
         }
 
         // Try as directory with index.ts
@@ -916,10 +914,10 @@ fn resolve_go_import(
     // Go files in a directory form a package
     if path.is_dir() {
         // Return the first .go file in the directory (excluding tests)
-        if let Ok(entries) = std::fs::read_dir(&path) {
+        if let Ok(entries) = fs::read_dir(&path) {
             for entry in entries.flatten() {
                 let file_path = entry.path();
-                if file_path.extension() == Some(std::ffi::OsStr::new("go")) {
+                if file_path.extension() == Some(OsStr::new("go")) {
                     let file_name = file_path.file_name()?.to_string_lossy();
                     if !file_name.ends_with("_test.go") {
                         return Some(file_path);
@@ -1069,7 +1067,7 @@ mod tests {
     #[test]
     fn test_file_contains_definition() {
         // Debug: Test simple tree-sitter parsing first
-        let rust_content = r#"
+        let rust_content = r"
             pub struct MyStruct {
                 field1: String,
                 field2: i32,
@@ -1083,20 +1081,20 @@ mod tests {
             pub trait MyTrait {
                 fn method(&self);
             }
-        "#;
+        ";
 
         let mut parser = tree_sitter::Parser::new();
         parser.set_language(tree_sitter_rust::language()).unwrap();
         let tree = parser.parse(rust_content, None).unwrap();
 
         // Test simple query without predicate first
-        let simple_query = r#"
+        let simple_query = r"
             [
               (struct_item name: (type_identifier) @name)
               (enum_item name: (type_identifier) @name)
               (trait_item name: (type_identifier) @name)
             ]
-        "#;
+        ";
 
         let query = tree_sitter::Query::new(tree_sitter_rust::language(), simple_query).unwrap();
         let mut cursor = tree_sitter::QueryCursor::new();
@@ -1127,14 +1125,14 @@ mod tests {
         ));
 
         // Test Python class definition
-        let python_content = r#"
+        let python_content = r"
             class MyClass:
                 def __init__(self):
                     pass
                     
             def my_function():
                 pass
-        "#;
+        ";
 
         let python_path = PathBuf::from("test.py");
         assert!(file_contains_definition(
@@ -1154,7 +1152,7 @@ mod tests {
         ));
 
         // Test TypeScript interface definition
-        let typescript_content = r#"
+        let typescript_content = r"
             export interface MyInterface {
                 prop1: string;
                 prop2: number;
@@ -1165,7 +1163,7 @@ mod tests {
             export class MyClass {
                 constructor() {}
             }
-        "#;
+        ";
 
         let typescript_path = PathBuf::from("test.ts");
         assert!(file_contains_definition(
@@ -1195,7 +1193,7 @@ mod tests {
         use crate::core::semantic::query_engine::QueryEngine;
         use tree_sitter::Parser;
 
-        let rust_content = r#"
+        let rust_content = r"
             use model::{Account, DatabaseFactory, Rule, RuleLevel, RuleName};
             
             pub fn create(
@@ -1205,7 +1203,7 @@ mod tests {
             ) -> Result<Rule, Box<dyn std::error::Error>> {
                 Ok(Rule::new())
             }
-        "#;
+        ";
 
         let language = tree_sitter_rust::language();
         let query_engine = QueryEngine::new(language, "rust").unwrap();

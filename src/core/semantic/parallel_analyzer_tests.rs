@@ -26,7 +26,7 @@ fn create_test_environment() -> (TempDir, Vec<PathBuf>) {
         create_test_file(
             dir,
             "main.rs",
-            r#"
+            r"
             use crate::utils::helper;
             use std::collections::HashMap;
             
@@ -34,7 +34,7 @@ fn create_test_environment() -> (TempDir, Vec<PathBuf>) {
                 let data: HashMap<String, i32> = HashMap::new();
                 helper::process(&data);
             }
-            "#,
+            ",
         ),
         create_test_file(
             dir,
@@ -134,14 +134,14 @@ fn test_analysis_error_handling() {
     let bad_file = create_test_file(
         dir,
         "bad.rs",
-        r#"
+        r"
         use std::collections::HashMap
         // Missing semicolon above
         
         fn main() {
             let x = 
         // Incomplete statement
-        "#,
+        ",
     );
 
     let cache = Arc::new(FileCache::new());
@@ -188,13 +188,13 @@ fn test_large_file_set() {
     let mut files = Vec::new();
     for i in 0..20 {
         let content = format!(
-            r#"
+            r"
             pub mod module_{i} {{
                 pub fn function_{i}() -> i32 {{
                     {i}
                 }}
             }}
-            "#
+            "
         );
         files.push(create_test_file(dir, &format!("mod_{i}.rs"), &content));
     }

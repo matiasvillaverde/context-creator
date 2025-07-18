@@ -209,11 +209,12 @@ pub fn group_by_directory(files: Vec<FileInfo>) -> Vec<(String, Vec<FileInfo>)> 
 /// The boost is proportional to the priority of the importing file.
 fn adjust_priorities_for_dependencies(files: &mut [FileInfo]) {
     use std::collections::HashMap;
+    use std::path::PathBuf;
 
     // Create a map from path to index for quick lookups
-    let mut path_to_index: HashMap<std::path::PathBuf, usize> = HashMap::new();
+    let mut path_to_index: HashMap<PathBuf, usize> = HashMap::new();
     for (index, file) in files.iter().enumerate() {
-        path_to_index.insert(file.path.clone(), index);
+        let _ = path_to_index.insert(file.path.clone(), index);
     }
 
     // Calculate priority boosts based on who imports each file
@@ -433,7 +434,7 @@ mod tests {
 
         // Should account for headers, tree, stats, TOC
         assert!(overhead > 0);
-        assert!(overhead < 10000); // Reasonable upper bound
+        assert!(overhead < 10_000); // Reasonable upper bound
     }
 
     #[test]

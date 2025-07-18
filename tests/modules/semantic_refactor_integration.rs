@@ -185,7 +185,7 @@ fn test_new_modular_architecture_works_together() {
                         .contains(&import_path.to_string_lossy().to_string())
                 }) {
                     if let Some(&to_idx) = node_map.get(&target_file.path) {
-                        builder.add_edge(&mut graph, from_idx, to_idx, edge_type.clone());
+                        let _ = builder.add_edge(&mut graph, from_idx, to_idx, edge_type.clone());
                     }
                 }
             }

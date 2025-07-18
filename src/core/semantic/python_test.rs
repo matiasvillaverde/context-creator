@@ -95,7 +95,7 @@ def main():
     #[test]
     fn test_python_type_reference_parsing() {
         let analyzer = PythonAnalyzer::new();
-        let content = r#"
+        let content = r"
 from typing import List, Dict, Optional
 from dataclasses import dataclass
 
@@ -109,7 +109,7 @@ def get_people() -> List[Person]:
 
 def process_data(data: Dict[str, Person]) -> Optional[str]:
     return None
-"#;
+";
         let path = PathBuf::from("types.py");
         let context = SemanticContext::new(path.clone(), PathBuf::from("."), 3);
 

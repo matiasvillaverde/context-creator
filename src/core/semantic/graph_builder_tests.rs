@@ -66,7 +66,7 @@ fn test_add_dependency_edge() {
         symbols: vec!["foo".to_string(), "bar".to_string()],
     };
 
-    builder.add_edge(&mut graph, main_idx, lib_idx, edge_type.clone());
+    let _ = builder.add_edge(&mut graph, main_idx, lib_idx, edge_type.clone());
 
     // Verify edge was added
     assert_eq!(graph.edge_count(), 1);

@@ -41,7 +41,7 @@ fn benchmark_resolution_without_circuit_breakers(c: &mut Criterion) {
         // Simulate resolution without circuit breakers by setting very high limits
         let limits = ResolutionLimits {
             max_depth: 1000,
-            max_visited_types: 10000,
+            max_visited_types: 10_000,
             max_resolution_time: Duration::from_secs(3600),
         };
         let mut resolver = TypeResolver::with_limits(limits);
@@ -103,7 +103,7 @@ fn benchmark_circuit_breaker_overhead(c: &mut Criterion) {
     group.bench_function("minimal_checks", |b| {
         let limits = ResolutionLimits {
             max_depth: 1000,
-            max_visited_types: 10000,
+            max_visited_types: 10_000,
             max_resolution_time: Duration::from_secs(3600),
         };
         let resolver = TypeResolver::with_limits(limits);

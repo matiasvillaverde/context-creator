@@ -15,7 +15,7 @@ use crate::core::semantic::parallel_analyzer::{AnalysisOptions, ParallelAnalyzer
 use crate::core::semantic::SemanticOptions;
 use crate::core::walker::FileInfo;
 use anyhow::Result;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 /// Performs sophisticated semantic analysis with proper dependency graph traversal
@@ -49,7 +49,7 @@ pub fn perform_semantic_analysis_graph(
     };
 
     let file_paths: Vec<_> = files.iter().map(|f| f.path.clone()).collect();
-    let valid_files: std::collections::HashSet<PathBuf> = files
+    let valid_files: HashSet<PathBuf> = files
         .iter()
         .map(|f| f.path.canonicalize().unwrap_or_else(|_| f.path.clone()))
         .collect();

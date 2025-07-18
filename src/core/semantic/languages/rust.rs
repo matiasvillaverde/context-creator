@@ -18,6 +18,8 @@ pub struct RustAnalyzer {
 impl RustAnalyzer {
     pub fn new() -> Self {
         let language = tree_sitter_rust::language();
+        // Query engine creation is critical for functionality
+        // If it fails, the analyzer cannot work properly
         let query_engine =
             QueryEngine::new(language, "rust").expect("Failed to create Rust query engine");
         Self { query_engine }
@@ -80,7 +82,7 @@ impl RustAnalyzer {
                 if let Some(type_name) = import.module.split("::").last() {
                     // Check if this looks like a type (starts with uppercase)
                     if type_name.chars().next().is_some_and(|c| c.is_uppercase()) {
-                        type_to_module.insert(type_name.to_string(), import.module.clone());
+                        let _ = type_to_module.insert(type_name.to_string(), import.module.clone());
                     }
                 }
             } else {
@@ -88,7 +90,7 @@ impl RustAnalyzer {
                 for item in &import.items {
                     // Check if this looks like a type (starts with uppercase)
                     if item.chars().next().is_some_and(|c| c.is_uppercase()) {
-                        type_to_module.insert(item.clone(), import.module.clone());
+                        let _ = type_to_module.insert(item.clone(), import.module.clone());
                     }
                 }
             }
