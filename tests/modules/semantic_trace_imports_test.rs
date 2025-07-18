@@ -385,7 +385,7 @@ def multiply(a, b):
 
     assert!(file_paths.iter().any(|p| p.ends_with("main.py")));
     assert!(file_paths.iter().any(|p| p.ends_with("utils.py")));
-    assert!(file_paths.iter().any(|p| p.ends_with("helpers/math.py")));
+    assert!(file_paths.iter().any(|p| p.contains("helpers") && p.ends_with("math.py")));
 }
 
 #[test]
@@ -451,11 +451,12 @@ def validate_email(email):
         .map(|f| f.path.to_string_lossy().to_string())
         .collect();
 
-    assert!(file_paths.iter().any(|p| p.ends_with("models/user.py")));
-    assert!(file_paths.iter().any(|p| p.ends_with("models/base.py")));
+    // Platform-agnostic path checking
+    assert!(file_paths.iter().any(|p| p.contains("models") && p.ends_with("user.py")));
+    assert!(file_paths.iter().any(|p| p.contains("models") && p.ends_with("base.py")));
     assert!(file_paths
         .iter()
-        .any(|p| p.ends_with("utils/validators.py")));
+        .any(|p| p.contains("utils") && p.ends_with("validators.py")));
 }
 
 #[test]
@@ -803,7 +804,7 @@ export default {
     assert!(file_paths.iter().any(|p| p.ends_with("index.ts")));
     assert!(file_paths
         .iter()
-        .any(|p| p.ends_with("services/UserService.ts")));
+        .any(|p| p.contains("services") && p.ends_with("UserService.ts")));
     assert!(file_paths.iter().any(|p| p.ends_with("utils.ts")));
     assert!(file_paths.iter().any(|p| p.ends_with("config.ts")));
 }
