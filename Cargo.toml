@@ -1,6 +1,6 @@
 [package]
 name = "context-creator"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 description = "High-performance CLI tool to convert codebases to Markdown for LLM context"
 authors = ["Matias Villaverde"]
