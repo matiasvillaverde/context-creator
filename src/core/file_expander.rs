@@ -6,6 +6,7 @@
 use crate::cli::Config;
 use crate::core::cache::FileCache;
 use crate::core::semantic::path_validator::validate_import_path;
+use crate::core::semantic::type_resolver::{ResolutionLimits, TypeResolver};
 use crate::core::walker::FileInfo;
 use crate::utils::error::ContextCreatorError;
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -101,6 +102,14 @@ pub fn expand_file_list(
         }
     }
 
+    // Create type resolver with circuit breakers
+    let resolution_limits = ResolutionLimits {
+        max_depth: config.semantic_depth,
+        max_visited_types: 1000, // Conservative limit
+        max_resolution_time: std::time::Duration::from_secs(30),
+    };
+    let mut type_resolver = TypeResolver::with_limits(resolution_limits);
+
     // Process work queue
     // Note: Cycle prevention is handled by visited_paths HashSet which tracks all processed files.
     // This prevents infinite loops in cases like A→B→C→A by not revisiting already processed files.
@@ -117,6 +126,20 @@ pub fn expand_file_list(
                     // Skip external types
                     if type_ref.is_external {
                         continue;
+                    }
+
+                    // Use type resolver with circuit breakers
+                    match type_resolver.resolve_with_limits(type_ref, depth) {
+                        Err(e) => {
+                            // Circuit breaker triggered or error - skip this type
+                            if config.verbose {
+                                eprintln!("⚠️  Type resolution limited: {e}");
+                            }
+                            continue;
+                        }
+                        Ok(_) => {
+                            // Resolution succeeded, continue with normal processing
+                        }
                     }
 
                     // If we have a definition path, add it

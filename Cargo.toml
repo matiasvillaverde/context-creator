@@ -67,3 +67,7 @@ codegen-units = 256
 [[bench]]
 name = "benchmarks"
 harness = false
+
+[[bench]]
+name = "type_resolution_bench"
+harness = false
