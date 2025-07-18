@@ -385,6 +385,7 @@ impl<'a> DependencyGraph<'a> {
                             imports: Vec::new(),
                             function_calls: Vec::new(),
                             type_references: Vec::new(),
+                            content_hash: None,
                             error: Some(error_msg),
                         }
                     }
@@ -421,6 +422,7 @@ impl<'a> DependencyGraph<'a> {
                     imports: Vec::new(),
                     function_calls: Vec::new(),
                     type_references: Vec::new(),
+                    content_hash: None,
                     error: None,
                 });
             }
@@ -428,6 +430,15 @@ impl<'a> DependencyGraph<'a> {
 
         // Read file content
         let content = cache.get_or_load(file_path)?;
+
+        // Compute content hash
+        let content_hash = {
+            use std::collections::hash_map::DefaultHasher;
+            use std::hash::{Hash, Hasher};
+            let mut hasher = DefaultHasher::new();
+            content.hash(&mut hasher);
+            hasher.finish()
+        };
 
         // Create context
         let context = SemanticContext::new(
@@ -453,6 +464,7 @@ impl<'a> DependencyGraph<'a> {
             imports: typed_imports,
             function_calls: analysis_result.function_calls,
             type_references: analysis_result.type_references,
+            content_hash: Some(content_hash),
             error: None,
         })
     }
@@ -465,6 +477,11 @@ impl<'a> DependencyGraph<'a> {
             // Store analysis results in nodes
             self.nodes[file_idx].function_calls = result.function_calls.clone();
             self.nodes[file_idx].type_references = result.type_references.clone();
+
+            // Update RichNode in graph with content hash
+            if let Some(&node_idx) = self.node_indices.get(&file_idx) {
+                self.graph[node_idx].content_hash = result.content_hash;
+            }
 
             // Process imports and build edges
             let mut resolved_imports = Vec::new();
