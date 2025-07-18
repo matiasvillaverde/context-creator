@@ -109,7 +109,7 @@ impl ModuleResolver for PythonModuleResolver {
 
                 // Go up directories based on dot count
                 // For level=1 (.), stay in current directory
-                // For level=2 (..), go up 1 directory  
+                // For level=2 (..), go up 1 directory
                 // For level=3 (...), go up 2 directories
                 for _ in 0..(level.saturating_sub(1)) {
                     if let Some(p) = current.parent() {

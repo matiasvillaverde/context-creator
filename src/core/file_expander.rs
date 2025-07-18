@@ -15,19 +15,22 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 /// Build an efficient gitignore matcher from walk options
-fn build_ignore_matcher(walk_options: &crate::core::walker::WalkOptions, base_path: &Path) -> Option<Gitignore> {
+fn build_ignore_matcher(
+    walk_options: &crate::core::walker::WalkOptions,
+    base_path: &Path,
+) -> Option<Gitignore> {
     if walk_options.ignore_patterns.is_empty() {
         return None;
     }
-    
+
     let mut builder = GitignoreBuilder::new(base_path);
-    
+
     // Add each ignore pattern
     for pattern in &walk_options.ignore_patterns {
         // The ignore crate handles patterns efficiently
         let _ = builder.add_line(None, pattern);
     }
-    
+
     builder.build().ok()
 }
 
@@ -347,7 +350,7 @@ pub fn expand_file_list(
             })
             .cloned()
             .collect();
-        
+
         for ignored_path in ignored_files {
             files_map.remove(&ignored_path);
         }

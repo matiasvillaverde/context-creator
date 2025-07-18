@@ -228,7 +228,8 @@ fn process_directory(
         }
 
         // Expand the file list
-        files_map = core::file_expander::expand_file_list(files_map, config, &cache, &walk_options)?;
+        files_map =
+            core::file_expander::expand_file_list(files_map, config, &cache, &walk_options)?;
 
         // Convert back to Vec<FileInfo>
         files = files_map.into_values().collect();
