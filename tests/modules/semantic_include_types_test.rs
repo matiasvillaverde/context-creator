@@ -27,8 +27,14 @@ fn analyze_and_expand(
     }
 
     // Perform file expansion
-    let expanded_map =
-        context_creator::core::file_expander::expand_file_list(files_map, config, cache).unwrap();
+    let walk_options = context_creator::core::walker::WalkOptions::from_config(config).unwrap();
+    let expanded_map = context_creator::core::file_expander::expand_file_list(
+        files_map,
+        config,
+        cache,
+        &walk_options,
+    )
+    .unwrap();
 
     // Convert back to Vec
     expanded_map.into_values().collect()

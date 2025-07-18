@@ -79,8 +79,14 @@ impl MyType {
     }
 
     // Perform file expansion
-    let expanded_map =
-        context_creator::core::file_expander::expand_file_list(files_map, &config, &cache).unwrap();
+    let walk_options = context_creator::core::walker::WalkOptions::from_config(&config).unwrap();
+    let expanded_map = context_creator::core::file_expander::expand_file_list(
+        files_map,
+        &config,
+        &cache,
+        &walk_options,
+    )
+    .unwrap();
 
     // EXPECTED: After expansion with --include-types, should include types.rs
     assert_eq!(

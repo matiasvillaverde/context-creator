@@ -120,6 +120,18 @@ impl QueryEngine {
                   )
                 ) @from_import_aliased
 
+                ; Wildcard imports (from module import *)
+                (import_from_statement
+                  module_name: (dotted_name) @from_module
+                  (wildcard_import) @wildcard
+                ) @wildcard_import
+
+                ; Relative wildcard imports (from . import *, from ..utils import *)
+                (import_from_statement
+                  module_name: (relative_import) @relative_module
+                  (wildcard_import) @wildcard
+                ) @relative_wildcard_import
+
                 ; Relative from imports (from . import utils, from ..lib import helper)
                 (import_from_statement
                   module_name: (relative_import) @relative_module
@@ -488,6 +500,15 @@ impl QueryEngine {
                     "from_import" | "from_import_aliased" => {
                         // Python from import statement
                     }
+                    "wildcard_import" => {
+                        // Python wildcard import statement (from module import *)
+                        items.push("*".to_string());
+                    }
+                    "relative_wildcard_import" => {
+                        // Python relative wildcard import statement
+                        is_relative = true;
+                        items.push("*".to_string());
+                    }
                     "relative_from_import" | "relative_from_import_aliased" => {
                         // Python relative from import statement
                         is_relative = true;
@@ -532,6 +553,10 @@ impl QueryEngine {
                         if let Ok(name) = node.utf8_text(content.as_bytes()) {
                             items.push(name.to_string());
                         }
+                    }
+                    "wildcard" => {
+                        // Wildcard import (*)
+                        items.push("*".to_string());
                     }
                     "module_path" => {
                         if let Ok(name) = node.utf8_text(content.as_bytes()) {
