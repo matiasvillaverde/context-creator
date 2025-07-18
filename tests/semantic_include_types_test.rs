@@ -129,6 +129,9 @@ fn test_cross_directory_type_resolution() {
     let temp_dir = TempDir::new().unwrap();
     let root = temp_dir.path();
 
+    // Create .git directory to make it a git repository
+    fs::create_dir_all(root.join(".git")).unwrap();
+
     // Create a more complex directory structure
     fs::create_dir_all(root.join("src/models")).unwrap();
     fs::create_dir_all(root.join("src/handlers")).unwrap();
@@ -563,6 +566,9 @@ fn main() {
 fn test_trait_definitions_only() {
     let temp_dir = TempDir::new().unwrap();
     let root = temp_dir.path();
+
+    // Create .git directory to make it a git repository
+    fs::create_dir_all(root.join(".git")).unwrap();
 
     // Create trait definition
     fs::write(

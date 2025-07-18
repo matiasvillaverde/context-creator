@@ -147,9 +147,15 @@ pub fn expand_file_list(
                         }
                     } else {
                         // Try to find the type definition file
+                        // Extract just the module name from the full module path (e.g., "traits" from "traits::Repository")
+                        let module_name = type_ref
+                            .module
+                            .as_deref()
+                            .map(|m| m.split("::").next().unwrap_or(m));
+
                         if let Some(def_path) = find_type_definition_file(
                             &type_ref.name,
-                            type_ref.module.as_deref(),
+                            module_name,
                             &source_path,
                             cache,
                         ) {
