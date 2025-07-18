@@ -12,6 +12,9 @@ fn test_include_types_expands_files() {
     let temp_dir = TempDir::new().unwrap();
     let root = temp_dir.path();
 
+    // Create .git directory to make it a git repository
+    fs::create_dir_all(root.join(".git")).unwrap();
+
     // Create main file that uses a type
     fs::write(
         root.join("main.rs"),
@@ -95,6 +98,9 @@ impl MyType {
 fn test_include_types_adds_definition_paths() {
     let temp_dir = TempDir::new().unwrap();
     let root = temp_dir.path();
+
+    // Create .git directory to make it a git repository
+    fs::create_dir_all(root.join(".git")).unwrap();
 
     fs::write(
         root.join("main.rs"),

@@ -111,7 +111,8 @@ fn test_files_with_no_semantic_info() {
 const VALUE: i32 = 42;
 
 fn internal_function() {
-    println!("Internal only");
+    let x = VALUE + 1;
+    let _y = x * 2;
 }
 "#,
     )
