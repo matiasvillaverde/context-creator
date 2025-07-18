@@ -12,7 +12,11 @@ pub mod cache;
 pub mod languages;
 pub mod parser_pool;
 pub mod path_validator;
+pub mod query_engine;
 pub mod resolver;
+
+#[cfg(test)]
+mod rust_function_call_test;
 
 // Re-export commonly used types
 pub use cache::AstCacheV2;
