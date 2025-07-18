@@ -217,8 +217,89 @@ pub fn expand_file_list(
                 }
             }
             ExpansionReason::Imports => {
-                // Process imports - already handled by semantic analysis
-                // The imported files should already be in the imported_by relationships
+                // Process each import in the source file
+                for import_path in &source_file.imports {
+                    // Skip if already visited or doesn't exist
+                    if !visited_paths.contains(import_path) && import_path.exists() {
+                        // Validate the import path for security
+                        match validate_import_path(&project_root, import_path) {
+                            Ok(validated_path) => {
+                                visited_paths.insert(validated_path.clone());
+
+                                // Create FileInfo for the imported file
+                                let mut file_info =
+                                    create_file_info_for_path(&validated_path, &source_path)?;
+
+                                // Mark that this file was imported by the source file
+                                file_info.imported_by.push(source_path.clone());
+
+                                // Queue for next depth level if within limits
+                                if depth + 1 < config.semantic_depth {
+                                    // We need to load this file to check its imports
+                                    if let Ok(content) = cache.get_or_load(&validated_path) {
+                                        // Perform semantic analysis on the imported file
+                                        use crate::core::semantic::analyzer::SemanticContext;
+                                        use crate::core::semantic::get_analyzer_for_file;
+
+                                        if let Ok(Some(analyzer)) =
+                                            get_analyzer_for_file(&validated_path)
+                                        {
+                                            let context = SemanticContext::new(
+                                                validated_path.clone(),
+                                                project_root.clone(),
+                                                config.semantic_depth,
+                                            );
+
+                                            if let Ok(analysis) = analyzer.analyze_file(
+                                                &validated_path,
+                                                &content,
+                                                &context,
+                                            ) {
+                                                // Update file info with semantic data
+                                                file_info.imports = analysis
+                                                    .imports
+                                                    .iter()
+                                                    .filter_map(|imp| {
+                                                        // Try to resolve import to file path
+                                                        resolve_import_to_path(
+                                                            &imp.module,
+                                                            &validated_path,
+                                                            &project_root,
+                                                        )
+                                                    })
+                                                    .collect();
+                                                file_info.function_calls = analysis.function_calls;
+                                                file_info.type_references =
+                                                    analysis.type_references;
+
+                                                // Queue if it has imports
+                                                if !file_info.imports.is_empty() {
+                                                    work_queue.push_back((
+                                                        validated_path.clone(),
+                                                        file_info.clone(),
+                                                        ExpansionReason::Imports,
+                                                        depth + 1,
+                                                    ));
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                files_to_add.push((validated_path, file_info));
+                            }
+                            Err(_) => {
+                                // Path validation failed, skip this import
+                                if config.verbose {
+                                    eprintln!(
+                                        "⚠️  Skipping invalid import path: {}",
+                                        import_path.display()
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
             }
             ExpansionReason::Callers => {
                 // Process function calls - this would require finding files that define the called functions
@@ -509,6 +590,299 @@ fn find_type_definition_file(
                         if file_contains_definition(&candidate, &content, type_name) {
                             return Some(candidate);
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    None
+}
+
+/// Resolve an import module name to a file path
+fn resolve_import_to_path(
+    module_name: &str,
+    importing_file: &Path,
+    project_root: &Path,
+) -> Option<PathBuf> {
+    let source_dir = importing_file.parent()?;
+
+    // Handle relative imports (Python style: ".", "..", "..sibling")
+    if module_name.starts_with('.') {
+        return resolve_relative_import(module_name, source_dir, project_root);
+    }
+
+    // Language-specific resolution based on file extension
+    match importing_file.extension().and_then(|s| s.to_str()) {
+        Some("rs") => resolve_rust_import(module_name, source_dir, project_root),
+        Some("py") => resolve_python_import(module_name, source_dir, project_root),
+        Some("js") | Some("jsx") => {
+            resolve_javascript_import(module_name, source_dir, project_root)
+        }
+        Some("ts") | Some("tsx") => {
+            resolve_typescript_import(module_name, source_dir, project_root)
+        }
+        Some("go") => resolve_go_import(module_name, source_dir, project_root),
+        _ => None,
+    }
+}
+
+/// Resolve relative imports (e.g., "..", ".", "../sibling")
+fn resolve_relative_import(
+    module_name: &str,
+    source_dir: &Path,
+    _project_root: &Path,
+) -> Option<PathBuf> {
+    let mut path = source_dir.to_path_buf();
+
+    // Count leading dots
+    let dots: Vec<&str> = module_name.split('/').collect();
+    if dots.is_empty() {
+        return None;
+    }
+
+    // Handle ".." for parent directory
+    for part in &dots {
+        if *part == ".." {
+            path = path.parent()?.to_path_buf();
+        } else if *part == "." {
+            // Stay in current directory
+        } else {
+            // This is the actual module name after dots
+            path = path.join(part);
+            break;
+        }
+    }
+
+    // Try common file extensions
+    for ext in &["py", "js", "ts", "rs"] {
+        let file_path = path.with_extension(ext);
+        if file_path.exists() {
+            return Some(file_path);
+        }
+    }
+
+    // Try as directory with index/mod/__init__ files
+    if path.is_dir() {
+        for index_file in &["__init__.py", "index.js", "index.ts", "mod.rs"] {
+            let index_path = path.join(index_file);
+            if index_path.exists() {
+                return Some(index_path);
+            }
+        }
+    }
+
+    None
+}
+
+/// Resolve Rust module imports
+fn resolve_rust_import(
+    module_name: &str,
+    source_dir: &Path,
+    project_root: &Path,
+) -> Option<PathBuf> {
+    // Handle crate:: prefix
+    let module_path = if module_name.starts_with("crate::") {
+        module_name.strip_prefix("crate::").unwrap()
+    } else {
+        module_name
+    };
+
+    // Convert module path to file path (e.g., "foo::bar" -> "foo/bar")
+    let parts: Vec<&str> = module_path.split("::").collect();
+
+    // Try in source directory first
+    let mut path = source_dir.to_path_buf();
+    for part in &parts {
+        path = path.join(part);
+    }
+
+    // Try as .rs file
+    let rs_file = path.with_extension("rs");
+    if rs_file.exists() {
+        return Some(rs_file);
+    }
+
+    // Try as mod.rs in directory
+    let mod_file = path.join("mod.rs");
+    if mod_file.exists() {
+        return Some(mod_file);
+    }
+
+    // Try from project root src directory
+    let src_path = project_root.join("src");
+    if src_path.exists() {
+        let mut path = src_path;
+        for part in &parts {
+            path = path.join(part);
+        }
+
+        let rs_file = path.with_extension("rs");
+        if rs_file.exists() {
+            return Some(rs_file);
+        }
+
+        let mod_file = path.join("mod.rs");
+        if mod_file.exists() {
+            return Some(mod_file);
+        }
+    }
+
+    None
+}
+
+/// Resolve Python module imports
+fn resolve_python_import(
+    module_name: &str,
+    source_dir: &Path,
+    project_root: &Path,
+) -> Option<PathBuf> {
+    // Convert module path to file path (e.g., "foo.bar" -> "foo/bar")
+    let parts: Vec<&str> = module_name.split('.').collect();
+
+    // Try from source directory
+    let mut path = source_dir.to_path_buf();
+    for part in &parts {
+        path = path.join(part);
+    }
+
+    // Try as .py file
+    let py_file = path.with_extension("py");
+    if py_file.exists() {
+        return Some(py_file);
+    }
+
+    // Try as __init__.py in directory
+    let init_file = path.join("__init__.py");
+    if init_file.exists() {
+        return Some(init_file);
+    }
+
+    // Try from project root
+    let mut path = project_root.to_path_buf();
+    for part in &parts {
+        path = path.join(part);
+    }
+
+    let py_file = path.with_extension("py");
+    if py_file.exists() {
+        return Some(py_file);
+    }
+
+    let init_file = path.join("__init__.py");
+    if init_file.exists() {
+        return Some(init_file);
+    }
+
+    None
+}
+
+/// Resolve JavaScript module imports
+fn resolve_javascript_import(
+    module_name: &str,
+    source_dir: &Path,
+    _project_root: &Path,
+) -> Option<PathBuf> {
+    // Handle relative paths
+    if module_name.starts_with("./") || module_name.starts_with("../") {
+        let path = source_dir.join(module_name);
+
+        // Try exact path first
+        if path.exists() {
+            return Some(path);
+        }
+
+        // Try with .js extension
+        let js_file = path.with_extension("js");
+        if js_file.exists() {
+            return Some(js_file);
+        }
+
+        // Try with .jsx extension
+        let jsx_file = path.with_extension("jsx");
+        if jsx_file.exists() {
+            return Some(jsx_file);
+        }
+
+        // Try as directory with index.js
+        let index_file = path.join("index.js");
+        if index_file.exists() {
+            return Some(index_file);
+        }
+    }
+
+    // For non-relative imports, they're likely npm modules - skip
+    None
+}
+
+/// Resolve TypeScript module imports
+fn resolve_typescript_import(
+    module_name: &str,
+    source_dir: &Path,
+    _project_root: &Path,
+) -> Option<PathBuf> {
+    // Handle relative paths
+    if module_name.starts_with("./") || module_name.starts_with("../") {
+        let path = source_dir.join(module_name);
+
+        // Try exact path first
+        if path.exists() {
+            return Some(path);
+        }
+
+        // Try with .ts extension
+        let ts_file = path.with_extension("ts");
+        if ts_file.exists() {
+            return Some(ts_file);
+        }
+
+        // Try with .tsx extension
+        let tsx_file = path.with_extension("tsx");
+        if tsx_file.exists() {
+            return Some(tsx_file);
+        }
+
+        // Try as directory with index.ts
+        let index_file = path.join("index.ts");
+        if index_file.exists() {
+            return Some(index_file);
+        }
+    }
+
+    // For non-relative imports, they're likely npm modules - skip
+    None
+}
+
+/// Resolve Go module imports
+fn resolve_go_import(
+    module_name: &str,
+    _source_dir: &Path,
+    project_root: &Path,
+) -> Option<PathBuf> {
+    // Go imports are typically package-based
+    // Skip external packages (those with dots in the first part usually)
+    if module_name.contains('/') && module_name.split('/').next()?.contains('.') {
+        return None; // External package
+    }
+
+    // Try to find in project
+    let parts: Vec<&str> = module_name.split('/').collect();
+    let mut path = project_root.to_path_buf();
+
+    for part in parts {
+        path = path.join(part);
+    }
+
+    // Go files in a directory form a package
+    if path.is_dir() {
+        // Return the first .go file in the directory (excluding tests)
+        if let Ok(entries) = std::fs::read_dir(&path) {
+            for entry in entries.flatten() {
+                let file_path = entry.path();
+                if file_path.extension() == Some(std::ffi::OsStr::new("go")) {
+                    let file_name = file_path.file_name()?.to_string_lossy();
+                    if !file_name.ends_with("_test.go") {
+                        return Some(file_path);
                     }
                 }
             }
