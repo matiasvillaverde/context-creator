@@ -72,8 +72,17 @@ impl ModuleResolver for PythonModuleResolver {
         from_file: &Path,
         base_dir: &Path,
     ) -> Result<ResolvedPath, ContextCreatorError> {
-        // Validate module name for security
-        validate_module_name(module_path)?;
+        // Validate module name for security - allow Python relative imports
+        if !module_path.starts_with('.') {
+            validate_module_name(module_path)?;
+        } else {
+            // For relative imports, do a minimal validation
+            if module_path.is_empty() || module_path.len() > 255 || module_path.contains('\0') {
+                return Err(ContextCreatorError::SecurityError(format!(
+                    "Invalid relative module name: {module_path}"
+                )));
+            }
+        }
 
         // Handle standard library imports
         if self.is_external_module(module_path) {
@@ -99,7 +108,10 @@ impl ModuleResolver for PythonModuleResolver {
                 let mut current = parent;
 
                 // Go up directories based on dot count
-                for _ in 1..level {
+                // For level=1 (.), stay in current directory
+                // For level=2 (..), go up 1 directory  
+                // For level=3 (...), go up 2 directories
+                for _ in 0..(level.saturating_sub(1)) {
                     if let Some(p) = current.parent() {
                         current = p;
                     }
@@ -108,7 +120,7 @@ impl ModuleResolver for PythonModuleResolver {
                 // Resolve the rest of the path
                 if !rest.is_empty() {
                     let path = ResolverUtils::module_to_path(rest);
-                    let full_path = current.join(path);
+                    let full_path = current.join(&path);
 
                     // Try as a Python file
                     if let Some(resolved) = ResolverUtils::find_with_extensions(&full_path, &["py"])

@@ -9,9 +9,27 @@ use crate::core::semantic::path_validator::validate_import_path;
 use crate::core::semantic::type_resolver::{ResolutionLimits, TypeResolver};
 use crate::core::walker::FileInfo;
 use crate::utils::error::ContextCreatorError;
+use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+
+/// Build an efficient gitignore matcher from walk options
+fn build_ignore_matcher(walk_options: &crate::core::walker::WalkOptions, base_path: &Path) -> Option<Gitignore> {
+    if walk_options.ignore_patterns.is_empty() {
+        return None;
+    }
+    
+    let mut builder = GitignoreBuilder::new(base_path);
+    
+    // Add each ignore pattern
+    for pattern in &walk_options.ignore_patterns {
+        // The ignore crate handles patterns efficiently
+        let _ = builder.add_line(None, pattern);
+    }
+    
+    builder.build().ok()
+}
 
 /// Detect the project root directory using git root or fallback methods
 fn detect_project_root(start_path: &Path) -> PathBuf {
@@ -67,6 +85,7 @@ pub fn expand_file_list(
     mut files_map: HashMap<PathBuf, FileInfo>,
     config: &Config,
     cache: &Arc<FileCache>,
+    walk_options: &crate::core::walker::WalkOptions,
 ) -> Result<HashMap<PathBuf, FileInfo>, ContextCreatorError> {
     // If no semantic features are enabled, return as-is
     if !config.trace_imports && !config.include_callers && !config.include_types {
@@ -315,6 +334,24 @@ pub fn expand_file_list(
 
     // Update imported_by relationships for proper prioritization
     update_import_relationships(&mut files_map);
+
+    // Build ignore matcher for efficient filtering
+    if let Some(ignore_matcher) = build_ignore_matcher(walk_options, &project_root) {
+        // Remove ignored files from the final output
+        // This is extremely efficient as the ignore crate uses optimized algorithms
+        let ignored_files: Vec<PathBuf> = files_map
+            .keys()
+            .filter(|path| {
+                // The ignore crate's Match type indicates if a path should be ignored
+                ignore_matcher.matched(path, path.is_dir()).is_ignore()
+            })
+            .cloned()
+            .collect();
+        
+        for ignored_path in ignored_files {
+            files_map.remove(&ignored_path);
+        }
+    }
 
     Ok(files_map)
 }
@@ -948,7 +985,18 @@ mod tests {
         };
 
         let cache = Arc::new(FileCache::new());
-        let result = expand_file_list(files_map.clone(), &config, &cache).unwrap();
+        let walk_options = crate::core::walker::WalkOptions {
+            max_file_size: None,
+            follow_links: false,
+            include_hidden: false,
+            parallel: false,
+            ignore_file: ".context-creator-ignore".to_string(),
+            ignore_patterns: vec![],
+            include_patterns: vec![],
+            custom_priorities: vec![],
+            filter_binary_files: false,
+        };
+        let result = expand_file_list(files_map.clone(), &config, &cache, &walk_options).unwrap();
 
         assert_eq!(result.len(), 1);
     }

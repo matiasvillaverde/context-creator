@@ -198,7 +198,7 @@ fn process_directory(
     if config.progress && !config.quiet {
         eprintln!("🔍 Scanning directory: {}", path.display());
     }
-    let mut files = core::walker::walk_directory(path, walk_options)?;
+    let mut files = core::walker::walk_directory(path, walk_options.clone())?;
 
     if config.progress && !config.quiet {
         eprintln!("📁 Found {} files", files.len());
@@ -228,7 +228,7 @@ fn process_directory(
         }
 
         // Expand the file list
-        files_map = core::file_expander::expand_file_list(files_map, config, &cache)?;
+        files_map = core::file_expander::expand_file_list(files_map, config, &cache, &walk_options)?;
 
         // Convert back to Vec<FileInfo>
         files = files_map.into_values().collect();
