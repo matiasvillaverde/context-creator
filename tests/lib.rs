@@ -54,6 +54,8 @@ mod cycle_detection_test;
 mod cycle_detection_warning_test;
 #[path = "modules/edge_typing_test.rs"]
 mod edge_typing_test;
+#[path = "modules/integration_trace_imports_test.rs"]
+mod integration_trace_imports_test;
 #[path = "modules/parallel_semantic_test.rs"]
 mod parallel_semantic_test;
 #[path = "modules/parallel_workflow_test.rs"]
@@ -80,6 +82,8 @@ mod semantic_output_test;
 mod semantic_refactor_integration;
 #[path = "modules/semantic_reliability_test.rs"]
 mod semantic_reliability_test;
+#[path = "modules/semantic_trace_imports_test.rs"]
+mod semantic_trace_imports_test;
 
 // Python semantic tests
 #[path = "modules/python_semantic_edge_cases_test.rs"]

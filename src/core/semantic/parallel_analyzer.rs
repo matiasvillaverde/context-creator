@@ -203,7 +203,7 @@ impl<'a> ParallelAnalyzer<'a> {
         file_path: &Path,
         project_root: &Path,
         imports: &[crate::core::semantic::analyzer::Import],
-        valid_files: &std::collections::HashSet<PathBuf>,
+        _valid_files: &std::collections::HashSet<PathBuf>,
     ) -> Result<Vec<(PathBuf, DependencyEdgeType)>> {
         let mut typed_imports = Vec::new();
 
@@ -213,7 +213,9 @@ impl<'a> ParallelAnalyzer<'a> {
                 // Try to resolve the import
                 match resolver.resolve_import(&import.module, file_path, project_root) {
                     Ok(resolved) => {
-                        if !resolved.is_external && valid_files.contains(&resolved.path) {
+                        if !resolved.is_external {
+                            // For trace_imports, we want to track ALL imports,
+                            // not just those in valid_files, to support file expansion
                             let edge_type = DependencyEdgeType::Import {
                                 symbols: import.items.clone(),
                             };
@@ -231,7 +233,7 @@ impl<'a> ParallelAnalyzer<'a> {
                                     let potential_path =
                                         parent.join(format!("{module_base}.{ext}"));
 
-                                    if valid_files.contains(&potential_path) {
+                                    if potential_path.exists() {
                                         let edge_type = DependencyEdgeType::Import {
                                             symbols: import.items.clone(),
                                         };
@@ -241,9 +243,10 @@ impl<'a> ParallelAnalyzer<'a> {
                                 }
                             }
                         } else {
-                            // Fallback: use module path as-is only if it's in valid files
+                            // Fallback: For trace_imports, track the import even if unresolved
+                            // This allows the file expander to attempt resolution later
                             let fallback_path = PathBuf::from(&import.module);
-                            if valid_files.contains(&fallback_path) {
+                            if fallback_path.is_absolute() && fallback_path.exists() {
                                 let edge_type = DependencyEdgeType::Import {
                                     symbols: import.items.clone(),
                                 };
@@ -254,10 +257,10 @@ impl<'a> ParallelAnalyzer<'a> {
                 }
             }
         } else {
-            // No resolver available - use basic import edges only if in valid files
+            // No resolver available - for trace_imports, track absolute paths that exist
             for import in imports {
                 let import_path = PathBuf::from(&import.module);
-                if valid_files.contains(&import_path) {
+                if import_path.is_absolute() && import_path.exists() {
                     let edge_type = DependencyEdgeType::Import {
                         symbols: import.items.clone(),
                     };
