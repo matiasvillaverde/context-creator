@@ -1,4 +1,4 @@
-//! Dependency graph traversal for semantic analysis
+//! Dependency graph traversal for semantic analysis with parallel processing
 
 use crate::core::cache::FileCache;
 use crate::core::semantic::{analyzer::SemanticContext, SemanticOptions};
@@ -6,13 +6,20 @@ use crate::core::walker::FileInfo;
 use anyhow::Result;
 use petgraph::algo::toposort;
 use petgraph::graph::{DiGraph, NodeIndex};
+use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
-/// Represents a node in the dependency graph
+use crate::core::semantic::dependency_types::{
+    DependencyEdgeType, DependencyNode as RichNode, FileAnalysisResult,
+};
+
+/// Legacy node structure for compatibility
 #[derive(Debug, Clone)]
 struct DependencyNode {
     file_index: usize,
+    #[allow(dead_code)]
     depth: usize,
     imports: Vec<PathBuf>,
     #[allow(dead_code)]
@@ -46,7 +53,7 @@ pub fn perform_semantic_analysis_graph(
     Ok(())
 }
 
-/// Dependency graph for semantic analysis
+/// Dependency graph for semantic analysis with parallel processing
 struct DependencyGraph<'a> {
     nodes: Vec<DependencyNode>,
     path_to_index: HashMap<PathBuf, usize>,
@@ -54,7 +61,7 @@ struct DependencyGraph<'a> {
     visited: HashSet<usize>,
     cache: &'a FileCache,
     project_root: PathBuf,
-    graph: DiGraph<usize, ()>,
+    graph: DiGraph<RichNode, DependencyEdgeType>,
     node_indices: HashMap<usize, NodeIndex>,
 }
 
@@ -90,9 +97,17 @@ impl<'a> DependencyGraph<'a> {
         let mut graph = DiGraph::new();
         let mut node_indices = HashMap::new();
 
-        // Add nodes to petgraph
-        for index in 0..files.len() {
-            let node_idx = graph.add_node(index);
+        // Add rich nodes to petgraph with metadata
+        for (index, file) in files.iter().enumerate() {
+            let rich_node = RichNode {
+                file_index: index,
+                path: file.path.clone(),
+                language: Self::detect_language(&file.path),
+                content_hash: None, // Will be computed during analysis
+                file_size: file.size,
+                depth: 0,
+            };
+            let node_idx = graph.add_node(rich_node);
             node_indices.insert(index, node_idx);
         }
 
@@ -181,25 +196,21 @@ impl<'a> DependencyGraph<'a> {
         start_path.parent().unwrap_or(start_path).to_path_buf()
     }
 
-    /// Traverse dependencies using Kahn's algorithm for cycle detection
+    /// Traverse dependencies using parallel processing and Kahn's algorithm
     fn traverse_dependencies(&mut self, options: &SemanticOptions) -> Result<()> {
-        // First pass: analyze all files to discover dependencies
-        for i in 0..self.nodes.len() {
-            if let Err(e) = self.analyze_file(i, 0, options) {
-                eprintln!("Warning: Failed to analyze file index {i}: {e}");
-                continue;
-            }
-        }
+        // Phase 1: Parallel file analysis
+        let analysis_results = self.parallel_analyze_files(options)?;
 
-        // Second pass: build dependency graph edges
-        self.build_dependency_edges();
+        // Phase 2: Build dependency graph from analysis results
+        self.build_dependency_graph_from_results(&analysis_results);
 
-        // Third pass: use Kahn's algorithm to detect cycles and get processing order
+        // Phase 3: Use Kahn's algorithm to detect cycles and get processing order
         match toposort(&self.graph, None) {
             Ok(sorted_nodes) => {
                 // Process nodes in topological order
                 for node_idx in sorted_nodes {
-                    let file_idx = self.graph[node_idx];
+                    let rich_node = &self.graph[node_idx];
+                    let file_idx = rich_node.file_index;
                     self.visited.insert(file_idx);
 
                     // Process dependencies up to semantic_depth
@@ -208,11 +219,10 @@ impl<'a> DependencyGraph<'a> {
             }
             Err(cycle_error) => {
                 // Cycle detected - handle gracefully
-                let cycle_node = self.graph[cycle_error.node_id()];
-                let cycle_path = self.get_file_path(cycle_node);
+                let cycle_node = &self.graph[cycle_error.node_id()];
                 eprintln!(
                     "Warning: Circular dependency detected involving file: {}",
-                    cycle_path.display()
+                    cycle_node.path.display()
                 );
                 eprintln!("Warning: Processing files in partial order, some dependencies may be incomplete.");
 
@@ -230,6 +240,7 @@ impl<'a> DependencyGraph<'a> {
     }
 
     /// Analyze a single file and extract semantic information
+    #[allow(dead_code)]
     fn analyze_file(
         &mut self,
         file_idx: usize,
@@ -350,7 +361,183 @@ impl<'a> DependencyGraph<'a> {
         None
     }
 
-    /// Build dependency edges in the petgraph
+    /// Parallel analysis of all files
+    fn parallel_analyze_files(&self, options: &SemanticOptions) -> Result<Vec<FileAnalysisResult>> {
+        let cache = self.cache;
+        let project_root = &self.project_root;
+
+        // Create thread-safe error collector
+        let errors = Arc::new(Mutex::new(Vec::new()));
+
+        // Parallel analysis using rayon
+        let results: Vec<FileAnalysisResult> = (0..self.nodes.len())
+            .into_par_iter()
+            .map(|file_idx| {
+                let result = self.analyze_file_parallel(file_idx, options, cache, project_root);
+
+                match result {
+                    Ok(analysis) => analysis,
+                    Err(e) => {
+                        let error_msg = format!("Failed to analyze file index {file_idx}: {e}");
+                        errors.lock().unwrap().push(error_msg.clone());
+                        FileAnalysisResult {
+                            file_index: file_idx,
+                            imports: Vec::new(),
+                            function_calls: Vec::new(),
+                            type_references: Vec::new(),
+                            error: Some(error_msg),
+                        }
+                    }
+                }
+            })
+            .collect();
+
+        // Print any errors that occurred
+        let errors = errors.lock().unwrap();
+        for error in errors.iter() {
+            eprintln!("Warning: {error}");
+        }
+
+        Ok(results)
+    }
+
+    /// Analyze a single file (thread-safe version for parallel processing)
+    fn analyze_file_parallel(
+        &self,
+        file_idx: usize,
+        options: &SemanticOptions,
+        cache: &FileCache,
+        project_root: &Path,
+    ) -> Result<FileAnalysisResult> {
+        let file_path = self.get_file_path(file_idx);
+
+        // Get the appropriate analyzer
+        let analyzer = match crate::core::semantic::get_analyzer_for_file(file_path)? {
+            Some(analyzer) => analyzer,
+            None => {
+                // No analyzer for this file type
+                return Ok(FileAnalysisResult {
+                    file_index: file_idx,
+                    imports: Vec::new(),
+                    function_calls: Vec::new(),
+                    type_references: Vec::new(),
+                    error: None,
+                });
+            }
+        };
+
+        // Read file content
+        let content = cache.get_or_load(file_path)?;
+
+        // Create context
+        let context = SemanticContext::new(
+            file_path.to_path_buf(),
+            project_root.to_path_buf(),
+            options.semantic_depth,
+        );
+
+        // Perform analysis
+        let analysis_result = analyzer.analyze_file(file_path, &content, &context)?;
+
+        // Build import edges with types
+        let mut typed_imports = Vec::new();
+        for import in &analysis_result.imports {
+            let edge_type = DependencyEdgeType::Import {
+                symbols: import.items.clone(),
+            };
+            typed_imports.push((PathBuf::from(&import.module), edge_type));
+        }
+
+        Ok(FileAnalysisResult {
+            file_index: file_idx,
+            imports: typed_imports,
+            function_calls: analysis_result.function_calls,
+            type_references: analysis_result.type_references,
+            error: None,
+        })
+    }
+
+    /// Build dependency graph from parallel analysis results
+    fn build_dependency_graph_from_results(&mut self, results: &[FileAnalysisResult]) {
+        for result in results {
+            let file_idx = result.file_index;
+
+            // Store analysis results in nodes
+            self.nodes[file_idx].function_calls = result.function_calls.clone();
+            self.nodes[file_idx].type_references = result.type_references.clone();
+
+            // Process imports and build edges
+            let mut resolved_imports = Vec::new();
+
+            for (import_path, edge_type) in &result.imports {
+                // Try to resolve the import
+                if let Ok(Some(resolver)) =
+                    crate::core::semantic::get_resolver_for_file(self.get_file_path(file_idx))
+                {
+                    match resolver.resolve_import(
+                        &import_path.to_string_lossy(),
+                        self.get_file_path(file_idx),
+                        &self.project_root,
+                    ) {
+                        Ok(resolved) => {
+                            if !resolved.is_external
+                                && self.path_to_index.contains_key(&resolved.path)
+                            {
+                                resolved_imports.push(resolved.path.clone());
+
+                                // Add typed edge to graph
+                                if let (Some(&from_idx), Some(&to_idx)) = (
+                                    self.node_indices.get(&file_idx),
+                                    self.path_to_index
+                                        .get(&resolved.path)
+                                        .and_then(|idx| self.node_indices.get(idx)),
+                                ) {
+                                    self.graph.add_edge(from_idx, to_idx, edge_type.clone());
+                                }
+                            }
+                        }
+                        Err(_) => {
+                            // Fallback resolution
+                            if let Some(resolved) =
+                                self.simple_resolve(&import_path.to_string_lossy(), file_idx)
+                            {
+                                resolved_imports.push(resolved);
+                            }
+                        }
+                    }
+                }
+            }
+
+            self.nodes[file_idx].imports = resolved_imports;
+        }
+    }
+
+    /// Detect language from file extension
+    fn detect_language(path: &Path) -> Option<String> {
+        path.extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| match ext {
+                "rs" => "rust",
+                "py" => "python",
+                "js" | "mjs" => "javascript",
+                "ts" | "tsx" => "typescript",
+                "go" => "go",
+                "java" => "java",
+                "cpp" | "cc" | "cxx" => "cpp",
+                "c" => "c",
+                "rb" => "ruby",
+                "php" => "php",
+                "swift" => "swift",
+                "kt" => "kotlin",
+                "scala" => "scala",
+                "r" => "r",
+                _ => ext,
+            })
+            .map(String::from)
+    }
+
+    /// Build dependency edges in the petgraph (legacy method kept for compatibility)
+    #[allow(dead_code)]
     fn build_dependency_edges(&mut self) {
         for (file_idx, node) in self.nodes.iter().enumerate() {
             for import_path in &node.imports {
@@ -362,7 +549,10 @@ impl<'a> DependencyGraph<'a> {
                             self.node_indices.get(&dep_idx),
                         ) {
                             // Add edge from file to its dependency
-                            self.graph.add_edge(from_node, to_node, ());
+                            let edge_type = DependencyEdgeType::Import {
+                                symbols: Vec::new(),
+                            };
+                            self.graph.add_edge(from_node, to_node, edge_type);
                         }
                     }
                 }
