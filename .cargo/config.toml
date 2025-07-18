@@ -1,0 +1,9 @@
+[build]
+jobs = 8  # Number of parallel jobs, adjust based on your CPU
+incremental = true
+
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "split-debuginfo=unpacked"]
+
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "split-debuginfo=unpacked"]

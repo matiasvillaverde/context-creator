@@ -215,6 +215,27 @@ fn process_directory(
             let import_count: usize = files.iter().map(|f| f.imports.len()).sum();
             eprintln!("✅ Found {import_count} import relationships");
         }
+
+        // Expand file list based on semantic relationships
+        if config.progress && !config.quiet {
+            eprintln!("📂 Expanding file list based on semantic relationships...");
+        }
+
+        // Convert Vec<FileInfo> to HashMap for expansion
+        let mut files_map = std::collections::HashMap::new();
+        for file in files {
+            files_map.insert(file.path.clone(), file);
+        }
+
+        // Expand the file list
+        files_map = core::file_expander::expand_file_list(files_map, config, &cache)?;
+
+        // Convert back to Vec<FileInfo>
+        files = files_map.into_values().collect();
+
+        if config.progress && !config.quiet {
+            eprintln!("📊 Expanded to {} files", files.len());
+        }
     }
 
     if config.verbose {

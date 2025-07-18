@@ -9,10 +9,20 @@
 
 pub mod analyzer;
 pub mod cache;
+pub mod cycle_detector;
+pub mod dependency_types;
+pub mod graph_builder;
+pub mod graph_traverser;
 pub mod languages;
+pub mod parallel_analyzer;
 pub mod parser_pool;
 pub mod path_validator;
+pub mod query_engine;
 pub mod resolver;
+pub mod type_resolver;
+
+#[cfg(test)]
+mod rust_function_call_test;
 
 // Re-export commonly used types
 pub use cache::AstCacheV2;
@@ -103,7 +113,7 @@ pub fn get_resolver_for_file(
         "rs" => Some(Box::new(languages::rust::RustModuleResolver)),
         "py" => Some(Box::new(languages::python::PythonModuleResolver)),
         "js" | "jsx" => Some(Box::new(languages::javascript::JavaScriptModuleResolver)),
-        "ts" | "tsx" => Some(Box::new(languages::javascript::JavaScriptModuleResolver)), // TypeScript uses same resolution as JS
+        "ts" | "tsx" => Some(Box::new(languages::typescript::TypeScriptModuleResolver)),
         _ => None,
     };
 

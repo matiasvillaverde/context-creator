@@ -13,16 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Memory optimization with pre-allocated string buffers
 - Performance benchmark for 1000 files
 - Integration test verifying <1 second processing for 1000 files
+- Enhanced `--include-types` functionality to include actual type definition files instead of just listing type names
+- New `file_expander` module for expanding file lists based on semantic relationships
+- Type reference extraction from Rust imports (including traits)
+- Path validation security checks for expanded files
+- Support for finding trait definitions when used as type references
 
 ### Changed
 - Optimized file reading to eliminate 2-3x redundant I/O operations
 - Improved token counting with parallel processing using rayon
 - Enhanced memory efficiency in markdown generation
+- **BREAKING**: Default `semantic_depth` changed from 3 to 2 for better performance with expanded file inclusion
+- `TypeReference` struct enhanced with `definition_path`, `is_external`, and `external_package` fields
+- File expansion now respects `semantic_depth` limit to prevent unbounded traversal
 
 ### Performance
 - Reduced processing time for 1000 files from >5 seconds to <100ms (50x improvement)
 - Eliminated redundant file reads through shared caching
 - Reduced memory allocations with pre-sized string buffers
+- File expansion uses FileCache to avoid redundant I/O when searching for type definitions
 
 ## [0.3.0] - 2025-01-12
 

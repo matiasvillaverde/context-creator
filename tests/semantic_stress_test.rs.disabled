@@ -1,0 +1,518 @@
+#![cfg(test)]
+
+//! Stress tests for semantic analysis - performance and scalability edge cases
+
+use std::fs;
+use tempfile::TempDir;
+
+/// Test with a file that has hundreds of imports
+#[test]
+fn test_massive_imports() {
+    let temp_dir = TempDir::new().unwrap();
+    let src_dir = temp_dir.path().join("src");
+    fs::create_dir_all(&src_dir).unwrap();
+
+    // Create many modules to import
+    let module_count = 200;
+    let mut modules = Vec::new();
+
+    for i in 0..module_count {
+        let module_name = format!("mod_{i:03}");
+        modules.push(module_name.clone());
+
+        fs::write(
+            src_dir.join(format!("{module_name}.rs")),
+            format!(
+                r#"
+pub fn function_{i}() -> i32 {{
+    {i}
+}}
+
+pub const CONST_{i}: i32 = {i};
+
+pub struct Type{i} {{
+    value: i32,
+}}
+"#
+            ),
+        )
+        .unwrap();
+    }
+
+    // Create main file that imports everything
+    let mut main_content = String::new();
+
+    // Add module declarations
+    for module in &modules {
+        main_content.push_str(&format!("mod {module};\n"));
+    }
+
+    // Add use statements
+    main_content.push('\n');
+    for module in &modules {
+        main_content.push_str(&format!("use {module}::*;\n"));
+    }
+
+    // Add a main function that uses some imports
+    main_content.push_str("\nfn main() {\n");
+    main_content.push_str("    let sum = ");
+    for i in 0..10 {
+        if i > 0 {
+            main_content.push_str(" + ");
+        }
+        main_content.push_str(&format!("function_{i}()"));
+    }
+    main_content.push_str(";\n    println!(\"Sum: {}\", sum);\n}\n");
+
+    fs::write(src_dir.join("main.rs"), main_content).unwrap();
+
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
+        .arg(&src_dir)
+        .arg("--trace-imports")
+        .arg("--include-callers")
+        .arg("--include-types")
+        .output()
+        .expect("Failed to execute context-creator");
+
+    // Should handle massive number of imports
+    assert!(output.status.success(), "Should handle 200+ imports");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("main.rs"));
+    assert!(stdout.contains("Imports:"));
+
+    // Should list many modules
+    assert!(stdout.contains("mod_000") && stdout.contains("mod_001"));
+}
+
+/// Test with deeply nested function calls
+#[test]
+fn test_deep_call_chain() {
+    let temp_dir = TempDir::new().unwrap();
+    let src_dir = temp_dir.path().join("src");
+    fs::create_dir_all(&src_dir).unwrap();
+
+    // Create a chain of functions calling each other
+    let depth = 50;
+
+    for i in 0..depth {
+        let content = if i == depth - 1 {
+            // Last function in chain
+            format!(
+                r#"
+pub fn function_{i}(n: i32) -> i32 {{
+    println!("Reached depth {i}");
+    n + {i}
+}}
+"#
+            )
+        } else {
+            // Function that calls the next one
+            format!(
+                r#"
+mod level_{};
+use level_{}::function_{};
+
+pub fn function_{i}(n: i32) -> i32 {{
+    function_{}(n + {i})
+}}
+"#,
+                i + 1,
+                i + 1,
+                i + 1,
+                i + 1
+            )
+        };
+
+        fs::write(src_dir.join(format!("level_{i}.rs")), content).unwrap();
+    }
+
+    // Create entry point
+    fs::write(
+        src_dir.join("main.rs"),
+        r#"
+mod level_0;
+use level_0::function_0;
+
+fn main() {
+    let result = function_0(0);
+    println!("Final result: {}", result);
+}
+"#,
+    )
+    .unwrap();
+
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
+        .arg(&src_dir)
+        .arg("--trace-imports")
+        .arg("--include-callers")
+        .output()
+        .expect("Failed to execute context-creator");
+
+    // Should handle deep call chains
+    assert!(
+        output.status.success(),
+        "Should handle 50-level deep call chain"
+    );
+}
+
+/// Test with complex cross-module dependencies
+#[test]
+fn test_complex_cross_dependencies() {
+    let temp_dir = TempDir::new().unwrap();
+    let src_dir = temp_dir.path().join("src");
+    fs::create_dir_all(&src_dir).unwrap();
+
+    // Create a complex dependency graph
+    // A -> B, C
+    // B -> C, D
+    // C -> D
+    // D -> (none)
+    // E -> A, B, C, D
+
+    fs::write(
+        src_dir.join("mod_a.rs"),
+        r#"
+use crate::mod_b::{func_b, TypeB};
+use crate::mod_c::func_c;
+
+pub fn func_a() {
+    func_b();
+    func_c();
+}
+
+pub struct TypeA {
+    b: TypeB,
+}
+"#,
+    )
+    .unwrap();
+
+    fs::write(
+        src_dir.join("mod_b.rs"),
+        r#"
+use crate::mod_c::{func_c, TypeC};
+use crate::mod_d::func_d;
+
+pub fn func_b() {
+    func_c();
+    func_d();
+}
+
+pub struct TypeB {
+    c: TypeC,
+}
+"#,
+    )
+    .unwrap();
+
+    fs::write(
+        src_dir.join("mod_c.rs"),
+        r#"
+use crate::mod_d::{func_d, TypeD};
+
+pub fn func_c() {
+    func_d();
+}
+
+pub struct TypeC {
+    d: TypeD,
+}
+"#,
+    )
+    .unwrap();
+
+    fs::write(
+        src_dir.join("mod_d.rs"),
+        r#"
+pub fn func_d() {
+    println!("Base function");
+}
+
+pub struct TypeD {
+    value: i32,
+}
+"#,
+    )
+    .unwrap();
+
+    fs::write(
+        src_dir.join("mod_e.rs"),
+        r#"
+use crate::mod_a::{func_a, TypeA};
+use crate::mod_b::{func_b, TypeB};
+use crate::mod_c::{func_c, TypeC};
+use crate::mod_d::{func_d, TypeD};
+
+pub fn func_e() {
+    func_a();
+    func_b();
+    func_c();
+    func_d();
+}
+
+pub struct TypeE {
+    a: TypeA,
+    b: TypeB,
+    c: TypeC,
+    d: TypeD,
+}
+"#,
+    )
+    .unwrap();
+
+    fs::write(
+        src_dir.join("main.rs"),
+        r#"
+mod mod_a;
+mod mod_b;
+mod mod_c;
+mod mod_d;
+mod mod_e;
+
+use mod_e::func_e;
+
+fn main() {
+    func_e();
+}
+"#,
+    )
+    .unwrap();
+
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
+        .arg(&src_dir)
+        .arg("--trace-imports")
+        .arg("--include-callers")
+        .arg("--include-types")
+        .output()
+        .expect("Failed to execute context-creator");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Should handle complex cross-dependencies
+    assert!(output.status.success());
+
+    // Verify main imports all modules
+    assert!(stdout.contains("main.rs"));
+    assert!(stdout.contains("Imports: mod_a, mod_b, mod_c, mod_d, mod_e"));
+
+    // Verify modules show correct imported by relationships
+    assert!(stdout.contains("mod_d.rs") && stdout.contains("Imported by: main.rs"));
+}
+
+/// Test with files containing thousands of functions
+#[test]
+fn test_many_functions_in_file() {
+    let temp_dir = TempDir::new().unwrap();
+    let src_dir = temp_dir.path().join("src");
+    fs::create_dir_all(&src_dir).unwrap();
+
+    // Create a file with many functions
+    let mut content = String::new();
+    let function_count = 1000;
+
+    for i in 0..function_count {
+        content.push_str(&format!(
+            r#"
+pub fn func_{i}(x: i32) -> i32 {{
+    x + {i}
+}}
+"#
+        ));
+    }
+
+    // Add a main function that calls some of them
+    content.push_str("\nfn main() {\n");
+    for i in 0..10 {
+        content.push_str(&format!("    func_{i}({i});\n"));
+    }
+    content.push_str("}\n");
+
+    fs::write(src_dir.join("many_functions.rs"), content).unwrap();
+
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
+        .arg(&src_dir)
+        .arg("--include-callers")
+        .output()
+        .expect("Failed to execute context-creator");
+
+    // Should handle files with many functions
+    assert!(
+        output.status.success(),
+        "Should handle 1000 functions in a file"
+    );
+}
+
+/// Test with rapid file creation/modification
+#[test]
+fn test_concurrent_file_access() {
+    let temp_dir = TempDir::new().unwrap();
+    let src_dir = temp_dir.path().join("src");
+    fs::create_dir_all(&src_dir).unwrap();
+
+    // Create initial files
+    for i in 0..10 {
+        fs::write(
+            src_dir.join(format!("file_{i}.rs")),
+            format!(
+                r#"
+pub fn function_{i}() {{
+    println!("File {i}");
+}}
+"#
+            ),
+        )
+        .unwrap();
+    }
+
+    // Run context-creator multiple times in parallel (simulated by quick succession)
+    for _ in 0..3 {
+        let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
+            .arg(&src_dir)
+            .arg("--trace-imports")
+            .output()
+            .expect("Failed to execute context-creator");
+
+        assert!(output.status.success(), "Should handle concurrent access");
+    }
+}
+
+/// Test with mixed language-like file extensions (that might confuse parser)
+#[test]
+fn test_mixed_extensions() {
+    let temp_dir = TempDir::new().unwrap();
+    let src_dir = temp_dir.path().join("src");
+    fs::create_dir_all(&src_dir).unwrap();
+
+    // Create Rust files with unusual names
+    fs::write(
+        src_dir.join("test.rs.bak"),
+        r#"
+// This is a backup file but might be processed
+pub fn backup_function() {}
+"#,
+    )
+    .unwrap();
+
+    fs::write(
+        src_dir.join("main.rs"),
+        r#"
+// Normal Rust file
+fn main() {
+    println!("Main");
+}
+"#,
+    )
+    .unwrap();
+
+    fs::write(
+        src_dir.join("config.rs.template"),
+        r#"
+// Template file
+pub const TEMPLATE: &str = "template";
+"#,
+    )
+    .unwrap();
+
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
+        .arg(&src_dir)
+        .arg("--trace-imports")
+        .output()
+        .expect("Failed to execute context-creator");
+
+    // Should handle mixed extensions gracefully
+    assert!(output.status.success());
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    // Should include the main.rs file
+    assert!(stdout.contains("main.rs"));
+}
+
+/// Test with symlinks (if supported by OS)
+#[test]
+#[cfg(unix)]
+fn test_symlink_handling() {
+    use std::os::unix::fs::symlink;
+
+    let temp_dir = TempDir::new().unwrap();
+    let src_dir = temp_dir.path().join("src");
+    let lib_dir = temp_dir.path().join("lib");
+    fs::create_dir_all(&src_dir).unwrap();
+    fs::create_dir_all(&lib_dir).unwrap();
+
+    // Create a file in lib
+    fs::write(
+        lib_dir.join("shared.rs"),
+        r#"
+pub fn shared_function() {
+    println!("Shared function");
+}
+"#,
+    )
+    .unwrap();
+
+    // Create a symlink in src pointing to lib file
+    symlink(lib_dir.join("shared.rs"), src_dir.join("shared_link.rs")).unwrap();
+
+    // Create a file that uses the symlinked module
+    fs::write(
+        src_dir.join("main.rs"),
+        r#"
+mod shared_link;
+use shared_link::shared_function;
+
+fn main() {
+    shared_function();
+}
+"#,
+    )
+    .unwrap();
+
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
+        .arg(&src_dir)
+        .arg("--trace-imports")
+        .output()
+        .expect("Failed to execute context-creator");
+
+    // Should handle symlinks
+    assert!(output.status.success(), "Should handle symlinked files");
+}
+
+/// Test with extremely nested directory structure
+#[test]
+fn test_deep_directory_nesting() {
+    let temp_dir = TempDir::new().unwrap();
+    let mut current_dir = temp_dir.path().to_path_buf();
+
+    // Create deeply nested structure
+    let depth = 20;
+    for i in 0..depth {
+        current_dir = current_dir.join(format!("level_{i}"));
+        fs::create_dir_all(&current_dir).unwrap();
+
+        // Add a file at each level
+        fs::write(
+            current_dir.join("mod.rs"),
+            format!(
+                r#"
+pub fn level_{i}_function() {{
+    println!("At level {i}");
+}}
+"#
+            ),
+        )
+        .unwrap();
+    }
+
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_context-creator"))
+        .arg(temp_dir.path())
+        .arg("--trace-imports")
+        .output()
+        .expect("Failed to execute context-creator");
+
+    // Should handle deep directory nesting
+    assert!(
+        output.status.success(),
+        "Should handle 20-level deep directories"
+    );
+}
