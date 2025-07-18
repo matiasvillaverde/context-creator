@@ -20,13 +20,13 @@ release: validate ## Build the project in release mode for production (runs all 
 	$(CARGO) build --release
 
 test: fmt-check lint ## Run all tests (runs format and lint checks first).
-	$(CARGO) test --all-targets
+	$(CARGO) test --test lib
 
 test-fast: ## Run essential tests quickly (for CI under 1 minute).
 	$(CARGO) test --lib --bins
-	$(CARGO) test --test semantic_include_types_test
-	$(CARGO) test --test cli_test
-	$(CARGO) test --test integration_test
+	$(CARGO) test --test lib semantic_include_types_test::
+	$(CARGO) test --test lib cli_test::
+	$(CARGO) test --test lib integration_test::
 
 run-example: ## Run the tool with example usage.
 	$(CARGO) run -- --help

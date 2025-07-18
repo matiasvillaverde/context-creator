@@ -6,6 +6,7 @@
 #[cfg(test)]
 use crate::core::cache::FileCache;
 use crate::core::semantic::parallel_analyzer::{AnalysisOptions, ParallelAnalyzer};
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -78,8 +79,9 @@ fn test_parallel_file_analysis() {
         include_functions: true,
     };
 
+    let valid_files: HashSet<PathBuf> = files.iter().cloned().collect();
     let results = analyzer
-        .analyze_files(&files, &project_root, &options)
+        .analyze_files(&files, &project_root, &options, &valid_files)
         .unwrap();
 
     // Should analyze all files
@@ -116,8 +118,9 @@ fn test_thread_pool_management() {
     };
 
     // Should handle analysis with limited threads
+    let valid_files: HashSet<PathBuf> = files.iter().cloned().collect();
     let results = analyzer
-        .analyze_files(&files, &project_root, &options)
+        .analyze_files(&files, &project_root, &options, &valid_files)
         .unwrap();
     assert_eq!(results.len(), files.len());
 }
@@ -150,8 +153,9 @@ fn test_analysis_error_handling() {
         include_functions: true,
     };
 
+    let valid_files: HashSet<PathBuf> = [bad_file.clone()].iter().cloned().collect();
     let results = analyzer
-        .analyze_files(&[bad_file.clone()], dir, &options)
+        .analyze_files(&[bad_file.clone()], dir, &options, &valid_files)
         .unwrap();
 
     // Should still return a result, but with limited information
@@ -168,8 +172,9 @@ fn test_empty_file_list() {
     let options = AnalysisOptions::default();
     let project_root = PathBuf::from("/tmp");
 
+    let valid_files: HashSet<PathBuf> = HashSet::new();
     let results = analyzer
-        .analyze_files(&[], &project_root, &options)
+        .analyze_files(&[], &project_root, &options, &valid_files)
         .unwrap();
     assert_eq!(results.len(), 0);
 }
@@ -204,7 +209,10 @@ fn test_large_file_set() {
     };
 
     let start = std::time::Instant::now();
-    let results = analyzer.analyze_files(&files, dir, &options).unwrap();
+    let valid_files: HashSet<PathBuf> = files.iter().cloned().collect();
+    let results = analyzer
+        .analyze_files(&files, dir, &options, &valid_files)
+        .unwrap();
     let duration = start.elapsed();
 
     // Should analyze all files
@@ -238,7 +246,10 @@ fn test_non_code_files_handled() {
     let analyzer = ParallelAnalyzer::new(&cache);
     let options = AnalysisOptions::default();
 
-    let results = analyzer.analyze_files(&files, dir, &options).unwrap();
+    let valid_files: HashSet<PathBuf> = files.iter().cloned().collect();
+    let results = analyzer
+        .analyze_files(&files, dir, &options, &valid_files)
+        .unwrap();
 
     // Should handle all files
     assert_eq!(results.len(), 3);
@@ -261,14 +272,15 @@ fn test_cache_utilization() {
     let options = AnalysisOptions::default();
 
     // First analysis
+    let valid_files: HashSet<PathBuf> = files.iter().cloned().collect();
     let results1 = analyzer
-        .analyze_files(&files, &project_root, &options)
+        .analyze_files(&files, &project_root, &options, &valid_files)
         .unwrap();
 
     // Second analysis should utilize cache
     let start = std::time::Instant::now();
     let results2 = analyzer
-        .analyze_files(&files, &project_root, &options)
+        .analyze_files(&files, &project_root, &options, &valid_files)
         .unwrap();
     let duration = start.elapsed();
 
@@ -301,8 +313,9 @@ fn test_selective_analysis_options() {
         include_functions: false,
     };
 
+    let valid_files: HashSet<PathBuf> = files.iter().cloned().collect();
     let results = analyzer
-        .analyze_files(&files, &project_root, &import_only_options)
+        .analyze_files(&files, &project_root, &import_only_options, &valid_files)
         .unwrap();
 
     // With trace_imports enabled, we should have attempted to process imports

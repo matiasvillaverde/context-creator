@@ -12,6 +12,8 @@ use tree_sitter::{Language, Parser, Query, QueryCursor, Tree};
 pub struct QueryEngine {
     #[allow(dead_code)]
     language: Language,
+    #[allow(dead_code)]
+    language_name: String,
     import_query: Query,
     function_call_query: Query,
     type_reference_query: Query,
@@ -26,6 +28,7 @@ impl QueryEngine {
 
         Ok(Self {
             language,
+            language_name: language_name.to_string(),
             import_query,
             function_call_query,
             type_reference_query,
@@ -83,12 +86,12 @@ impl QueryEngine {
             "rust" => {
                 r#"
                 ; Use declarations
-                (use_declaration) @import
+                (use_declaration) @rust_import
 
                 ; Module declarations  
                 (mod_item
                   name: (identifier) @mod_name
-                ) @module
+                ) @rust_module
 
                 ; Extern crate declarations
                 (extern_crate_declaration
@@ -151,7 +154,7 @@ impl QueryEngine {
                     ]
                   )?
                   source: (string) @module_path
-                ) @import
+                ) @js_import
 
                 ; Require calls (CommonJS)
                 (call_expression
@@ -179,7 +182,7 @@ impl QueryEngine {
                     ]
                   )?
                   source: (string) @module_path
-                ) @import
+                ) @ts_import
 
                 ; Require calls (CommonJS)
                 (call_expression
@@ -467,13 +470,17 @@ impl QueryEngine {
                 line = node.start_position().row + 1;
 
                 match capture_name.as_str() {
-                    "import" => {
+                    "rust_import" => {
                         // Parse Rust use declaration
                         let (parsed_module, parsed_items, is_rel) =
                             self.parse_rust_use_declaration(node, content);
                         module = parsed_module;
                         items = parsed_items;
                         is_relative = is_rel;
+                    }
+                    "js_import" | "ts_import" => {
+                        // For JavaScript/TypeScript, we rely on module_path and import_name captures
+                        // The module and items will be set by those specific captures
                     }
                     "simple_import" => {
                         // Python simple import statement
@@ -485,7 +492,7 @@ impl QueryEngine {
                         // Python relative from import statement
                         is_relative = true;
                     }
-                    "module" => {
+                    "rust_module" => {
                         // Parse module declaration (mod item)
                         let (parsed_module, parsed_items, is_rel) =
                             self.parse_rust_module_declaration(node, content);
@@ -529,6 +536,10 @@ impl QueryEngine {
                     "module_path" => {
                         if let Ok(name) = node.utf8_text(content.as_bytes()) {
                             module = name.trim_matches('"').trim_matches('\'').to_string();
+                            // Check if it's a relative import for JavaScript/TypeScript
+                            if module.starts_with('.') {
+                                is_relative = true;
+                            }
                         }
                     }
                     _ => {}

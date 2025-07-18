@@ -65,6 +65,7 @@ impl<'a> ParallelAnalyzer<'a> {
         files: &[PathBuf],
         project_root: &Path,
         options: &AnalysisOptions,
+        valid_files: &std::collections::HashSet<PathBuf>,
     ) -> Result<Vec<FileAnalysisResult>> {
         // Configure thread pool if specified
         if let Some(count) = self.thread_count {
@@ -83,7 +84,8 @@ impl<'a> ParallelAnalyzer<'a> {
             .par_iter()
             .enumerate()
             .map(|(index, file_path)| {
-                match self.analyze_single_file(index, file_path, project_root, options) {
+                match self.analyze_single_file(index, file_path, project_root, options, valid_files)
+                {
                     Ok(result) => result,
                     Err(e) => {
                         let error_msg = format!("Failed to analyze {}: {}", file_path.display(), e);
@@ -113,12 +115,14 @@ impl<'a> ParallelAnalyzer<'a> {
     }
 
     /// Analyze a single file
+    #[allow(clippy::too_many_arguments)]
     fn analyze_single_file(
         &self,
         file_index: usize,
         file_path: &Path,
         project_root: &Path,
         options: &AnalysisOptions,
+        valid_files: &std::collections::HashSet<PathBuf>,
     ) -> Result<FileAnalysisResult> {
         // Get analyzer for the file type
         let analyzer = match get_analyzer_for_file(file_path)? {
@@ -160,7 +164,12 @@ impl<'a> ParallelAnalyzer<'a> {
 
         // Process imports if enabled
         let imports = if options.trace_imports {
-            self.process_imports(file_path, project_root, &analysis_result.imports)?
+            self.process_imports(
+                file_path,
+                project_root,
+                &analysis_result.imports,
+                valid_files,
+            )?
         } else {
             Vec::new()
         };
@@ -194,6 +203,7 @@ impl<'a> ParallelAnalyzer<'a> {
         file_path: &Path,
         project_root: &Path,
         imports: &[crate::core::semantic::analyzer::Import],
+        valid_files: &std::collections::HashSet<PathBuf>,
     ) -> Result<Vec<(PathBuf, DependencyEdgeType)>> {
         let mut typed_imports = Vec::new();
 
@@ -203,7 +213,7 @@ impl<'a> ParallelAnalyzer<'a> {
                 // Try to resolve the import
                 match resolver.resolve_import(&import.module, file_path, project_root) {
                     Ok(resolved) => {
-                        if !resolved.is_external {
+                        if !resolved.is_external && valid_files.contains(&resolved.path) {
                             let edge_type = DependencyEdgeType::Import {
                                 symbols: import.items.clone(),
                             };
@@ -211,21 +221,48 @@ impl<'a> ParallelAnalyzer<'a> {
                         }
                     }
                     Err(_) => {
-                        // Fallback: use module path as-is
-                        let edge_type = DependencyEdgeType::Import {
-                            symbols: import.items.clone(),
-                        };
-                        typed_imports.push((PathBuf::from(&import.module), edge_type));
+                        // For relative imports, try to resolve manually
+                        if import.module.starts_with(".") {
+                            if let Some(parent) = file_path.parent() {
+                                let module_base = import.module.trim_start_matches("./");
+
+                                // Try common extensions
+                                for ext in &["js", "jsx", "ts", "tsx"] {
+                                    let potential_path =
+                                        parent.join(format!("{module_base}.{ext}"));
+
+                                    if valid_files.contains(&potential_path) {
+                                        let edge_type = DependencyEdgeType::Import {
+                                            symbols: import.items.clone(),
+                                        };
+                                        typed_imports.push((potential_path, edge_type));
+                                        break;
+                                    }
+                                }
+                            }
+                        } else {
+                            // Fallback: use module path as-is only if it's in valid files
+                            let fallback_path = PathBuf::from(&import.module);
+                            if valid_files.contains(&fallback_path) {
+                                let edge_type = DependencyEdgeType::Import {
+                                    symbols: import.items.clone(),
+                                };
+                                typed_imports.push((fallback_path, edge_type));
+                            }
+                        }
                     }
                 }
             }
         } else {
-            // No resolver available - use basic import edges
+            // No resolver available - use basic import edges only if in valid files
             for import in imports {
-                let edge_type = DependencyEdgeType::Import {
-                    symbols: import.items.clone(),
-                };
-                typed_imports.push((PathBuf::from(&import.module), edge_type));
+                let import_path = PathBuf::from(&import.module);
+                if valid_files.contains(&import_path) {
+                    let edge_type = DependencyEdgeType::Import {
+                        symbols: import.items.clone(),
+                    };
+                    typed_imports.push((import_path, edge_type));
+                }
             }
         }
 

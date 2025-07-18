@@ -87,7 +87,13 @@ impl ModuleResolver for JavaScriptModuleResolver {
         // Handle relative imports (./, ../)
         if module_path.starts_with('.') {
             if let Some(parent) = from_file.parent() {
-                let resolved_path = parent.join(module_path);
+                // Properly resolve relative paths by removing leading "./"
+                let clean_path = if let Some(stripped) = module_path.strip_prefix("./") {
+                    stripped // Remove "./" prefix
+                } else {
+                    module_path // Keep as-is for "../" or other relative paths
+                };
+                let resolved_path = parent.join(clean_path);
 
                 // Try different extensions
                 for ext in &["js", "jsx", "ts", "tsx"] {
