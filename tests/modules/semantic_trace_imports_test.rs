@@ -52,7 +52,8 @@ fn process_files_with_trace_imports(
     }
 
     // Expand file list based on imports
-    context_creator::core::file_expander::expand_file_list(files_map, config, &cache).unwrap()
+    let walk_options = context_creator::core::walker::WalkOptions::from_config(config).unwrap();
+    context_creator::core::file_expander::expand_file_list(files_map, config, &cache, &walk_options).unwrap()
 }
 
 #[test]
