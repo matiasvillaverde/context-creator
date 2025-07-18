@@ -385,7 +385,9 @@ def multiply(a, b):
 
     assert!(file_paths.iter().any(|p| p.ends_with("main.py")));
     assert!(file_paths.iter().any(|p| p.ends_with("utils.py")));
-    assert!(file_paths.iter().any(|p| p.contains("helpers") && p.ends_with("math.py")));
+    assert!(file_paths
+        .iter()
+        .any(|p| p.contains("helpers") && p.ends_with("math.py")));
 }
 
 #[test]
@@ -452,8 +454,12 @@ def validate_email(email):
         .collect();
 
     // Platform-agnostic path checking
-    assert!(file_paths.iter().any(|p| p.contains("models") && p.ends_with("user.py")));
-    assert!(file_paths.iter().any(|p| p.contains("models") && p.ends_with("base.py")));
+    assert!(file_paths
+        .iter()
+        .any(|p| p.contains("models") && p.ends_with("user.py")));
+    assert!(file_paths
+        .iter()
+        .any(|p| p.contains("models") && p.ends_with("base.py")));
     assert!(file_paths
         .iter()
         .any(|p| p.contains("utils") && p.ends_with("validators.py")));
