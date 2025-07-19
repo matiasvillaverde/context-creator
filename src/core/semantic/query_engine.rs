@@ -3,7 +3,9 @@
 //! This module provides a declarative query-based approach to semantic analysis
 //! using Tree-sitter's query engine, replacing manual AST traversal.
 
-use crate::core::semantic::analyzer::{AnalysisResult, FunctionCall, Import, TypeReference};
+use crate::core::semantic::analyzer::{
+    AnalysisResult, FunctionCall, FunctionDefinition, Import, TypeReference,
+};
 use crate::utils::error::ContextCreatorError;
 use std::collections::HashMap;
 use tree_sitter::{Language, Parser, Query, QueryCursor, Tree};
@@ -17,6 +19,7 @@ pub struct QueryEngine {
     import_query: Query,
     function_call_query: Query,
     type_reference_query: Query,
+    function_definition_query: Query,
 }
 
 impl QueryEngine {
@@ -25,6 +28,8 @@ impl QueryEngine {
         let import_query = Self::create_import_query(language, language_name)?;
         let function_call_query = Self::create_function_call_query(language, language_name)?;
         let type_reference_query = Self::create_type_reference_query(language, language_name)?;
+        let function_definition_query =
+            Self::create_function_definition_query(language, language_name)?;
 
         Ok(Self {
             language,
@@ -32,6 +37,7 @@ impl QueryEngine {
             import_query,
             function_call_query,
             type_reference_query,
+            function_definition_query,
         })
     }
 
@@ -73,6 +79,15 @@ impl QueryEngine {
         let type_matches =
             query_cursor.matches(&self.type_reference_query, root_node, content.as_bytes());
         result.type_references = self.extract_type_references(type_matches, content)?;
+
+        // Execute function definition query
+        let definition_matches = query_cursor.matches(
+            &self.function_definition_query,
+            root_node,
+            content.as_bytes(),
+        );
+        result.exported_functions =
+            self.extract_function_definitions(definition_matches, content)?;
 
         Ok(result)
     }
@@ -320,6 +335,153 @@ impl QueryEngine {
 
         Query::new(language, query_text).map_err(|e| {
             ContextCreatorError::ParseError(format!("Failed to create function call query: {e}"))
+        })
+    }
+
+    /// Create function definition query for the specified language
+    fn create_function_definition_query(
+        language: Language,
+        language_name: &str,
+    ) -> Result<Query, ContextCreatorError> {
+        let query_text = match language_name {
+            "rust" => {
+                r#"
+                ; Function declarations with visibility
+                (function_item
+                  (visibility_modifier)? @visibility
+                  name: (identifier) @fn_name
+                ) @function
+                
+                ; Method declarations in impl blocks
+                (impl_item
+                  body: (declaration_list
+                    (function_item
+                      (visibility_modifier)? @method_visibility
+                      name: (identifier) @method_name
+                    ) @method
+                  )
+                )
+                
+                ; Trait method declarations
+                (trait_item
+                  body: (declaration_list
+                    (function_signature_item
+                      name: (identifier) @trait_fn_name
+                    ) @trait_function
+                  )
+                )
+            "#
+            }
+            "python" => {
+                r#"
+                ; Function definitions
+                (function_definition
+                  name: (identifier) @fn_name
+                ) @function
+                
+                ; Method definitions in classes
+                (class_definition
+                  body: (block
+                    (function_definition
+                      name: (identifier) @method_name
+                    ) @method
+                  )
+                )
+                
+                ; Async function definitions
+                (function_definition
+                  "async" @async_marker
+                  name: (identifier) @async_fn_name
+                ) @async_function
+            "#
+            }
+            "javascript" => {
+                r#"
+                ; Function declarations
+                (function_declaration
+                  name: (identifier) @fn_name
+                ) @function
+                
+                ; Arrow function assigned to const/let/var
+                (variable_declarator
+                  name: (identifier) @arrow_fn_name
+                  value: (arrow_function)
+                ) @arrow_function
+                
+                ; Function expressions assigned to const/let/var
+                (variable_declarator
+                  name: (identifier) @fn_expr_name
+                  value: (function_expression)
+                ) @function_expression
+                
+                ; Method definitions in objects
+                (method_definition
+                  name: (property_identifier) @method_name
+                ) @method
+                
+                ; Export function declarations
+                (export_statement
+                  declaration: (function_declaration
+                    name: (identifier) @export_fn_name
+                  )
+                ) @export_function
+                
+                ; CommonJS exports pattern: exports.functionName = function()
+                (assignment_expression
+                  left: (member_expression
+                    object: (identifier) @exports_obj (#eq? @exports_obj "exports")
+                    property: (property_identifier) @commonjs_export_name
+                  )
+                  right: [
+                    (function_expression)
+                    (arrow_function)
+                  ]
+                ) @commonjs_export
+            "#
+            }
+            "typescript" => {
+                r#"
+                ; Function declarations
+                (function_declaration
+                  name: (identifier) @fn_name
+                ) @function
+                
+                ; Arrow function assigned to const/let/var
+                (variable_declarator
+                  name: (identifier) @arrow_fn_name
+                  value: (arrow_function)
+                ) @arrow_function
+                
+                ; Function expressions assigned to const/let/var
+                (variable_declarator
+                  name: (identifier) @fn_expr_name
+                  value: (function_expression)
+                ) @function_expression
+                
+                ; Method definitions in classes
+                (method_definition
+                  name: (property_identifier) @method_name
+                ) @method
+                
+                ; Export function declarations
+                (export_statement
+                  declaration: (function_declaration
+                    name: (identifier) @export_fn_name
+                  )
+                ) @export_function
+            "#
+            }
+            _ => {
+                return Err(ContextCreatorError::ParseError(format!(
+                    "Unsupported language for function definition queries: {language_name}"
+                )))
+            }
+        };
+
+        Query::new(language, query_text).map_err(|e| {
+            ContextCreatorError::ParseError(format!(
+                "Failed to create function definition query: {e}"
+            ))
         })
     }
 
@@ -1121,6 +1283,96 @@ impl QueryEngine {
 
         // Allow the import if it passes all checks
         true
+    }
+
+    /// Extract function definitions from query matches
+    fn extract_function_definitions<'a>(
+        &self,
+        matches: tree_sitter::QueryMatches<'a, 'a, &'a [u8]>,
+        content: &str,
+    ) -> Result<Vec<FunctionDefinition>, ContextCreatorError> {
+        let mut definitions = Vec::new();
+        let def_query_captures = self.function_definition_query.capture_names();
+
+        for match_ in matches {
+            let mut name = String::new();
+            let mut is_exported = false;
+            let mut line = 0;
+
+            for capture in match_.captures {
+                let capture_name = &def_query_captures[capture.index as usize];
+                let node = capture.node;
+                line = node.start_position().row + 1;
+
+                match capture_name.as_str() {
+                    "fn_name"
+                    | "method_name"
+                    | "assoc_fn_name"
+                    | "arrow_fn_name"
+                    | "fn_expr_name"
+                    | "async_fn_name"
+                    | "export_fn_name"
+                    | "trait_fn_name"
+                    | "commonjs_export_name" => {
+                        if let Ok(fn_name) = node.utf8_text(content.as_bytes()) {
+                            name = fn_name.to_string();
+                        }
+                    }
+                    "visibility" | "method_visibility" => {
+                        if let Ok(vis) = node.utf8_text(content.as_bytes()) {
+                            // In Rust, pub means exported
+                            is_exported = vis.contains("pub");
+                        }
+                    }
+                    "export_function" | "commonjs_export" => {
+                        // JavaScript/TypeScript export
+                        is_exported = true;
+                    }
+                    "function"
+                    | "method"
+                    | "assoc_function"
+                    | "arrow_function"
+                    | "function_expression"
+                    | "async_function" => {
+                        // For languages without explicit visibility, check context
+                        if self.language_name == "python" {
+                            // In Python, functions not starting with _ are considered public
+                            is_exported = !name.starts_with('_');
+                        } else if self.language_name == "javascript"
+                            || self.language_name == "typescript"
+                        {
+                            // In JS/TS, all module-level functions are potentially callable
+                            // unless explicitly marked private or are nested
+                            is_exported = true;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            if !name.is_empty() {
+                // Special handling for Python methods
+                if self.language_name == "python" && !name.starts_with('_') {
+                    is_exported = true;
+                }
+
+                // Special handling for JavaScript/TypeScript without explicit export
+                if (self.language_name == "javascript" || self.language_name == "typescript")
+                    && !is_exported
+                {
+                    // Default to exported for top-level functions
+                    is_exported = true;
+                }
+
+                definitions.push(FunctionDefinition {
+                    name,
+                    is_exported,
+                    line,
+                });
+            }
+        }
+
+        Ok(definitions)
     }
 
     /// Check if a type name is a built-in type

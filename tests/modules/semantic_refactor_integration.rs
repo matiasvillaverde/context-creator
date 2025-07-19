@@ -101,6 +101,7 @@ pub fn process_data(config: &Config) {
             imported_by: Vec::new(),
             function_calls: Vec::new(),
             type_references: Vec::new(),
+            exported_functions: Vec::new(),
         },
         FileInfo {
             path: dir.join("src/lib.rs"),
@@ -112,6 +113,7 @@ pub fn process_data(config: &Config) {
             imported_by: Vec::new(),
             function_calls: Vec::new(),
             type_references: Vec::new(),
+            exported_functions: Vec::new(),
         },
         FileInfo {
             path: dir.join("src/utils/mod.rs"),
@@ -123,6 +125,7 @@ pub fn process_data(config: &Config) {
             imported_by: Vec::new(),
             function_calls: Vec::new(),
             type_references: Vec::new(),
+            exported_functions: Vec::new(),
         },
         FileInfo {
             path: dir.join("src/utils/helper.rs"),
@@ -134,6 +137,7 @@ pub fn process_data(config: &Config) {
             imported_by: Vec::new(),
             function_calls: Vec::new(),
             type_references: Vec::new(),
+            exported_functions: Vec::new(),
         },
     ];
 
@@ -250,6 +254,7 @@ fn test_error_propagation_between_modules() {
         imported_by: Vec::new(),
         function_calls: Vec::new(),
         type_references: Vec::new(),
+        exported_functions: Vec::new(),
     }];
 
     let cache = Arc::new(FileCache::new());
@@ -351,6 +356,7 @@ pub struct TypeC {
             imported_by: Vec::new(),
             function_calls: Vec::new(),
             type_references: Vec::new(),
+            exported_functions: Vec::new(),
         },
         FileInfo {
             path: dir.join("b.rs"),
@@ -362,6 +368,7 @@ pub struct TypeC {
             imported_by: Vec::new(),
             function_calls: Vec::new(),
             type_references: Vec::new(),
+            exported_functions: Vec::new(),
         },
         FileInfo {
             path: dir.join("c.rs"),
@@ -373,6 +380,7 @@ pub struct TypeC {
             imported_by: Vec::new(),
             function_calls: Vec::new(),
             type_references: Vec::new(),
+            exported_functions: Vec::new(),
         },
     ];
 
