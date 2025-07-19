@@ -9,6 +9,9 @@ fn main() -> Result<()> {
     // Load configuration from file if specified
     config.load_from_file()?;
 
+    // Initialize logging based on configuration
+    context_creator::logging::init_logging(&config)?;
+
     // Read prompt from stdin if needed
     if config.should_read_stdin() {
         use std::io::Read;

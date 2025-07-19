@@ -7,6 +7,7 @@ use crate::core::walker::FileInfo;
 use anyhow::Result;
 use rayon::prelude::*;
 use std::sync::Arc;
+use tracing::{debug, warn};
 
 /// File with pre-computed token count
 #[derive(Debug, Clone)]
@@ -79,12 +80,12 @@ pub fn prioritize_files(
 
     // Log errors without failing the entire operation
     if !errors.is_empty() {
-        eprintln!(
+        warn!(
             "Warning: {} files could not be processed for token counting:",
             errors.len()
         );
         for error in &errors {
-            eprintln!("  {error}");
+            warn!("  {}", error);
         }
     }
 
@@ -116,9 +117,9 @@ pub fn prioritize_files(
 
     // Log statistics
     if options.include_stats {
-        eprintln!("Token limit: {max_tokens}");
-        eprintln!("Structure overhead: {structure_overhead} tokens");
-        eprintln!(
+        debug!("Token limit: {}", max_tokens);
+        debug!("Structure overhead: {} tokens", structure_overhead);
+        debug!(
             "Selected {} files with approximately {} tokens",
             selected_files.len(),
             total_tokens

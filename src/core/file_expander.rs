@@ -217,7 +217,7 @@ pub fn expand_file_list(
                     match type_resolver.resolve_with_limits(type_ref, depth) {
                         Err(e) => {
                             // Circuit breaker triggered or error - skip this type
-                            if config.verbose {
+                            if config.verbose > 0 {
                                 eprintln!("⚠️  Type resolution limited: {e}");
                             }
                             continue;
@@ -375,7 +375,7 @@ pub fn expand_file_list(
                             }
                             Err(_) => {
                                 // Path validation failed, skip this import
-                                if config.verbose {
+                                if config.verbose > 0 {
                                     eprintln!(
                                         "⚠️  Skipping invalid import path: {}",
                                         import_path.display()
