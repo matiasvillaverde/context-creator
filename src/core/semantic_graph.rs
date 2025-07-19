@@ -115,6 +115,9 @@ pub fn perform_semantic_analysis_graph(
 
                     // Update type references
                     file.type_references = result.type_references.clone();
+
+                    // Update exported functions
+                    file.exported_functions = result.exported_functions.clone();
                 }
             }
         }

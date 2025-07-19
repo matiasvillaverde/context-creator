@@ -64,6 +64,8 @@ pub struct FileAnalysisResult {
     pub function_calls: Vec<crate::core::semantic::analyzer::FunctionCall>,
     /// Type references used
     pub type_references: Vec<crate::core::semantic::analyzer::TypeReference>,
+    /// Function definitions exported
+    pub exported_functions: Vec<crate::core::semantic::analyzer::FunctionDefinition>,
     /// Content hash for cache invalidation
     pub content_hash: Option<u64>,
     /// Error if analysis failed

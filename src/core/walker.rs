@@ -156,6 +156,8 @@ pub struct FileInfo {
     pub function_calls: Vec<crate::core::semantic::analyzer::FunctionCall>,
     /// Type references used by this file (for --include-types analysis)
     pub type_references: Vec<crate::core::semantic::analyzer::TypeReference>,
+    /// Function definitions exported by this file (for --include-callers analysis)
+    pub exported_functions: Vec<crate::core::semantic::analyzer::FunctionDefinition>,
 }
 
 impl FileInfo {
@@ -446,10 +448,11 @@ fn process_file(path: &Path, root: &Path, options: &WalkOptions) -> Result<Optio
         size,
         file_type,
         priority,
-        imports: Vec::new(),         // Will be populated by semantic analysis
-        imported_by: Vec::new(),     // Will be populated by semantic analysis
-        function_calls: Vec::new(),  // Will be populated by semantic analysis
-        type_references: Vec::new(), // Will be populated by semantic analysis
+        imports: Vec::new(),            // Will be populated by semantic analysis
+        imported_by: Vec::new(),        // Will be populated by semantic analysis
+        function_calls: Vec::new(),     // Will be populated by semantic analysis
+        type_references: Vec::new(),    // Will be populated by semantic analysis
+        exported_functions: Vec::new(), // Will be populated by semantic analysis
     }))
 }
 
@@ -1233,6 +1236,7 @@ mod tests {
             imported_by: Vec::new(),
             function_calls: Vec::new(),
             type_references: Vec::new(),
+            exported_functions: Vec::new(),
         };
 
         assert_eq!(file_info.file_type_display(), "Rust");
@@ -1247,6 +1251,7 @@ mod tests {
             imported_by: Vec::new(),
             function_calls: Vec::new(),
             type_references: Vec::new(),
+            exported_functions: Vec::new(),
         };
 
         assert_eq!(file_info_md.file_type_display(), "Markdown");
