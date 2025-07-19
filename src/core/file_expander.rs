@@ -5,6 +5,7 @@
 
 use crate::cli::Config;
 use crate::core::cache::FileCache;
+use crate::core::semantic::function_call_index::FunctionCallIndex;
 use crate::core::semantic::path_validator::validate_import_path;
 use crate::core::semantic::type_resolver::{ResolutionLimits, TypeResolver};
 use crate::core::walker::{walk_directory, FileInfo};
@@ -126,8 +127,63 @@ pub fn expand_file_list(
         if config.trace_imports && !file_info.imports.is_empty() {
             work_queue.push_back((path.clone(), file_info.clone(), ExpansionReason::Imports, 0));
         }
-        if config.include_callers && !file_info.exported_functions.is_empty() {
-            work_queue.push_back((path.clone(), file_info.clone(), ExpansionReason::Callers, 0));
+    }
+
+    // Optimized caller expansion using pre-built index (O(n) instead of O(n²))
+    if config.include_callers {
+        // Create walk options for caller search that searches all files
+        // but still respects ignore patterns for security
+        let mut caller_walk_options = walk_options.clone();
+        caller_walk_options.include_patterns.clear(); // Search all files for callers
+
+        // Only perform project-wide analysis once
+        let mut project_files =
+            walk_directory(&project_root, caller_walk_options).map_err(|e| {
+                ContextCreatorError::ParseError(format!("Failed to walk directory: {e}"))
+            })?;
+
+        // If no files found in project, return early
+        if project_files.is_empty() {
+            return Ok(files_map);
+        }
+
+        // Perform semantic analysis to get function calls and exports
+        use crate::core::semantic_graph::perform_semantic_analysis_graph;
+        perform_semantic_analysis_graph(&mut project_files, config, cache).map_err(|e| {
+            ContextCreatorError::ParseError(format!("Failed to analyze files: {e}"))
+        })?;
+
+        // Build function call index for O(1) lookups
+        let function_call_index = FunctionCallIndex::build(&project_files);
+
+        // Find all callers of functions exported by our initial files
+        let initial_files: Vec<PathBuf> = files_map.keys().cloned().collect();
+        let caller_paths = function_call_index.find_callers_of_files(&initial_files);
+
+        // Add caller files while respecting security boundaries
+        for caller_path in caller_paths {
+            if !visited_paths.contains(&caller_path) {
+                // For caller expansion, we intentionally expand beyond the original include patterns
+                // This is the purpose of the --include-callers feature
+                // However, we still respect ignore patterns for security
+                let should_ignore = walk_options.ignore_patterns.iter().any(|pattern| {
+                    glob::Pattern::new(pattern)
+                        .ok()
+                        .is_some_and(|p| p.matches_path(&caller_path))
+                });
+
+                if !should_ignore {
+                    // Find the file info from analyzed project files
+                    if let Some(caller_info) = project_files
+                        .iter()
+                        .find(|f| f.path == caller_path)
+                        .cloned()
+                    {
+                        visited_paths.insert(caller_path.clone());
+                        files_to_add.push((caller_path, caller_info));
+                    }
+                }
+            }
         }
     }
 
@@ -330,72 +386,6 @@ pub fn expand_file_list(
                     }
                 }
             }
-            ExpansionReason::Callers => {
-                // For caller expansion, we need to walk all files in the project
-                // to find files that call functions defined in our current files
-                // Create a new WalkOptions without include patterns so we can search all files
-                let mut caller_walk_options = walk_options.clone();
-                caller_walk_options.include_patterns.clear(); // Remove include patterns to search all files
-
-                let mut project_files = walk_directory(&project_root, caller_walk_options)
-                    .map_err(|e| {
-                        ContextCreatorError::ParseError(format!("Failed to walk directory: {e}"))
-                    })?;
-
-                // Perform semantic analysis on all project files to get function calls
-                use crate::core::semantic_graph::perform_semantic_analysis_graph;
-                perform_semantic_analysis_graph(&mut project_files, config, cache).map_err(
-                    |e| {
-                        ContextCreatorError::ParseError(format!(
-                            "Failed to analyze files for callers: {e}"
-                        ))
-                    },
-                )?;
-
-                // Build a set of function names that are exported by our current files
-                let mut exported_functions = HashSet::new();
-                for file_info in files_map.values() {
-                    for func_def in &file_info.exported_functions {
-                        if func_def.is_exported {
-                            exported_functions.insert(func_def.name.clone());
-                        }
-                    }
-                }
-
-                eprintln!("Looking for callers of functions: {exported_functions:?}");
-                eprintln!("Found {} project files", project_files.len());
-
-                // Find files that call any of these functions
-                for potential_caller in project_files {
-                    let caller_path = &potential_caller.path;
-
-                    eprintln!("Checking file: {caller_path:?}");
-                    eprintln!("  Function calls: {:?}", potential_caller.function_calls);
-
-                    // Skip if already included
-                    if files_map.contains_key(caller_path) || visited_paths.contains(caller_path) {
-                        eprintln!("  Skipping: already included");
-                        continue;
-                    }
-
-                    // Check if this file calls any of our exported functions
-                    let mut calls_exported_function = false;
-                    for func_call in &potential_caller.function_calls {
-                        if exported_functions.contains(&func_call.name) {
-                            calls_exported_function = true;
-                            eprintln!("  Found call to exported function: {}", func_call.name);
-                            break;
-                        }
-                    }
-
-                    if calls_exported_function {
-                        // Add this file as a caller
-                        visited_paths.insert(caller_path.clone());
-                        files_to_add.push((caller_path.clone(), potential_caller));
-                        eprintln!("  Added as caller!");
-                    }
-                }
-            }
         }
     }
 
@@ -433,7 +423,6 @@ pub fn expand_file_list(
 enum ExpansionReason {
     Types,
     Imports,
-    Callers,
 }
 
 /// Create a basic FileInfo for a newly discovered file
