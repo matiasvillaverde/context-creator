@@ -658,6 +658,7 @@ mod tests {
                 imported_by: Vec::new(),
                 function_calls: Vec::new(),
                 type_references: Vec::new(),
+                exported_functions: Vec::new(),
             },
             FileInfo {
                 path: PathBuf::from("test2.py"),
@@ -669,6 +670,7 @@ mod tests {
                 imported_by: Vec::new(),
                 function_calls: Vec::new(),
                 type_references: Vec::new(),
+                exported_functions: Vec::new(),
             },
         ];
 
@@ -700,6 +702,7 @@ mod tests {
                 imported_by: Vec::new(),
                 function_calls: Vec::new(),
                 type_references: Vec::new(),
+                exported_functions: Vec::new(),
             },
             FileInfo {
                 path: PathBuf::from("huge.py"),
@@ -711,6 +714,7 @@ mod tests {
                 imported_by: Vec::new(),
                 function_calls: Vec::new(),
                 type_references: Vec::new(),
+                exported_functions: Vec::new(),
             },
         ];
 
@@ -734,6 +738,7 @@ mod tests {
                 imported_by: Vec::new(),
                 function_calls: Vec::new(),
                 type_references: Vec::new(),
+                exported_functions: Vec::new(),
             },
             FileInfo {
                 path: PathBuf::from("src/lib.rs"),
@@ -745,6 +750,7 @@ mod tests {
                 imported_by: Vec::new(),
                 function_calls: Vec::new(),
                 type_references: Vec::new(),
+                exported_functions: Vec::new(),
             },
             FileInfo {
                 path: PathBuf::from("tests/test.rs"),
@@ -756,6 +762,7 @@ mod tests {
                 imported_by: Vec::new(),
                 function_calls: Vec::new(),
                 type_references: Vec::new(),
+                exported_functions: Vec::new(),
             },
         ];
 
@@ -828,6 +835,7 @@ mod tests {
                 imported_by: Vec::new(),
                 function_calls: Vec::new(),
                 type_references: Vec::new(),
+                exported_functions: Vec::new(),
             },
             FileInfo {
                 path: PathBuf::from("src/lib.rs"),
@@ -839,6 +847,7 @@ mod tests {
                 imported_by: Vec::new(),
                 function_calls: Vec::new(),
                 type_references: Vec::new(),
+                exported_functions: Vec::new(),
             },
         ];
 
@@ -878,6 +887,7 @@ mod tests {
             imported_by: Vec::new(),
             function_calls: Vec::new(),
             type_references: Vec::new(),
+            exported_functions: Vec::new(),
         }];
 
         let options = ContextOptions {
@@ -915,6 +925,7 @@ mod tests {
             imported_by: Vec::new(),
             function_calls: Vec::new(),
             type_references: Vec::new(),
+            exported_functions: Vec::new(),
         }];
 
         let options = ContextOptions {

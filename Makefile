@@ -20,6 +20,7 @@ release: validate ## Build the project in release mode for production (runs all 
 	$(CARGO) build --release
 
 test: fmt-check lint ## Run all tests (runs format and lint checks first).
+	$(CARGO) build
 	$(CARGO) test --test lib
 
 test-fast: ## Run essential tests quickly (for CI under 1 minute).
