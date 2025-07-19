@@ -11,6 +11,7 @@ use anyhow::Result;
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use tracing::warn;
 
 /// Options for file analysis
 #[derive(Debug, Clone)]
@@ -121,7 +122,7 @@ impl<'a> ParallelAnalyzer<'a> {
         // Print collected errors
         let error_list = errors.lock().unwrap();
         for error in error_list.iter() {
-            eprintln!("Warning: {error}");
+            warn!("{}", error);
         }
 
         Ok(results)

@@ -2,6 +2,7 @@
 
 use clap::{Parser, ValueEnum};
 use std::path::PathBuf;
+use tracing::debug;
 
 /// Help message explaining custom priority rules and usage
 const AFTER_HELP_MSG: &str = "\
@@ -78,6 +79,18 @@ pub enum LlmTool {
     /// Use codex CLI
     #[value(name = "codex")]
     Codex,
+}
+
+/// Log output format options
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Default)]
+pub enum LogFormat {
+    /// Human-readable plain text format (default)
+    #[value(name = "plain")]
+    #[default]
+    Plain,
+    /// Machine-readable JSON format
+    #[value(name = "json")]
+    Json,
 }
 
 impl LlmTool {
@@ -175,9 +188,13 @@ pub struct Config {
     #[arg(short = 'q', long)]
     pub quiet: bool,
 
-    /// Enable verbose logging
-    #[arg(short = 'v', long)]
-    pub verbose: bool,
+    /// Enable verbose logging (use -vv for trace level)
+    #[arg(short = 'v', long, action = clap::ArgAction::Count)]
+    pub verbose: u8,
+
+    /// Log output format
+    #[arg(long = "log-format", value_enum, default_value = "plain")]
+    pub log_format: LogFormat,
 
     /// Path to configuration file
     #[arg(short = 'c', long)]
@@ -241,7 +258,8 @@ impl Default for Config {
             max_tokens: None,
             llm_tool: LlmTool::default(),
             quiet: false,
-            verbose: false,
+            verbose: 0,
+            log_format: LogFormat::default(),
             config: None,
             progress: false,
             copy: false,
@@ -272,6 +290,13 @@ impl Config {
         if !has_input_source {
             return Err(ContextCreatorError::InvalidConfiguration(
                 "At least one input source must be provided: --prompt, paths, --include, --repo, or --stdin".to_string(),
+            ));
+        }
+
+        // Validate verbose and quiet mutual exclusion
+        if self.verbose > 0 && self.quiet {
+            return Err(ContextCreatorError::InvalidConfiguration(
+                "Cannot use both --verbose (-v) and --quiet (-q) flags together".to_string(),
             ));
         }
 
@@ -380,11 +405,11 @@ impl Config {
 
             config_file.apply_to_cli_config(self);
 
-            if self.verbose {
+            if self.verbose > 0 {
                 if let Some(ref config_path) = self.config {
-                    eprintln!("📄 Loaded configuration from: {}", config_path.display());
+                    debug!("Loaded configuration from: {}", config_path.display());
                 } else {
-                    eprintln!("📄 Loaded configuration from default location");
+                    debug!("Loaded configuration from default location");
                 }
             }
         }
@@ -565,7 +590,8 @@ mod tests {
             max_tokens: None,
             llm_tool: LlmTool::default(),
             quiet: false,
-            verbose: false,
+            verbose: 0,
+            log_format: LogFormat::default(),
             config: None,
             progress: false,
             copy: false,
@@ -599,7 +625,8 @@ mod tests {
             max_tokens: None,
             llm_tool: LlmTool::default(),
             quiet: false,
-            verbose: false,
+            verbose: 0,
+            log_format: LogFormat::default(),
             config: None,
             progress: false,
             copy: false,
@@ -630,7 +657,8 @@ mod tests {
             max_tokens: None,
             llm_tool: LlmTool::default(),
             quiet: false,
-            verbose: false,
+            verbose: 0,
+            log_format: LogFormat::default(),
             config: None,
             progress: false,
             copy: false,
@@ -661,7 +689,8 @@ mod tests {
             max_tokens: None,
             llm_tool: LlmTool::default(),
             quiet: false,
-            verbose: false,
+            verbose: 0,
+            log_format: LogFormat::default(),
             config: None,
             progress: false,
             copy: false,
@@ -961,7 +990,8 @@ mod tests {
             max_tokens: None,
             llm_tool: LlmTool::default(),
             quiet: false,
-            verbose: false,
+            verbose: 0,
+            log_format: LogFormat::default(),
             config: None,
             progress: false,
             copy: false,
@@ -993,7 +1023,8 @@ mod tests {
             max_tokens: None,
             llm_tool: LlmTool::default(),
             quiet: false,
-            verbose: false,
+            verbose: 0,
+            log_format: LogFormat::default(),
             config: None,
             progress: false,
             copy: false,
@@ -1072,7 +1103,8 @@ mod tests {
             max_tokens: None,
             llm_tool: LlmTool::default(),
             quiet: false,
-            verbose: false,
+            verbose: 0,
+            log_format: LogFormat::default(),
             config: None,
             progress: false,
             copy: false,
@@ -1099,7 +1131,8 @@ mod tests {
             max_tokens: None,
             llm_tool: LlmTool::default(),
             quiet: false,
-            verbose: false,
+            verbose: 0,
+            log_format: LogFormat::default(),
             config: None,
             progress: false,
             copy: false,
@@ -1135,7 +1168,8 @@ mod tests {
             max_tokens: None,
             llm_tool: LlmTool::default(),
             quiet: false,
-            verbose: false,
+            verbose: 0,
+            log_format: LogFormat::default(),
             config: None,
             progress: false,
             copy: false,

@@ -7,6 +7,7 @@ use anyhow::Result;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
+use tracing::warn;
 
 /// Options for generating context for LLM consumption
 #[derive(Debug, Clone)]
@@ -197,11 +198,7 @@ fn append_file_content(
     let content = match cache.get_or_load(&file.path) {
         Ok(content) => content,
         Err(e) => {
-            eprintln!(
-                "Warning: Could not read file {}: {}",
-                file.path.display(),
-                e
-            );
+            warn!("Could not read file {}: {}", file.path.display(), e);
             return Ok(());
         }
     };

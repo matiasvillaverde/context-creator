@@ -105,7 +105,7 @@ fn test_prompt_with_repo_and_options() {
         Some("https://github.com/owner/repo".to_string())
     );
     assert_eq!(config.max_tokens, Some(500000));
-    assert!(config.verbose);
+    assert_eq!(config.verbose, 1);
     assert!(config.progress);
 
     // This should pass validation after we fix restrictions
@@ -216,7 +216,7 @@ fn test_stdin_with_all_options() {
     assert_eq!(config.get_ignore_patterns(), vec!["target/**"]);
     assert_eq!(config.max_tokens, Some(1000000));
     assert_eq!(config.llm_tool.command(), "codex");
-    assert!(config.verbose);
+    assert_eq!(config.verbose, 1);
     assert!(config.progress);
     assert!(config.enhanced_context);
     assert!(config.trace_imports);
