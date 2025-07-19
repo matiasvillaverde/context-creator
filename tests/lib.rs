@@ -46,6 +46,10 @@ mod glob_pattern_test;
 mod ignore_patterns_test;
 
 // Semantic analysis tests
+#[path = "integration/cli_include_callers_simple_test.rs"]
+mod cli_include_callers_simple_test;
+#[path = "integration/cli_include_callers_test.rs"]
+mod cli_include_callers_test;
 #[path = "modules/cycle_detection_integration.rs"]
 mod cycle_detection_integration;
 #[path = "modules/cycle_detection_test.rs"]
