@@ -11,6 +11,7 @@ pub mod analyzer;
 pub mod cache;
 pub mod cycle_detector;
 pub mod dependency_types;
+pub mod function_call_index;
 pub mod graph_builder;
 pub mod graph_traverser;
 pub mod languages;

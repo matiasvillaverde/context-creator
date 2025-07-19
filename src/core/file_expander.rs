@@ -5,9 +5,10 @@
 
 use crate::cli::Config;
 use crate::core::cache::FileCache;
+use crate::core::semantic::function_call_index::FunctionCallIndex;
 use crate::core::semantic::path_validator::validate_import_path;
 use crate::core::semantic::type_resolver::{ResolutionLimits, TypeResolver};
-use crate::core::walker::FileInfo;
+use crate::core::walker::{walk_directory, FileInfo};
 use crate::utils::error::ContextCreatorError;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -36,8 +37,15 @@ fn build_ignore_matcher(
 
 /// Detect the project root directory using git root or fallback methods
 fn detect_project_root(start_path: &Path) -> PathBuf {
+    // If start_path is a file, start from its parent directory
+    let start_dir = if start_path.is_file() {
+        start_path.parent().unwrap_or(start_path)
+    } else {
+        start_path
+    };
+
     // First try to find git root
-    let mut current = start_path;
+    let mut current = start_dir;
     loop {
         if current.join(".git").exists() {
             return current.to_path_buf();
@@ -50,7 +58,7 @@ fn detect_project_root(start_path: &Path) -> PathBuf {
     }
 
     // Fallback: Look for common project markers
-    current = start_path;
+    current = start_dir;
     loop {
         // Check for Rust project markers
         if current.join("Cargo.toml").exists() {
@@ -76,8 +84,8 @@ fn detect_project_root(start_path: &Path) -> PathBuf {
         }
     }
 
-    // Ultimate fallback: use the start path itself
-    start_path.to_path_buf()
+    // Ultimate fallback: use the start directory
+    start_dir.to_path_buf()
 }
 
 /// Expand file list based on semantic relationships
@@ -119,8 +127,63 @@ pub fn expand_file_list(
         if config.trace_imports && !file_info.imports.is_empty() {
             work_queue.push_back((path.clone(), file_info.clone(), ExpansionReason::Imports, 0));
         }
-        if config.include_callers && !file_info.function_calls.is_empty() {
-            work_queue.push_back((path.clone(), file_info.clone(), ExpansionReason::Callers, 0));
+    }
+
+    // Optimized caller expansion using pre-built index (O(n) instead of O(n²))
+    if config.include_callers {
+        // Create walk options for caller search that searches all files
+        // but still respects ignore patterns for security
+        let mut caller_walk_options = walk_options.clone();
+        caller_walk_options.include_patterns.clear(); // Search all files for callers
+
+        // Only perform project-wide analysis once
+        let mut project_files =
+            walk_directory(&project_root, caller_walk_options).map_err(|e| {
+                ContextCreatorError::ParseError(format!("Failed to walk directory: {e}"))
+            })?;
+
+        // If no files found in project, return early
+        if project_files.is_empty() {
+            return Ok(files_map);
+        }
+
+        // Perform semantic analysis to get function calls and exports
+        use crate::core::semantic_graph::perform_semantic_analysis_graph;
+        perform_semantic_analysis_graph(&mut project_files, config, cache).map_err(|e| {
+            ContextCreatorError::ParseError(format!("Failed to analyze files: {e}"))
+        })?;
+
+        // Build function call index for O(1) lookups
+        let function_call_index = FunctionCallIndex::build(&project_files);
+
+        // Find all callers of functions exported by our initial files
+        let initial_files: Vec<PathBuf> = files_map.keys().cloned().collect();
+        let caller_paths = function_call_index.find_callers_of_files(&initial_files);
+
+        // Add caller files while respecting security boundaries
+        for caller_path in caller_paths {
+            if !visited_paths.contains(&caller_path) {
+                // For caller expansion, we intentionally expand beyond the original include patterns
+                // This is the purpose of the --include-callers feature
+                // However, we still respect ignore patterns for security
+                let should_ignore = walk_options.ignore_patterns.iter().any(|pattern| {
+                    glob::Pattern::new(pattern)
+                        .ok()
+                        .is_some_and(|p| p.matches_path(&caller_path))
+                });
+
+                if !should_ignore {
+                    // Find the file info from analyzed project files
+                    if let Some(caller_info) = project_files
+                        .iter()
+                        .find(|f| f.path == caller_path)
+                        .cloned()
+                    {
+                        visited_paths.insert(caller_path.clone());
+                        files_to_add.push((caller_path, caller_info));
+                    }
+                }
+            }
         }
     }
 
@@ -323,10 +386,6 @@ pub fn expand_file_list(
                     }
                 }
             }
-            ExpansionReason::Callers => {
-                // Process function calls - this would require finding files that define the called functions
-                // For now, this is a placeholder for future enhancement
-            }
         }
     }
 
@@ -364,7 +423,6 @@ pub fn expand_file_list(
 enum ExpansionReason {
     Types,
     Imports,
-    Callers,
 }
 
 /// Create a basic FileInfo for a newly discovered file
@@ -394,6 +452,7 @@ fn create_file_info_for_path(
         imported_by: vec![source_path.to_path_buf()], // Track who caused this file to be included
         function_calls: Vec::new(),
         type_references: Vec::new(),
+        exported_functions: Vec::new(),
     })
 }
 
@@ -977,6 +1036,7 @@ mod tests {
                 imported_by: Vec::new(),
                 function_calls: Vec::new(),
                 type_references: Vec::new(),
+                exported_functions: Vec::new(),
             },
         );
 

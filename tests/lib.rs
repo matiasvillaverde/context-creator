@@ -46,6 +46,10 @@ mod glob_pattern_test;
 mod ignore_patterns_test;
 
 // Semantic analysis tests
+#[path = "integration/cli_include_callers_simple_test.rs"]
+mod cli_include_callers_simple_test;
+#[path = "integration/cli_include_callers_test.rs"]
+mod cli_include_callers_test;
 #[path = "modules/cycle_detection_integration.rs"]
 mod cycle_detection_integration;
 #[path = "modules/cycle_detection_test.rs"]
@@ -54,6 +58,8 @@ mod cycle_detection_test;
 mod cycle_detection_warning_test;
 #[path = "modules/edge_typing_test.rs"]
 mod edge_typing_test;
+#[path = "integration/include_callers_real_repos_test.rs"]
+mod include_callers_real_repos_test;
 #[path = "modules/integration_trace_imports_test.rs"]
 mod integration_trace_imports_test;
 #[path = "modules/parallel_semantic_test.rs"]
@@ -68,6 +74,8 @@ mod semantic_comprehensive_test;
 mod semantic_edge_cases_test;
 #[path = "modules/semantic_error_cases_test.rs"]
 mod semantic_error_cases_test;
+#[path = "modules/semantic_include_callers_test.rs"]
+mod semantic_include_callers_test;
 #[path = "modules/semantic_include_types_integration_test.rs"]
 mod semantic_include_types_integration_test;
 #[path = "modules/semantic_include_types_simple_test.rs"]
