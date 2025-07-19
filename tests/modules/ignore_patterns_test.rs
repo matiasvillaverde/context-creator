@@ -559,6 +559,6 @@ fn test_ignore_patterns_with_verbose_flag() {
         "--verbose",
     ]);
 
-    assert!(config.verbose);
+    assert_eq!(config.verbose, 1);
     assert_eq!(config.get_ignore_patterns(), vec!["target/**"]);
 }

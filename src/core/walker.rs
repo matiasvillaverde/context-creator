@@ -8,6 +8,7 @@ use ignore::{Walk, WalkBuilder};
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use tracing::warn;
 
 /// Compiled priority rule for efficient pattern matching
 ///
@@ -405,9 +406,9 @@ fn walk_parallel(walker: Walk, root: &Path, options: &WalkOptions) -> Result<Vec
         }
 
         // Non-critical errors are logged as warnings
-        eprintln!("Warning: {} files could not be processed:", errors.len());
+        warn!("Warning: {} files could not be processed:", errors.len());
         for error in &errors {
-            eprintln!("  {error}");
+            warn!("  {}", error);
         }
     }
 
@@ -957,7 +958,8 @@ mod tests {
             max_tokens: None,
             llm_tool: crate::cli::LlmTool::default(),
             quiet: false,
-            verbose: false,
+            verbose: 0,
+            log_format: crate::cli::LogFormat::default(),
             config: None,
             progress: false,
             copy: false,
@@ -1038,7 +1040,8 @@ mod tests {
             max_tokens: None,
             llm_tool: crate::cli::LlmTool::default(),
             quiet: false,
-            verbose: false,
+            verbose: 0,
+            log_format: crate::cli::LogFormat::default(),
             config: None,
             progress: false,
             copy: false,
@@ -1086,7 +1089,8 @@ mod tests {
             max_tokens: None,
             llm_tool: crate::cli::LlmTool::default(),
             quiet: false,
-            verbose: false,
+            verbose: 0,
+            log_format: crate::cli::LogFormat::default(),
             config: None,
             progress: false,
             copy: false,
@@ -1136,7 +1140,8 @@ mod tests {
             max_tokens: None,
             llm_tool: crate::cli::LlmTool::default(),
             quiet: false,
-            verbose: false,
+            verbose: 0,
+            log_format: crate::cli::LogFormat::default(),
             config: None,
             progress: false,
             copy: false,
@@ -1201,7 +1206,8 @@ mod tests {
             max_tokens: None,
             llm_tool: crate::cli::LlmTool::default(),
             quiet: false,
-            verbose: false,
+            verbose: 0,
+            log_format: crate::cli::LogFormat::default(),
             config: None,
             progress: false,
             copy: false,
@@ -1273,7 +1279,8 @@ mod tests {
             max_tokens: None,
             llm_tool: crate::cli::LlmTool::default(),
             quiet: false,
-            verbose: false,
+            verbose: 0,
+            log_format: crate::cli::LogFormat::default(),
             config: None,
             progress: false,
             copy: false,
@@ -1307,7 +1314,8 @@ mod tests {
             max_tokens: None,
             llm_tool: crate::cli::LlmTool::default(),
             quiet: false,
-            verbose: false,
+            verbose: 0,
+            log_format: crate::cli::LogFormat::default(),
             config: None,
             progress: false,
             copy: false,
@@ -1344,7 +1352,8 @@ mod tests {
             max_tokens: None,
             llm_tool: crate::cli::LlmTool::default(),
             quiet: false,
-            verbose: false,
+            verbose: 0,
+            log_format: crate::cli::LogFormat::default(),
             config: None,
             progress: false,
             copy: false,
@@ -1633,7 +1642,8 @@ mod tests {
             max_tokens: None,
             llm_tool: crate::cli::LlmTool::Gemini,
             quiet: false,
-            verbose: false,
+            verbose: 0,
+            log_format: crate::cli::LogFormat::default(),
             config: None,
             progress: false,
             copy: false,
@@ -1666,7 +1676,8 @@ mod tests {
             max_tokens: None,
             llm_tool: crate::cli::LlmTool::Gemini,
             quiet: false,
-            verbose: false,
+            verbose: 0,
+            log_format: crate::cli::LogFormat::default(),
             config: None,
             progress: false,
             copy: false,

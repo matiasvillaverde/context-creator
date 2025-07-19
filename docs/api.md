@@ -882,4 +882,72 @@ fn cached_analysis(path: &Path, cache: Cache) -> anyhow::Result<String> {
 }
 ```
 
+## Logging Module
+
+### Structured Logging with Tracing
+
+The logging module provides structured logging capabilities using the `tracing` and `tracing-subscriber` crates.
+
+```rust
+use context_creator::logging::{init_logging, get_log_level};
+use context_creator::Config;
+use tracing::{info, debug, warn};
+
+fn main() -> anyhow::Result<()> {
+    // Initialize logging based on configuration
+    let config = Config::default();
+    init_logging(&config)?;
+    
+    // Log at different levels
+    info!("Starting application");
+    debug!("Debug information");
+    warn!("Warning message");
+    
+    Ok(())
+}
+```
+
+### Log Level Configuration
+
+```rust
+use context_creator::logging::get_log_level;
+use tracing::Level;
+
+// Get log level based on verbosity and progress flags
+let level = get_log_level(1, false, false); // Returns Level::DEBUG
+let level = get_log_level(2, false, false); // Returns Level::TRACE
+let level = get_log_level(0, true, false);  // Returns Level::ERROR (quiet mode)
+let level = get_log_level(0, false, true);  // Returns Level::INFO (progress mode)
+```
+
+### JSON Logging
+
+When the `--log-format json` option is used, logs are output in structured JSON format:
+
+```rust
+use context_creator::cli::LogFormat;
+
+let mut config = Config::default();
+config.log_format = LogFormat::Json;
+init_logging(&config)?;
+
+// Logs will be output as JSON:
+// {"timestamp":"2024-01-01T12:00:00Z","level":"INFO","message":"Starting"}
+```
+
+### Environment Variable Control
+
+The logging system respects the `RUST_LOG` environment variable for fine-grained control:
+
+```bash
+# Enable debug logging for specific modules
+RUST_LOG=context_creator::walker=debug
+
+# Enable trace logging for all modules
+RUST_LOG=trace
+
+# Multiple module configuration
+RUST_LOG=context_creator::semantic=trace,context_creator::walker=debug
+```
+
 This API reference provides comprehensive documentation for integrating context-creator into other applications and using it programmatically.

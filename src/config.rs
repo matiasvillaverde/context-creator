@@ -163,8 +163,8 @@ impl ConfigFile {
             cli_config.progress = self.defaults.progress;
         }
 
-        if !cli_config.verbose && self.defaults.verbose {
-            cli_config.verbose = self.defaults.verbose;
+        if cli_config.verbose == 0 && self.defaults.verbose {
+            cli_config.verbose = 1; // Convert bool true to verbose level 1
         }
 
         if !cli_config.quiet && self.defaults.quiet {
@@ -347,7 +347,8 @@ progress = true
             max_tokens: None,
             llm_tool: LlmTool::default(),
             quiet: false,
-            verbose: false,
+            verbose: 0,
+            log_format: crate::cli::LogFormat::default(),
             config: None,
             progress: false,
             copy: false,
@@ -366,7 +367,7 @@ progress = true
         assert_eq!(cli_config.config_defaults_max_tokens, Some(75000));
         assert_eq!(cli_config.llm_tool, LlmTool::Codex);
         assert!(cli_config.progress);
-        assert!(cli_config.verbose);
+        assert_eq!(cli_config.verbose, 1);
         assert_eq!(cli_config.get_directories(), vec![PathBuf::from("/tmp")]);
         assert_eq!(cli_config.output_file, Some(PathBuf::from("output.md")));
     }
@@ -464,7 +465,8 @@ max_tokens = 200000
             max_tokens: None,
             llm_tool: LlmTool::default(),
             quiet: false,
-            verbose: false,
+            verbose: 0,
+            log_format: crate::cli::LogFormat::default(),
             config: None,
             progress: false,
             copy: false,

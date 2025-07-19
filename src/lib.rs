@@ -7,12 +7,14 @@
 pub mod cli;
 pub mod config;
 pub mod core;
+pub mod logging;
 pub mod remote;
 pub mod utils;
 
 use anyhow::Result;
 use std::path::Path;
 use std::sync::Arc;
+use tracing::{debug, info};
 
 pub use cli::Config;
 pub use core::{cache::FileCache, context_builder::ContextOptions, walker::WalkOptions};
@@ -29,12 +31,15 @@ pub fn run(mut config: Config) -> Result<()> {
 
     // Handle remote repository if specified
     let _temp_dir = if let Some(repo_url) = &config.repo {
-        if config.verbose {
-            eprintln!("🔧 Starting context-creator with remote repository: {repo_url}");
+        if config.verbose > 0 {
+            debug!(
+                "Starting context-creator with remote repository: {}",
+                repo_url
+            );
         }
 
         // Fetch the repository
-        let temp_dir = crate::remote::fetch_repository(repo_url, config.verbose)?;
+        let temp_dir = crate::remote::fetch_repository(repo_url, config.verbose > 0)?;
         let repo_path = crate::remote::get_repo_path(&temp_dir, repo_url)?;
 
         // Update config to use the cloned repository
@@ -48,38 +53,38 @@ pub fn run(mut config: Config) -> Result<()> {
     // No need to update config since get_directories() handles resolution
 
     // Setup logging based on verbosity
-    if config.verbose {
-        eprintln!("🔧 Starting context-creator with configuration:");
-        eprintln!("  Directories: {:?}", config.get_directories());
-        eprintln!("  Max tokens: {:?}", config.max_tokens);
-        eprintln!("  LLM tool: {}", config.llm_tool.command());
-        eprintln!("  Progress: {}", config.progress);
-        eprintln!("  Quiet: {}", config.quiet);
+    if config.verbose > 0 {
+        debug!("Starting context-creator with configuration:");
+        debug!("  Directories: {:?}", config.get_directories());
+        debug!("  Max tokens: {:?}", config.max_tokens);
+        debug!("  LLM tool: {}", config.llm_tool.command());
+        debug!("  Progress: {}", config.progress);
+        debug!("  Quiet: {}", config.quiet);
         if let Some(output) = &config.output_file {
-            eprintln!("  Output file: {}", output.display());
+            debug!("  Output file: {}", output.display());
         }
         if let Some(prompt) = config.get_prompt() {
-            eprintln!("  Prompt: {prompt}");
+            debug!("  Prompt: {}", prompt);
         }
     }
 
     // Configuration was already validated above
 
     // Create walker with options
-    if config.verbose {
-        eprintln!("🚶 Creating directory walker with options...");
+    if config.verbose > 0 {
+        debug!("Creating directory walker with options...");
     }
     let walk_options = WalkOptions::from_config(&config)?;
 
     // Create context options
-    if config.verbose {
-        eprintln!("📄 Creating context generation options...");
+    if config.verbose > 0 {
+        debug!("Creating context generation options...");
     }
     let context_options = ContextOptions::from_config(&config)?;
 
     // Create shared file cache
-    if config.verbose {
-        eprintln!("💾 Creating file cache for I/O optimization...");
+    if config.verbose > 0 {
+        debug!("Creating file cache for I/O optimization...");
     }
     let cache = Arc::new(FileCache::new());
 
@@ -89,8 +94,8 @@ pub fn run(mut config: Config) -> Result<()> {
     let directories = config.get_directories();
     for (index, directory) in directories.iter().enumerate() {
         if config.progress && !config.quiet && directories.len() > 1 {
-            eprintln!(
-                "📂 Processing directory {} of {}: {}",
+            info!(
+                "Processing directory {} of {}: {}",
                 index + 1,
                 directories.len(),
                 directory.display()
@@ -142,7 +147,7 @@ pub fn run(mut config: Config) -> Result<()> {
         (None, Some(prompt), false) => {
             // Send to LLM CLI with prompt
             if config.progress && !config.quiet {
-                eprintln!("🤖 Sending context to {}...", config.llm_tool.command());
+                info!("Sending context to {}...", config.llm_tool.command());
             }
             execute_with_llm(prompt, &output, &config)?;
         }
@@ -153,7 +158,7 @@ pub fn run(mut config: Config) -> Result<()> {
                 println!("✓ Copied to clipboard");
             }
             if config.progress && !config.quiet {
-                eprintln!("🤖 Sending context to {}...", config.llm_tool.command());
+                info!("Sending context to {}...", config.llm_tool.command());
             }
             execute_with_llm(prompt, &output, &config)?;
         }
@@ -196,29 +201,29 @@ fn process_directory(
 ) -> Result<String> {
     // Walk the directory
     if config.progress && !config.quiet {
-        eprintln!("🔍 Scanning directory: {}", path.display());
+        info!("Scanning directory: {}", path.display());
     }
     let mut files = core::walker::walk_directory(path, walk_options.clone())?;
 
     if config.progress && !config.quiet {
-        eprintln!("📁 Found {} files", files.len());
+        info!("Found {} files", files.len());
     }
 
     // Perform semantic analysis if requested
     if config.trace_imports || config.include_callers || config.include_types {
         if config.progress && !config.quiet {
-            eprintln!("🔗 Analyzing semantic dependencies...");
+            info!("Analyzing semantic dependencies...");
         }
         core::walker::perform_semantic_analysis(&mut files, config, &cache)?;
 
         if config.progress && !config.quiet {
             let import_count: usize = files.iter().map(|f| f.imports.len()).sum();
-            eprintln!("✅ Found {import_count} import relationships");
+            info!("Found {} import relationships", import_count);
         }
 
         // Expand file list based on semantic relationships
         if config.progress && !config.quiet {
-            eprintln!("📂 Expanding file list based on semantic relationships...");
+            info!("Expanding file list based on semantic relationships...");
         }
 
         // Convert Vec<FileInfo> to HashMap for expansion
@@ -235,14 +240,14 @@ fn process_directory(
         files = files_map.into_values().collect();
 
         if config.progress && !config.quiet {
-            eprintln!("📊 Expanded to {} files", files.len());
+            info!("Expanded to {} files", files.len());
         }
     }
 
-    if config.verbose {
-        eprintln!("📋 File list:");
+    if config.verbose > 0 {
+        debug!("File list:");
         for file in &files {
-            eprintln!(
+            debug!(
                 "  {} ({})",
                 file.relative_path.display(),
                 file.file_type_display()
@@ -253,7 +258,7 @@ fn process_directory(
     // Prioritize files if needed
     let prioritized_files = if context_options.max_tokens.is_some() {
         if config.progress && !config.quiet {
-            eprintln!("🎯 Prioritizing files for token limit...");
+            info!("Prioritizing files for token limit...");
         }
         core::prioritizer::prioritize_files(files, &context_options, cache.clone())?
     } else {
@@ -261,8 +266,8 @@ fn process_directory(
     };
 
     if config.progress && !config.quiet {
-        eprintln!(
-            "📝 Generating markdown from {} files...",
+        info!(
+            "Generating markdown from {} files...",
             prioritized_files.len()
         );
     }
@@ -272,7 +277,7 @@ fn process_directory(
         core::context_builder::generate_markdown(prioritized_files, context_options, cache)?;
 
     if config.progress && !config.quiet {
-        eprintln!("✅ Markdown generation complete");
+        info!("Markdown generation complete");
     }
 
     Ok(markdown)
@@ -316,7 +321,7 @@ fn execute_with_llm(prompt: &str, context: &str, config: &Config) -> Result<()> 
     }
 
     if !config.quiet {
-        eprintln!("\n✓ {tool_command} completed successfully");
+        info!("{} completed successfully", tool_command);
     }
 
     Ok(())
