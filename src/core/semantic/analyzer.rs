@@ -77,6 +77,17 @@ pub struct FunctionCall {
     pub line: usize,
 }
 
+/// Information about a function definition
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct FunctionDefinition {
+    /// Name of the function
+    pub name: String,
+    /// Whether the function is exported/public
+    pub is_exported: bool,
+    /// Line number where function is defined
+    pub line: usize,
+}
+
 /// Information about a type reference
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TypeReference {
@@ -103,6 +114,8 @@ pub struct AnalysisResult {
     pub function_calls: Vec<FunctionCall>,
     /// Type references found
     pub type_references: Vec<TypeReference>,
+    /// Function definitions found
+    pub exported_functions: Vec<FunctionDefinition>,
     /// Errors encountered during analysis (non-fatal)
     pub errors: Vec<String>,
 }

@@ -7,7 +7,7 @@ use crate::cli::Config;
 use crate::core::cache::FileCache;
 use crate::core::semantic::path_validator::validate_import_path;
 use crate::core::semantic::type_resolver::{ResolutionLimits, TypeResolver};
-use crate::core::walker::FileInfo;
+use crate::core::walker::{walk_directory, FileInfo};
 use crate::utils::error::ContextCreatorError;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -36,8 +36,15 @@ fn build_ignore_matcher(
 
 /// Detect the project root directory using git root or fallback methods
 fn detect_project_root(start_path: &Path) -> PathBuf {
+    // If start_path is a file, start from its parent directory
+    let start_dir = if start_path.is_file() {
+        start_path.parent().unwrap_or(start_path)
+    } else {
+        start_path
+    };
+
     // First try to find git root
-    let mut current = start_path;
+    let mut current = start_dir;
     loop {
         if current.join(".git").exists() {
             return current.to_path_buf();
@@ -50,7 +57,7 @@ fn detect_project_root(start_path: &Path) -> PathBuf {
     }
 
     // Fallback: Look for common project markers
-    current = start_path;
+    current = start_dir;
     loop {
         // Check for Rust project markers
         if current.join("Cargo.toml").exists() {
@@ -76,8 +83,8 @@ fn detect_project_root(start_path: &Path) -> PathBuf {
         }
     }
 
-    // Ultimate fallback: use the start path itself
-    start_path.to_path_buf()
+    // Ultimate fallback: use the start directory
+    start_dir.to_path_buf()
 }
 
 /// Expand file list based on semantic relationships
@@ -119,7 +126,7 @@ pub fn expand_file_list(
         if config.trace_imports && !file_info.imports.is_empty() {
             work_queue.push_back((path.clone(), file_info.clone(), ExpansionReason::Imports, 0));
         }
-        if config.include_callers && !file_info.function_calls.is_empty() {
+        if config.include_callers && !file_info.exported_functions.is_empty() {
             work_queue.push_back((path.clone(), file_info.clone(), ExpansionReason::Callers, 0));
         }
     }
@@ -324,8 +331,66 @@ pub fn expand_file_list(
                 }
             }
             ExpansionReason::Callers => {
-                // Process function calls - this would require finding files that define the called functions
-                // For now, this is a placeholder for future enhancement
+                // For caller expansion, we need to walk all files in the project
+                // to find files that call functions defined in our current files
+                let mut project_files = walk_directory(&project_root, walk_options.clone())
+                    .map_err(|e| {
+                        ContextCreatorError::ParseError(format!("Failed to walk directory: {e}"))
+                    })?;
+
+                // Perform semantic analysis on all project files to get function calls
+                use crate::core::semantic_graph::perform_semantic_analysis_graph;
+                perform_semantic_analysis_graph(&mut project_files, config, cache).map_err(
+                    |e| {
+                        ContextCreatorError::ParseError(format!(
+                            "Failed to analyze files for callers: {e}"
+                        ))
+                    },
+                )?;
+
+                // Build a set of function names that are exported by our current files
+                let mut exported_functions = HashSet::new();
+                for file_info in files_map.values() {
+                    for func_def in &file_info.exported_functions {
+                        if func_def.is_exported {
+                            exported_functions.insert(func_def.name.clone());
+                        }
+                    }
+                }
+
+                eprintln!("Looking for callers of functions: {exported_functions:?}");
+                eprintln!("Found {} project files", project_files.len());
+
+                // Find files that call any of these functions
+                for potential_caller in project_files {
+                    let caller_path = &potential_caller.path;
+
+                    eprintln!("Checking file: {caller_path:?}");
+                    eprintln!("  Function calls: {:?}", potential_caller.function_calls);
+
+                    // Skip if already included
+                    if files_map.contains_key(caller_path) || visited_paths.contains(caller_path) {
+                        eprintln!("  Skipping: already included");
+                        continue;
+                    }
+
+                    // Check if this file calls any of our exported functions
+                    let mut calls_exported_function = false;
+                    for func_call in &potential_caller.function_calls {
+                        if exported_functions.contains(&func_call.name) {
+                            calls_exported_function = true;
+                            eprintln!("  Found call to exported function: {}", func_call.name);
+                            break;
+                        }
+                    }
+
+                    if calls_exported_function {
+                        // Add this file as a caller
+                        visited_paths.insert(caller_path.clone());
+                        files_to_add.push((caller_path.clone(), potential_caller));
+                        eprintln!("  Added as caller!");
+                    }
+                }
             }
         }
     }
@@ -394,6 +459,7 @@ fn create_file_info_for_path(
         imported_by: vec![source_path.to_path_buf()], // Track who caused this file to be included
         function_calls: Vec::new(),
         type_references: Vec::new(),
+        exported_functions: Vec::new(),
     })
 }
 
@@ -977,6 +1043,7 @@ mod tests {
                 imported_by: Vec::new(),
                 function_calls: Vec::new(),
                 type_references: Vec::new(),
+                exported_functions: Vec::new(),
             },
         );
 

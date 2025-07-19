@@ -40,6 +40,7 @@ impl Default for AnalysisOptions {
 pub struct ParallelAnalyzer<'a> {
     cache: &'a FileCache,
     thread_count: Option<usize>,
+    options: AnalysisOptions,
 }
 
 impl<'a> ParallelAnalyzer<'a> {
@@ -48,6 +49,7 @@ impl<'a> ParallelAnalyzer<'a> {
         Self {
             cache,
             thread_count: None,
+            options: AnalysisOptions::default(),
         }
     }
 
@@ -56,6 +58,16 @@ impl<'a> ParallelAnalyzer<'a> {
         Self {
             cache,
             thread_count: Some(thread_count),
+            options: AnalysisOptions::default(),
+        }
+    }
+
+    /// Create a new ParallelAnalyzer with specific options
+    pub fn with_options(cache: &'a FileCache, options: AnalysisOptions) -> Self {
+        Self {
+            cache,
+            thread_count: None,
+            options,
         }
     }
 
@@ -97,6 +109,7 @@ impl<'a> ParallelAnalyzer<'a> {
                             imports: Vec::new(),
                             function_calls: Vec::new(),
                             type_references: Vec::new(),
+                            exported_functions: Vec::new(),
                             content_hash: None,
                             error: Some(error_msg),
                         }
@@ -134,6 +147,7 @@ impl<'a> ParallelAnalyzer<'a> {
                     imports: Vec::new(),
                     function_calls: Vec::new(),
                     type_references: Vec::new(),
+                    exported_functions: Vec::new(),
                     content_hash: Some(self.compute_content_hash(file_path)?),
                     error: None,
                 });
@@ -187,11 +201,18 @@ impl<'a> ParallelAnalyzer<'a> {
             Vec::new()
         };
 
+        let exported_functions = if self.options.include_functions {
+            analysis_result.exported_functions
+        } else {
+            Vec::new()
+        };
+
         Ok(FileAnalysisResult {
             file_index,
             imports,
             function_calls,
             type_references,
+            exported_functions,
             content_hash: Some(content_hash),
             error: None,
         })

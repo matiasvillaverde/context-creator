@@ -15,6 +15,7 @@ fn test_file_analysis_result_includes_hash() {
         imports: Vec::new(),
         function_calls: Vec::new(),
         type_references: Vec::new(),
+        exported_functions: Vec::new(),
         content_hash: Some(12345),
         error: None,
     };

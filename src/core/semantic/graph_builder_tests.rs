@@ -22,6 +22,7 @@ fn create_test_file_info(path: &str, size: u64) -> FileInfo {
         imported_by: Vec::new(),
         function_calls: Vec::new(),
         type_references: Vec::new(),
+        exported_functions: Vec::new(),
     }
 }
 
