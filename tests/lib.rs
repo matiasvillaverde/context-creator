@@ -38,6 +38,8 @@ mod cli_repo_paths_bug_test;
 mod cli_test;
 #[path = "modules/cli_uncovered_scenarios_test.rs"]
 mod cli_uncovered_scenarios_test;
+#[path = "modules/logging_test.rs"]
+mod logging_test;
 
 // Pattern and ignore tests
 #[path = "modules/glob_pattern_test.rs"]

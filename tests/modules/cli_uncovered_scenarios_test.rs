@@ -402,7 +402,7 @@ fn test_quiet_verbose_flags_with_flexible_combinations() {
     match result2 {
         Ok(config2) => {
             assert!(config2.read_stdin);
-            assert!(config2.verbose);
+            assert_eq!(config2.verbose, 1);
             assert!(config2.progress);
             assert_eq!(config2.paths, Some(vec![PathBuf::from("src/")]));
         }
@@ -450,7 +450,7 @@ fn test_quiet_verbose_flags_with_flexible_combinations() {
     ]);
 
     assert_eq!(config4.get_prompt(), Some("Test all flags".to_string()));
-    assert!(config4.verbose);
+    assert_eq!(config4.verbose, 1);
     assert!(config4.progress);
     assert_eq!(config4.get_include_patterns(), vec!["**/*.rs"]);
 
@@ -490,7 +490,7 @@ fn test_multiple_repo_urls_edge_case() {
         Some("https://github.com/owner/repo".to_string())
     );
     assert_eq!(config.max_tokens, Some(100000));
-    assert!(config.verbose);
+    assert_eq!(config.verbose, 1);
 
     // This should pass validation
     assert!(config.validate().is_ok());
@@ -923,7 +923,7 @@ fn test_complex_real_world_scenarios() {
     assert_eq!(config1.semantic_depth, 3);
     assert_eq!(config1.max_tokens, Some(800000));
     assert_eq!(config1.llm_tool.command(), "gemini");
-    assert!(config1.verbose);
+    assert_eq!(config1.verbose, 1);
     assert!(config1.progress);
 
     // Test 2: Piped input with comprehensive analysis

@@ -68,15 +68,43 @@ context-creator --config /path/to/config.toml
 context-creator -q
 context-creator --quiet
 
-# Verbose mode (detailed logging)
+# Verbose mode (DEBUG level logging)
 context-creator -v
 context-creator --verbose
+
+# Trace mode (TRACE level logging)
+context-creator -vv
+
+# JSON-formatted logs (for log aggregation tools)
+context-creator --log-format json
+
+# Combined with verbose for structured JSON debug logs
+context-creator -v --log-format json
 
 # Progress indicators
 context-creator --progress
 
 # Combined options
 context-creator -d /path/to/project -o output.md --verbose --progress
+```
+
+#### Advanced Logging
+
+The new logging system supports:
+- Multiple verbosity levels: `-v` for DEBUG, `-vv` for TRACE
+- Log format options with `--log-format` (plain or json) for structured logging
+- Environment variable control with `RUST_LOG`
+- Module-specific filtering
+
+```bash
+# Enable debug logging for specific modules
+RUST_LOG=context_creator::walker=debug context-creator
+
+# Enable trace logging for semantic analysis
+RUST_LOG=context_creator::semantic=trace context-creator
+
+# JSON logs for processing with tools like jq
+context-creator --log-format json -v | jq '.fields'
 ```
 
 ### Help and Information
