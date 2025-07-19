@@ -333,7 +333,11 @@ pub fn expand_file_list(
             ExpansionReason::Callers => {
                 // For caller expansion, we need to walk all files in the project
                 // to find files that call functions defined in our current files
-                let mut project_files = walk_directory(&project_root, walk_options.clone())
+                // Create a new WalkOptions without include patterns so we can search all files
+                let mut caller_walk_options = walk_options.clone();
+                caller_walk_options.include_patterns.clear(); // Remove include patterns to search all files
+
+                let mut project_files = walk_directory(&project_root, caller_walk_options)
                     .map_err(|e| {
                         ContextCreatorError::ParseError(format!("Failed to walk directory: {e}"))
                     })?;
