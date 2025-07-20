@@ -38,6 +38,9 @@ mod test;
 pub use analyzer::{LanguageAnalyzer, SemanticContext, SemanticResult};
 pub use resolver::{ModuleResolver, ResolvedPath};
 
+// Create an alias for get_resolver_for_file
+pub use self::get_resolver_for_file as get_module_resolver_for_file;
+
 use crate::utils::error::ContextCreatorError;
 use std::path::Path;
 

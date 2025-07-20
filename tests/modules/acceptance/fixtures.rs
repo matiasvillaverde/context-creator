@@ -227,6 +227,14 @@ mod tests {
 pub fn create_rust_with_modules() -> (TempDir, PathBuf) {
     RustProjectBuilder::new()
         .add_file(
+            "Cargo.toml",
+            r#"[package]
+name = "my_lib"
+version = "0.1.0"
+edition = "2021"
+"#,
+        )
+        .add_file(
             "src/lib.rs",
             r#"
 pub mod parsing;

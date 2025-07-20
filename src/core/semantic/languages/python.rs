@@ -44,6 +44,9 @@ impl LanguageAnalyzer for PythonAnalyzer {
             .query_engine
             .analyze_with_parser(&mut parser, content)?;
 
+        // Correlate type references with imports to populate module information
+        self.correlate_types_with_imports(&mut result);
+
         // Resolve type definitions for the type references found
         self.query_engine.resolve_type_definitions(
             &mut result.type_references,
@@ -60,6 +63,40 @@ impl LanguageAnalyzer for PythonAnalyzer {
 
     fn supported_extensions(&self) -> Vec<&'static str> {
         vec!["py", "pyw", "pyi"]
+    }
+}
+
+impl PythonAnalyzer {
+    /// Correlate type references with imports to populate module information
+    fn correlate_types_with_imports(&self, result: &mut AnalysisResult) {
+        use std::collections::HashMap;
+
+        // Create a mapping from imported type names to their module paths
+        let mut type_to_module: HashMap<String, String> = HashMap::new();
+
+        for import in &result.imports {
+            // Handle "from module import Type" style imports
+            if !import.items.is_empty() {
+                for item in &import.items {
+                    // In Python, all imported names could be types
+                    // We'll check if they start with uppercase (convention for classes)
+                    if item.chars().next().is_some_and(|c| c.is_uppercase()) {
+                        type_to_module.insert(item.clone(), import.module.clone());
+                    }
+                }
+            } else if !import.module.is_empty() {
+                // Handle "import module" style imports
+                // For these, we might see usage like "module.Type"
+                // We'll handle this case by looking for the module prefix in type references
+            }
+        }
+
+        // Update type references with module information
+        for type_ref in &mut result.type_references {
+            if let Some(module) = type_to_module.get(&type_ref.name) {
+                type_ref.module = Some(module.clone());
+            }
+        }
     }
 }
 
