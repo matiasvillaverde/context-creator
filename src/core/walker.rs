@@ -287,26 +287,21 @@ fn build_walker(root: &Path, options: &WalkOptions) -> Result<Walk> {
         .parents(true)
         .add_custom_ignore_filename(&options.ignore_file);
 
-    // Add custom ignore patterns (with sanitization for security)
-    for pattern in &options.ignore_patterns {
-        if !pattern.trim().is_empty() {
-            // Sanitize pattern for security
-            let sanitized_pattern = sanitize_pattern(pattern)?;
-
-            // Add the sanitized pattern to the walker
-            if builder.add_ignore(&sanitized_pattern).is_none() {
-                return Err(ContextCreatorError::InvalidConfiguration(format!(
-                    "Invalid ignore pattern '{pattern}': pattern could not be added"
-                ))
-                .into());
-            }
-        }
-    }
-
-    // Handle include patterns using OverrideBuilder for proper filtering
-    if !options.include_patterns.is_empty() {
+    // Handle both include and ignore patterns using OverrideBuilder
+    if !options.include_patterns.is_empty() || !options.ignore_patterns.is_empty() {
         let mut override_builder = ignore::overrides::OverrideBuilder::new(root);
 
+        // If we have no include patterns but have ignore patterns, we need to include everything first
+        if options.include_patterns.is_empty() && !options.ignore_patterns.is_empty() {
+            // Add a pattern to include everything
+            override_builder.add("**/*").map_err(|e| {
+                ContextCreatorError::InvalidConfiguration(format!(
+                    "Failed to add include-all pattern: {e}"
+                ))
+            })?;
+        }
+
+        // Add include patterns first (without prefix for inclusion)
         for pattern in &options.include_patterns {
             if !pattern.trim().is_empty() {
                 // Sanitize pattern for security
@@ -321,9 +316,26 @@ fn build_walker(root: &Path, options: &WalkOptions) -> Result<Walk> {
             }
         }
 
+        // Add ignore patterns after include patterns (with ! prefix for exclusion)
+        // This ensures ignore patterns take precedence over include patterns
+        for pattern in &options.ignore_patterns {
+            if !pattern.trim().is_empty() {
+                // Sanitize pattern for security
+                let sanitized_pattern = sanitize_pattern(pattern)?;
+
+                // Prefix with ! to make it an ignore pattern
+                let ignore_pattern = format!("!{sanitized_pattern}");
+                override_builder.add(&ignore_pattern).map_err(|e| {
+                    ContextCreatorError::InvalidConfiguration(format!(
+                        "Invalid ignore pattern '{pattern}': {e}"
+                    ))
+                })?;
+            }
+        }
+
         let overrides = override_builder.build().map_err(|e| {
             ContextCreatorError::InvalidConfiguration(format!(
-                "Failed to build include pattern overrides: {e}"
+                "Failed to build pattern overrides: {e}"
             ))
         })?;
 

@@ -36,7 +36,7 @@ fn build_ignore_matcher(
 }
 
 /// Detect the project root directory using git root or fallback methods
-fn detect_project_root(start_path: &Path) -> PathBuf {
+pub fn detect_project_root(start_path: &Path) -> PathBuf {
     // If start_path is a file, start from its parent directory
     let start_dir = if start_path.is_file() {
         start_path.parent().unwrap_or(start_path)
@@ -88,20 +88,54 @@ fn detect_project_root(start_path: &Path) -> PathBuf {
     start_dir.to_path_buf()
 }
 
+/// Expand file list based on semantic relationships with full project context
+///
+/// This function takes the initial set of files and expands it to include
+/// files that define types, export functions, or are imported by the initial files.
+/// It uses the full project context to find dependencies that may be outside the initial scope.
+pub fn expand_file_list_with_context(
+    files_map: HashMap<PathBuf, FileInfo>,
+    config: &Config,
+    cache: &Arc<FileCache>,
+    walk_options: &crate::core::walker::WalkOptions,
+    all_files_context: &HashMap<PathBuf, FileInfo>,
+) -> Result<HashMap<PathBuf, FileInfo>, ContextCreatorError> {
+    expand_file_list_internal(
+        files_map,
+        config,
+        cache,
+        walk_options,
+        Some(all_files_context),
+    )
+}
+
 /// Expand file list based on semantic relationships
 ///
 /// This function takes the initial set of files and expands it to include
 /// files that define types, export functions, or are imported by the initial files.
 pub fn expand_file_list(
-    mut files_map: HashMap<PathBuf, FileInfo>,
+    files_map: HashMap<PathBuf, FileInfo>,
     config: &Config,
     cache: &Arc<FileCache>,
     walk_options: &crate::core::walker::WalkOptions,
+) -> Result<HashMap<PathBuf, FileInfo>, ContextCreatorError> {
+    expand_file_list_internal(files_map, config, cache, walk_options, None)
+}
+
+/// Internal implementation of expand_file_list with optional context
+fn expand_file_list_internal(
+    files_map: HashMap<PathBuf, FileInfo>,
+    config: &Config,
+    cache: &Arc<FileCache>,
+    walk_options: &crate::core::walker::WalkOptions,
+    all_files_context: Option<&HashMap<PathBuf, FileInfo>>,
 ) -> Result<HashMap<PathBuf, FileInfo>, ContextCreatorError> {
     // If no semantic features are enabled, return as-is
     if !config.trace_imports && !config.include_callers && !config.include_types {
         return Ok(files_map);
     }
+
+    let mut files_map = files_map;
 
     // Detect the project root for secure path validation
     let project_root = if let Some((first_path, _)) = files_map.iter().next() {
@@ -125,6 +159,11 @@ pub fn expand_file_list(
             work_queue.push_back((path.clone(), file_info.clone(), ExpansionReason::Types, 0));
         }
         if config.trace_imports && !file_info.imports.is_empty() {
+            tracing::debug!(
+                "Queuing {} for import expansion (has {} imports)",
+                path.display(),
+                file_info.imports.len()
+            );
             work_queue.push_back((path.clone(), file_info.clone(), ExpansionReason::Imports, 0));
         }
     }
@@ -304,83 +343,142 @@ pub fn expand_file_list(
             ExpansionReason::Imports => {
                 // Process each import in the source file
                 for import_path in &source_file.imports {
-                    // Skip if already visited or doesn't exist
-                    if !visited_paths.contains(import_path) && import_path.exists() {
-                        // Validate the import path for security
-                        match validate_import_path(&project_root, import_path) {
-                            Ok(validated_path) => {
-                                visited_paths.insert(validated_path.clone());
+                    // Skip if doesn't exist
+                    if !import_path.exists() {
+                        continue;
+                    }
 
-                                // Create FileInfo for the imported file
-                                let mut file_info =
+                    // Check if already visited (need to check both original and canonical paths)
+                    let canonical_import = import_path
+                        .canonicalize()
+                        .unwrap_or_else(|_| import_path.clone());
+                    if visited_paths.contains(import_path)
+                        || visited_paths.contains(&canonical_import)
+                    {
+                        continue;
+                    }
+
+                    // Validate the import path for security
+                    match validate_import_path(&project_root, import_path) {
+                        Ok(validated_path) => {
+                            visited_paths.insert(validated_path.clone());
+
+                            // Check if we have this file in the context first
+                            let mut file_info = if let Some(context) = all_files_context {
+                                // Try to canonicalize for lookup, but fall back to validated_path
+                                let lookup_path = validated_path
+                                    .canonicalize()
+                                    .unwrap_or_else(|_| validated_path.clone());
+
+                                // Also try the non-canonical path
+                                let context_file = context
+                                    .get(&lookup_path)
+                                    .or_else(|| context.get(&validated_path));
+
+                                if let Some(context_file) = context_file {
+                                    // Use the pre-analyzed file from context
+                                    let mut file = context_file.clone();
+                                    // Mark that this file was imported by the source file
+                                    file.imported_by.push(source_path.clone());
+                                    file
+                                } else {
+                                    // Create FileInfo for the imported file
+                                    let mut file =
+                                        create_file_info_for_path(&validated_path, &source_path)?;
+                                    file.imported_by.push(source_path.clone());
+                                    file
+                                }
+                            } else {
+                                // No context, create from scratch
+                                let mut file =
                                     create_file_info_for_path(&validated_path, &source_path)?;
+                                file.imported_by.push(source_path.clone());
+                                file
+                            };
 
-                                // Mark that this file was imported by the source file
-                                file_info.imported_by.push(source_path.clone());
+                            // Queue for next depth level if within limits
+                            if depth + 1 < config.semantic_depth {
+                                // If we already have semantic data from context, use it
+                                if !file_info.imports.is_empty()
+                                    || !file_info.type_references.is_empty()
+                                    || !file_info.function_calls.is_empty()
+                                {
+                                    // Already analyzed, just queue if needed
+                                    if !file_info.imports.is_empty() {
+                                        work_queue.push_back((
+                                            validated_path.clone(),
+                                            file_info.clone(),
+                                            ExpansionReason::Imports,
+                                            depth + 1,
+                                        ));
+                                    }
+                                    if config.include_types && !file_info.type_references.is_empty()
+                                    {
+                                        work_queue.push_back((
+                                            validated_path.clone(),
+                                            file_info.clone(),
+                                            ExpansionReason::Types,
+                                            depth + 1,
+                                        ));
+                                    }
+                                } else if let Ok(content) = cache.get_or_load(&validated_path) {
+                                    // Perform semantic analysis on the imported file
+                                    use crate::core::semantic::analyzer::SemanticContext;
+                                    use crate::core::semantic::get_analyzer_for_file;
 
-                                // Queue for next depth level if within limits
-                                if depth + 1 < config.semantic_depth {
-                                    // We need to load this file to check its imports
-                                    if let Ok(content) = cache.get_or_load(&validated_path) {
-                                        // Perform semantic analysis on the imported file
-                                        use crate::core::semantic::analyzer::SemanticContext;
-                                        use crate::core::semantic::get_analyzer_for_file;
+                                    if let Ok(Some(analyzer)) =
+                                        get_analyzer_for_file(&validated_path)
+                                    {
+                                        let context = SemanticContext::new(
+                                            validated_path.clone(),
+                                            project_root.clone(),
+                                            config.semantic_depth,
+                                        );
 
-                                        if let Ok(Some(analyzer)) =
-                                            get_analyzer_for_file(&validated_path)
-                                        {
-                                            let context = SemanticContext::new(
-                                                validated_path.clone(),
-                                                project_root.clone(),
-                                                config.semantic_depth,
-                                            );
+                                        if let Ok(analysis) = analyzer.analyze_file(
+                                            &validated_path,
+                                            &content,
+                                            &context,
+                                        ) {
+                                            // Update file info with semantic data
+                                            file_info.imports = analysis
+                                                .imports
+                                                .iter()
+                                                .filter_map(|imp| {
+                                                    // Try to resolve import to file path
+                                                    resolve_import_to_path(
+                                                        &imp.module,
+                                                        &validated_path,
+                                                        &project_root,
+                                                    )
+                                                })
+                                                .collect();
+                                            file_info.function_calls = analysis.function_calls;
+                                            file_info.type_references = analysis.type_references;
 
-                                            if let Ok(analysis) = analyzer.analyze_file(
-                                                &validated_path,
-                                                &content,
-                                                &context,
-                                            ) {
-                                                // Update file info with semantic data
-                                                file_info.imports = analysis
-                                                    .imports
-                                                    .iter()
-                                                    .filter_map(|imp| {
-                                                        // Try to resolve import to file path
-                                                        resolve_import_to_path(
-                                                            &imp.module,
-                                                            &validated_path,
-                                                            &project_root,
-                                                        )
-                                                    })
-                                                    .collect();
-                                                file_info.function_calls = analysis.function_calls;
-                                                file_info.type_references =
-                                                    analysis.type_references;
-
-                                                // Queue if it has imports
-                                                if !file_info.imports.is_empty() {
-                                                    work_queue.push_back((
-                                                        validated_path.clone(),
-                                                        file_info.clone(),
-                                                        ExpansionReason::Imports,
-                                                        depth + 1,
-                                                    ));
-                                                }
+                                            // Queue if it has imports
+                                            if !file_info.imports.is_empty() {
+                                                work_queue.push_back((
+                                                    validated_path.clone(),
+                                                    file_info.clone(),
+                                                    ExpansionReason::Imports,
+                                                    depth + 1,
+                                                ));
                                             }
                                         }
                                     }
                                 }
-
-                                files_to_add.push((validated_path, file_info));
                             }
-                            Err(_) => {
-                                // Path validation failed, skip this import
-                                if config.verbose > 0 {
-                                    eprintln!(
-                                        "⚠️  Skipping invalid import path: {}",
-                                        import_path.display()
-                                    );
-                                }
+
+                            files_to_add.push((validated_path, file_info));
+                        }
+                        Err(_) => {
+                            // Path validation failed, skip this import
+                            if config.verbose > 0 {
+                                eprintln!(
+                                    "⚠️  Skipping invalid import path: {}",
+                                    import_path.display()
+                                );
                             }
                         }
                     }
