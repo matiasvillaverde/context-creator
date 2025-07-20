@@ -214,30 +214,94 @@ fn process_directory(
         if config.progress && !config.quiet {
             info!("Analyzing semantic dependencies...");
         }
-        core::walker::perform_semantic_analysis(&mut files, config, &cache)?;
+
+        // For semantic analysis, we need to analyze the entire project to build the dependency graph
+        // So we create a separate walk options that ignores include patterns (but keeps ignore patterns)
+        let mut semantic_walk_options = walk_options.clone();
+        semantic_walk_options.include_patterns.clear(); // Clear include patterns to scan everything
+
+        // Detect project root for comprehensive analysis
+        let project_root = if !files.is_empty() {
+            core::file_expander::detect_project_root(&files[0].path)
+        } else {
+            path.to_path_buf()
+        };
+
+        // Walk the entire project for semantic analysis
+        let mut all_project_files = if project_root != path {
+            if config.progress && !config.quiet {
+                info!("Scanning entire project from: {}", project_root.display());
+            }
+            if config.verbose > 0 {
+                debug!(
+                    "Project root: {:?}, Original path: {:?}",
+                    project_root, path
+                );
+            }
+            core::walker::walk_directory(&project_root, semantic_walk_options)?
+        } else {
+            // If we're already at project root, use broader scan
+            core::walker::walk_directory(path, semantic_walk_options)?
+        };
+
+        // Perform semantic analysis on all project files
+        core::walker::perform_semantic_analysis(&mut all_project_files, config, &cache)?;
 
         if config.progress && !config.quiet {
-            let import_count: usize = files.iter().map(|f| f.imports.len()).sum();
-            info!("Found {} import relationships", import_count);
+            let import_count: usize = all_project_files.iter().map(|f| f.imports.len()).sum();
+            info!("Found {} import relationships in project", import_count);
         }
 
-        // Expand file list based on semantic relationships
+        // Now create a map of all analyzed files for expansion
+        // Use canonical paths as keys to ensure consistent lookups
+        let mut all_files_map = std::collections::HashMap::new();
+        for file in all_project_files {
+            // Try to canonicalize the path, but fall back to original if it fails
+            let key = file
+                .path
+                .canonicalize()
+                .unwrap_or_else(|_| file.path.clone());
+            all_files_map.insert(key, file);
+        }
+
+        // Create initial set from our filtered files
+        let mut initial_files_map = std::collections::HashMap::new();
+        for file in files {
+            // Try to canonicalize the path for lookup, but fall back to original if it fails
+            let lookup_key = file
+                .path
+                .canonicalize()
+                .unwrap_or_else(|_| file.path.clone());
+            if let Some(analyzed_file) = all_files_map.get(&lookup_key) {
+                initial_files_map.insert(file.path.clone(), analyzed_file.clone());
+            } else {
+                initial_files_map.insert(file.path.clone(), file);
+            }
+        }
+
+        // Expand file list based on semantic relationships, using the full project context
         if config.progress && !config.quiet {
             info!("Expanding file list based on semantic relationships...");
         }
 
-        // Convert Vec<FileInfo> to HashMap for expansion
-        let mut files_map = std::collections::HashMap::new();
-        for file in files {
-            files_map.insert(file.path.clone(), file);
-        }
-
-        // Expand the file list
-        files_map =
-            core::file_expander::expand_file_list(files_map, config, &cache, &walk_options)?;
+        // Pass the all_files_map as context for expansion
+        let files_map = core::file_expander::expand_file_list_with_context(
+            initial_files_map,
+            config,
+            &cache,
+            &walk_options,
+            &all_files_map,
+        )?;
 
         // Convert back to Vec<FileInfo>
         files = files_map.into_values().collect();
+
+        // Clean up imported_by fields to only include files in our final set
+        let final_paths: std::collections::HashSet<_> =
+            files.iter().map(|f| f.path.clone()).collect();
+        for file in &mut files {
+            file.imported_by.retain(|path| final_paths.contains(path));
+        }
 
         if config.progress && !config.quiet {
             info!("Expanded to {} files", files.len());

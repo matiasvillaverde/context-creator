@@ -126,6 +126,56 @@ impl ModuleResolver for RustModuleResolver {
             });
         }
 
+        // Handle current crate imports (e.g., my_lib::module)
+        // Check if this might be the current crate by looking for Cargo.toml
+        let cargo_path = base_dir.join("Cargo.toml");
+        if cargo_path.exists() {
+            // Try to parse crate name from Cargo.toml
+            if let Ok(contents) = std::fs::read_to_string(&cargo_path) {
+                // Simple parsing to find package name
+                for line in contents.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.starts_with("name") && trimmed.contains('=') {
+                        // Extract the crate name from: name = "my_lib"
+                        if let Some(name_part) = trimmed.split('=').nth(1) {
+                            let crate_name = name_part.trim().trim_matches('"').trim_matches('\'');
+                            if module_path.starts_with(&format!("{crate_name}::")) {
+                                // This is a reference to the current crate - treat it like crate::
+                                let relative_path = module_path
+                                    .strip_prefix(&format!("{crate_name}::"))
+                                    .unwrap();
+                                let path = ResolverUtils::module_to_path(relative_path);
+                                let full_path = base_dir.join("src").join(path);
+
+                                if let Some(resolved) =
+                                    ResolverUtils::find_with_extensions(&full_path, &["rs"])
+                                {
+                                    let validated_path = validate_import_path(base_dir, &resolved)?;
+                                    return Ok(ResolvedPath {
+                                        path: validated_path,
+                                        is_external: false,
+                                        confidence: 0.9,
+                                    });
+                                }
+
+                                // Try as a directory module (mod.rs)
+                                let mod_path = full_path.join("mod.rs");
+                                if mod_path.exists() {
+                                    let validated_path = validate_import_path(base_dir, &mod_path)?;
+                                    return Ok(ResolvedPath {
+                                        path: validated_path,
+                                        is_external: false,
+                                        confidence: 0.9,
+                                    });
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Handle crate-relative imports
         if module_path.starts_with("crate::") {
             let relative_path = module_path.strip_prefix("crate::").unwrap();
