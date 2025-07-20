@@ -239,7 +239,7 @@ impl<'a> ParallelAnalyzer<'a> {
                     import.items,
                     file_path.display()
                 );
-                
+
                 // Try to resolve the import
                 match resolver.resolve_import(&import.module, file_path, project_root) {
                     Ok(resolved) => {

@@ -379,7 +379,16 @@ fn test_semantic_depth_limiting() {
         .build();
 
     // Test with depth 2 (should be limited)
-    let output = run_context_creator(&["--include", "a.py", "--trace-imports", "--semantic-depth", "2"], &project_root);
+    let output = run_context_creator(
+        &[
+            "--include",
+            "a.py",
+            "--trace-imports",
+            "--semantic-depth",
+            "2",
+        ],
+        &project_root,
+    );
 
     // Should include a.py and some imports, but not the entire chain
     assert_contains_file(&output, "a.py");

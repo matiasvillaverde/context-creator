@@ -1233,7 +1233,9 @@ impl QueryEngine {
                     if !last_part.is_empty() {
                         let first_char = last_part.chars().next().unwrap();
                         // If it's a function (lowercase) or type (uppercase), it's the imported item
-                        if first_char.is_alphabetic() && (first_char.is_lowercase() || first_char.is_uppercase()) {
+                        if first_char.is_alphabetic()
+                            && (first_char.is_lowercase() || first_char.is_uppercase())
+                        {
                             // Module is everything except the last part
                             let module = parts[..parts.len() - 1].join("::");
                             let items = vec![last_part.to_string()];
