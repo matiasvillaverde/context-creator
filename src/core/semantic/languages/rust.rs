@@ -130,7 +130,7 @@ impl ModuleResolver for RustModuleResolver {
             from_file.display(),
             base_dir.display()
         );
-        
+
         // Validate module name for security
         validate_module_name(module_path)?;
 
@@ -164,7 +164,7 @@ impl ModuleResolver for RustModuleResolver {
                                     .unwrap();
                                 let path = ResolverUtils::module_to_path(relative_path);
                                 let full_path = base_dir.join("src").join(path);
-                                
+
                                 tracing::debug!(
                                     "Looking for module file at: {}",
                                     full_path.display()

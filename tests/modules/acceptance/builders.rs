@@ -266,7 +266,7 @@ impl ProjectBuilder for RustProjectBuilder {
 
         // Add Cargo.toml for Rust projects
         let cargo_toml = r#"[package]
-name = "test-project"
+name = "my_lib"
 version = "0.1.0"
 edition = "2021"
 
