@@ -232,9 +232,22 @@ impl<'a> ParallelAnalyzer<'a> {
         // Get resolver for the file type
         if let Some(resolver) = get_resolver_for_file(file_path)? {
             for import in imports {
+                // Debug logging
+                tracing::debug!(
+                    "Resolving import '{}' with items {:?} from file {}",
+                    import.module,
+                    import.items,
+                    file_path.display()
+                );
+                
                 // Try to resolve the import
                 match resolver.resolve_import(&import.module, file_path, project_root) {
                     Ok(resolved) => {
+                        tracing::debug!(
+                            "  Resolved to: {} (external: {})",
+                            resolved.path.display(),
+                            resolved.is_external
+                        );
                         if !resolved.is_external {
                             // For trace_imports, we want to track ALL imports,
                             // not just those in valid_files, to support file expansion
@@ -244,7 +257,8 @@ impl<'a> ParallelAnalyzer<'a> {
                             typed_imports.push((resolved.path, edge_type));
                         }
                     }
-                    Err(_) => {
+                    Err(e) => {
+                        tracing::debug!("  Failed to resolve: {}", e);
                         // For relative imports, try to resolve manually
                         if import.module.starts_with(".") {
                             if let Some(parent) = file_path.parent() {

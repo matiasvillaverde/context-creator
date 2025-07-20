@@ -10,7 +10,7 @@ use super::helpers::*;
 #[test]
 fn scenario_5_1_combine_callers_with_ignore() {
     // Scenario 5.1: Combining semantic flags with ignore patterns
-    // CLI Flags: --include-callers --ignore "**/*.test.py"
+    // CLI Flags: --include-callers --ignore "**/test_*.py"
     // Project Sketch: main.py (calls utils), utils.py, test_utils.py (also calls utils)
     // Assertion: Output contains main.py and utils.py, but NOT test_utils.py
 
@@ -74,7 +74,7 @@ def other_function():
             "utils.py",
             "--include-callers",
             "--ignore",
-            "**/*.test.py",
+            "**/test_*.py",
         ],
         &project_root,
     );
@@ -378,8 +378,8 @@ fn test_semantic_depth_limiting() {
         .add_file("e.py", "# End of chain")
         .build();
 
-    // Test with default depth (should be limited)
-    let output = run_context_creator(&["--include", "a.py", "--trace-imports"], &project_root);
+    // Test with depth 2 (should be limited)
+    let output = run_context_creator(&["--include", "a.py", "--trace-imports", "--semantic-depth", "2"], &project_root);
 
     // Should include a.py and some imports, but not the entire chain
     assert_contains_file(&output, "a.py");

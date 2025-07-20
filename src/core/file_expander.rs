@@ -145,6 +145,54 @@ fn expand_file_list_internal(
         std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
     };
 
+    // First, perform semantic analysis on the initial files if needed
+    if config.trace_imports || config.include_types {
+        use crate::core::semantic::analyzer::SemanticContext;
+        use crate::core::semantic::get_analyzer_for_file;
+        
+        for (path, file_info) in files_map.iter_mut() {
+            // Skip if already analyzed (has imports or type references)
+            if !file_info.imports.is_empty() || !file_info.type_references.is_empty() {
+                continue;
+            }
+            
+            // Read file content and analyze
+            if let Ok(content) = cache.get_or_load(path) {
+                if let Ok(Some(analyzer)) = get_analyzer_for_file(path) {
+                    let context = SemanticContext {
+                        current_file: path.clone(),
+                        base_dir: project_root.clone(),
+                        current_depth: 0,
+                        max_depth: config.semantic_depth,
+                        visited_files: HashSet::new(),
+                    };
+                    
+                    if let Ok(analysis) = analyzer.analyze_file(path, &content, &context) {
+                        // Convert imports to resolved file paths
+                        file_info.imports = analysis
+                            .imports
+                            .iter()
+                            .filter_map(|imp| {
+                                // Try to resolve import to file path
+                                resolve_import_to_path(&imp.module, path, &project_root)
+                            })
+                            .collect();
+                        file_info.function_calls = analysis.function_calls;
+                        file_info.type_references = analysis.type_references;
+                        
+                        tracing::debug!(
+                            "Initial file {} analyzed: {} imports, {} types, {} calls",
+                            path.display(),
+                            file_info.imports.len(),
+                            file_info.type_references.len(),
+                            file_info.function_calls.len()
+                        );
+                    }
+                }
+            }
+        }
+    }
+
     // Create work queue and visited set for BFS traversal
     let mut work_queue = VecDeque::new();
     let mut visited_paths = HashSet::new();
@@ -239,18 +287,53 @@ fn expand_file_list_internal(
     // This prevents infinite loops in cases like A→B→C→A by not revisiting already processed files.
     while let Some((source_path, source_file, reason, depth)) = work_queue.pop_front() {
         // Check if we've exceeded the semantic depth limit
-        if depth >= config.semantic_depth {
+        if depth > config.semantic_depth {
+            tracing::debug!(
+                "Skipping {} (depth {} > limit {})",
+                source_path.display(),
+                depth,
+                config.semantic_depth
+            );
             continue;
         }
 
         match reason {
             ExpansionReason::Types => {
                 // Process type references
+                tracing::debug!(
+                    "Processing type references from {} (depth {})",
+                    source_path.display(),
+                    depth
+                );
                 for type_ref in &source_file.type_references {
                     // Skip external types
                     if type_ref.is_external {
                         continue;
                     }
+                    
+                    // Create a local copy to potentially fix the module path
+                    let mut type_ref_copy = type_ref.clone();
+                    
+                    // Fix module path if it contains the type name
+                    if let Some(ref module) = type_ref_copy.module {
+                        if module.ends_with(&format!("::{}", type_ref_copy.name)) {
+                            // Remove the redundant type name from the module path
+                            let corrected_module = module
+                                .strip_suffix(&format!("::{}", type_ref_copy.name))
+                                .unwrap_or(module);
+                            type_ref_copy.module = Some(corrected_module.to_string());
+                        }
+                    }
+                    
+                    let type_ref = &type_ref_copy;
+                    
+                    tracing::debug!(
+                        "  Type reference: {} (module: {:?}, definition_path: {:?}, is_external: {})",
+                        type_ref.name,
+                        type_ref.module,
+                        type_ref.definition_path,
+                        type_ref.is_external
+                    );
 
                     // Use type resolver with circuit breakers
                     match type_resolver.resolve_with_limits(type_ref, depth) {
@@ -268,50 +351,80 @@ fn expand_file_list_internal(
 
                     // If we have a definition path, add it
                     if let Some(ref def_path) = type_ref.definition_path {
+                        tracing::debug!("    Type has definition_path: {}", def_path.display());
                         if !visited_paths.contains(def_path) && def_path.exists() {
                             // Validate the path for security using the project root
                             match validate_import_path(&project_root, def_path) {
                                 Ok(validated_path) => {
+                                    tracing::debug!("    Adding type definition file: {}", validated_path.display());
                                     visited_paths.insert(validated_path.clone());
 
                                     // Create FileInfo for the definition file
                                     let mut file_info =
                                         create_file_info_for_path(&validated_path, &source_path)?;
 
-                                    // Queue for next depth level if it has type references
-                                    if depth + 1 < config.semantic_depth
-                                        && !file_info.type_references.is_empty()
-                                    {
-                                        // We'll need to perform semantic analysis on this file first
-                                        // For now, mark it for addition
-                                        file_info.imported_by.push(source_path.clone());
+                                    // Perform semantic analysis on the newly found file to get its type references
+                                    if depth + 1 < config.semantic_depth {
+                                        if let Ok(content) = cache.get_or_load(&validated_path) {
+                                            use crate::core::semantic::analyzer::SemanticContext;
+                                            use crate::core::semantic::get_analyzer_for_file;
+
+                                            if let Ok(Some(analyzer)) = get_analyzer_for_file(&validated_path) {
+                                                let context = SemanticContext::new(
+                                                    validated_path.clone(),
+                                                    project_root.clone(),
+                                                    config.semantic_depth,
+                                                );
+
+                                                if let Ok(analysis) = analyzer.analyze_file(
+                                                    &validated_path,
+                                                    &content,
+                                                    &context,
+                                                ) {
+                                                    // Update file info with semantic data
+                                                    file_info.type_references = analysis.type_references;
+                                                    
+                                                    // Queue for type expansion if it has type references
+                                                    if !file_info.type_references.is_empty() {
+                                                        work_queue.push_back((
+                                                            validated_path.clone(),
+                                                            file_info.clone(),
+                                                            ExpansionReason::Types,
+                                                            depth + 1,
+                                                        ));
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
 
                                     files_to_add.push((validated_path.clone(), file_info));
                                 }
                                 Err(_) => {
                                     // Path validation failed, skip this file
+                                    tracing::debug!("    Path validation failed for: {}", def_path.display());
                                 }
                             }
                         }
                     } else {
+                        tracing::debug!("    No definition_path, attempting to find type definition file");
                         // Try to find the type definition file
-                        // Extract just the module name from the full module path (e.g., "traits" from "traits::Repository")
-                        let module_name = type_ref
-                            .module
-                            .as_deref()
-                            .map(|m| m.split("::").next().unwrap_or(m));
+                        // Use the full module path
+                        let module_name = type_ref.module.as_deref();
 
+                        tracing::debug!("    Looking for type {} with module {:?}", type_ref.name, module_name);
                         if let Some(def_path) = find_type_definition_file(
                             &type_ref.name,
                             module_name,
                             &source_path,
                             cache,
                         ) {
+                            tracing::debug!("    Found type definition file: {}", def_path.display());
                             if !visited_paths.contains(&def_path) {
                                 // Validate the path for security using the project root
                                 match validate_import_path(&project_root, &def_path) {
                                     Ok(validated_path) => {
+                                        tracing::debug!("    Adding found type definition file: {}", validated_path.display());
                                         visited_paths.insert(validated_path.clone());
 
                                         // Create FileInfo for the definition file
@@ -320,22 +433,51 @@ fn expand_file_list_internal(
                                             &source_path,
                                         )?;
 
-                                        // Queue for next depth level if it has type references
-                                        if depth + 1 < config.semantic_depth
-                                            && !file_info.type_references.is_empty()
-                                        {
-                                            // We'll need to perform semantic analysis on this file first
-                                            // For now, mark it for addition
-                                            file_info.imported_by.push(source_path.clone());
+                                        // Perform semantic analysis on the newly found file to get its type references
+                                        if depth + 1 < config.semantic_depth {
+                                            if let Ok(content) = cache.get_or_load(&validated_path) {
+                                                use crate::core::semantic::analyzer::SemanticContext;
+                                                use crate::core::semantic::get_analyzer_for_file;
+
+                                                if let Ok(Some(analyzer)) = get_analyzer_for_file(&validated_path) {
+                                                    let context = SemanticContext::new(
+                                                        validated_path.clone(),
+                                                        project_root.clone(),
+                                                        config.semantic_depth,
+                                                    );
+
+                                                    if let Ok(analysis) = analyzer.analyze_file(
+                                                        &validated_path,
+                                                        &content,
+                                                        &context,
+                                                    ) {
+                                                        // Update file info with semantic data
+                                                        file_info.type_references = analysis.type_references;
+                                                        
+                                                        // Queue for type expansion if it has type references
+                                                        if !file_info.type_references.is_empty() {
+                                                            work_queue.push_back((
+                                                                validated_path.clone(),
+                                                                file_info.clone(),
+                                                                ExpansionReason::Types,
+                                                                depth + 1,
+                                                            ));
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         }
 
                                         files_to_add.push((validated_path, file_info));
                                     }
                                     Err(_) => {
                                         // Path validation failed, skip this file
+                                        tracing::debug!("    Path validation failed for found file: {}", def_path.display());
                                     }
                                 }
                             }
+                        } else {
+                            tracing::debug!("    Could not find type definition file for: {}", type_ref.name);
                         }
                     }
                 }
@@ -362,6 +504,36 @@ fn expand_file_list_internal(
                     match validate_import_path(&project_root, import_path) {
                         Ok(validated_path) => {
                             visited_paths.insert(validated_path.clone());
+
+                            // For Rust files, if we're importing a module, also include lib.rs
+                            if source_path.extension() == Some(std::ffi::OsStr::new("rs")) {
+                                // Check if this is a module file (not main.rs or lib.rs itself)
+                                if let Some(parent) = validated_path.parent() {
+                                    let lib_rs = parent.join("lib.rs");
+                                    if lib_rs.exists() && lib_rs != validated_path && !visited_paths.contains(&lib_rs) {
+                                        // Check if lib.rs declares this module
+                                        if let Ok(lib_content) = cache.get_or_load(&lib_rs) {
+                                            let module_name = validated_path
+                                                .file_stem()
+                                                .and_then(|s| s.to_str())
+                                                .unwrap_or("");
+                                            if lib_content.contains(&format!("mod {module_name};")) ||
+                                               lib_content.contains(&format!("pub mod {module_name};")) {
+                                                // Add lib.rs to files to include
+                                                visited_paths.insert(lib_rs.clone());
+                                                if let Some(context) = all_files_context {
+                                                    if let Some(lib_file) = context.get(&lib_rs) {
+                                                        files_to_add.push((lib_rs.clone(), lib_file.clone()));
+                                                    }
+                                                } else {
+                                                    let lib_info = create_file_info_for_path(&lib_rs, &source_path)?;
+                                                    files_to_add.push((lib_rs, lib_info));
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
 
                             // Check if we have this file in the context first
                             let mut file_info = if let Some(context) = all_files_context {
@@ -674,6 +846,8 @@ fn find_type_definition_file(
     source_file: &Path,
     cache: &FileCache,
 ) -> Option<PathBuf> {
+    tracing::debug!("find_type_definition_file: type_name={}, module_name={:?}, source_file={}", 
+        type_name, module_name, source_file.display());
     // Get the directory of the source file
     let source_dir = source_file.parent()?;
 
@@ -723,17 +897,36 @@ fn find_type_definition_file(
 
     // If we have a module name, add module-based patterns
     if let Some(module) = module_name {
-        let module_lower = module.to_lowercase();
-        patterns.insert(0, format!("{module_lower}.rs"));
-        patterns.insert(1, format!("{module_lower}.py"));
-        patterns.insert(2, format!("{module_lower}.ts"));
-        patterns.insert(3, format!("{module_lower}.js"));
-        patterns.insert(4, format!("{module_lower}.tsx"));
-        patterns.insert(5, format!("{module_lower}.jsx"));
-        patterns.insert(6, format!("{module}.rs")); // Also try original case
-        patterns.insert(7, format!("{module}.py"));
-        patterns.insert(8, format!("{module}.ts"));
-        patterns.insert(9, format!("{module}.js"));
+        // Handle Rust module paths like "crate::models"
+        if module.starts_with("crate::") {
+            let relative_path = module.strip_prefix("crate::").unwrap();
+            // Convert module path to file path (e.g., "models" or "domain::types")
+            let module_path = relative_path.replace("::", "/");
+            
+            // For crate:: paths, we need to look in the src directory
+            patterns.insert(0, format!("src/{module_path}.rs"));
+            patterns.insert(1, format!("src/{module_path}/mod.rs"));
+            patterns.insert(2, format!("{module_path}.rs"));
+            patterns.insert(3, format!("{module_path}/mod.rs"));
+        } else if module.contains("::") {
+            // Handle other module paths with ::
+            let module_path = module.replace("::", "/");
+            patterns.insert(0, format!("{module_path}.rs"));
+            patterns.insert(1, format!("{module_path}/mod.rs"));
+        } else {
+            // Simple module names
+            let module_lower = module.to_lowercase();
+            patterns.insert(0, format!("{module_lower}.rs"));
+            patterns.insert(1, format!("{module_lower}.py"));
+            patterns.insert(2, format!("{module_lower}.ts"));
+            patterns.insert(3, format!("{module_lower}.js"));
+            patterns.insert(4, format!("{module_lower}.tsx"));
+            patterns.insert(5, format!("{module_lower}.jsx"));
+            patterns.insert(6, format!("{module}.rs")); // Also try original case
+            patterns.insert(7, format!("{module}.py"));
+            patterns.insert(8, format!("{module}.ts"));
+            patterns.insert(9, format!("{module}.js"));
+        }
     }
 
     // Search in current directory first
@@ -802,25 +995,70 @@ fn resolve_import_to_path(
     importing_file: &Path,
     project_root: &Path,
 ) -> Option<PathBuf> {
-    let source_dir = importing_file.parent()?;
+    // Use the semantic module resolver system
+    use crate::core::semantic::get_module_resolver_for_file;
+    
+    // Get the appropriate resolver for this file type
+    let resolver = match get_module_resolver_for_file(importing_file) {
+        Ok(Some(r)) => r,
+        _ => {
+            // No resolver available, fall back to simple resolution
+            let source_dir = importing_file.parent()?;
 
-    // Handle relative imports (Python style: ".", "..", "..sibling")
-    if module_name.starts_with('.') {
-        return resolve_relative_import(module_name, source_dir, project_root);
-    }
+            // Handle relative imports (Python style: ".", "..", "..sibling")
+            if module_name.starts_with('.') {
+                return resolve_relative_import(module_name, source_dir, project_root);
+            }
 
-    // Language-specific resolution based on file extension
-    match importing_file.extension().and_then(|s| s.to_str()) {
-        Some("rs") => resolve_rust_import(module_name, source_dir, project_root),
-        Some("py") => resolve_python_import(module_name, source_dir, project_root),
-        Some("js") | Some("jsx") => {
-            resolve_javascript_import(module_name, source_dir, project_root)
+            // Language-specific resolution based on file extension
+            return match importing_file.extension().and_then(|s| s.to_str()) {
+                Some("rs") => resolve_rust_import(module_name, source_dir, project_root),
+                Some("py") => resolve_python_import(module_name, source_dir, project_root),
+                Some("js") | Some("jsx") => {
+                    resolve_javascript_import(module_name, source_dir, project_root)
+                }
+                Some("ts") | Some("tsx") => {
+                    resolve_typescript_import(module_name, source_dir, project_root)
+                }
+                Some("go") => resolve_go_import(module_name, source_dir, project_root),
+                _ => None,
+            };
         }
-        Some("ts") | Some("tsx") => {
-            resolve_typescript_import(module_name, source_dir, project_root)
+    };
+    
+    // Resolve the import
+    match resolver.resolve_import(module_name, importing_file, project_root) {
+        Ok(resolved) => {
+            if resolved.is_external {
+                // Skip external modules
+                None
+            } else {
+                Some(resolved.path)
+            }
         }
-        Some("go") => resolve_go_import(module_name, source_dir, project_root),
-        _ => None,
+        Err(_) => {
+            // Fallback to simple resolution for backwards compatibility
+            let source_dir = importing_file.parent()?;
+
+            // Handle relative imports (Python style: ".", "..", "..sibling")
+            if module_name.starts_with('.') {
+                return resolve_relative_import(module_name, source_dir, project_root);
+            }
+
+            // Language-specific resolution based on file extension
+            match importing_file.extension().and_then(|s| s.to_str()) {
+                Some("rs") => resolve_rust_import(module_name, source_dir, project_root),
+                Some("py") => resolve_python_import(module_name, source_dir, project_root),
+                Some("js") | Some("jsx") => {
+                    resolve_javascript_import(module_name, source_dir, project_root)
+                }
+                Some("ts") | Some("tsx") => {
+                    resolve_typescript_import(module_name, source_dir, project_root)
+                }
+                Some("go") => resolve_go_import(module_name, source_dir, project_root),
+                _ => None,
+            }
+        }
     }
 }
 
