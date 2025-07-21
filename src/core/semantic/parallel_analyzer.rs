@@ -7,6 +7,7 @@ use crate::core::cache::FileCache;
 use crate::core::semantic::analyzer::SemanticContext;
 use crate::core::semantic::dependency_types::{DependencyEdgeType, FileAnalysisResult};
 use crate::core::semantic::{get_analyzer_for_file, get_resolver_for_file};
+use crate::core::semantic_cache::SemanticCache;
 use anyhow::Result;
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
@@ -40,6 +41,7 @@ impl Default for AnalysisOptions {
 /// Parallel analyzer for file processing
 pub struct ParallelAnalyzer<'a> {
     cache: &'a FileCache,
+    semantic_cache: Arc<SemanticCache>,
     thread_count: Option<usize>,
     options: AnalysisOptions,
 }
@@ -49,6 +51,7 @@ impl<'a> ParallelAnalyzer<'a> {
     pub fn new(cache: &'a FileCache) -> Self {
         Self {
             cache,
+            semantic_cache: Arc::new(SemanticCache::new()),
             thread_count: None,
             options: AnalysisOptions::default(),
         }
@@ -58,6 +61,7 @@ impl<'a> ParallelAnalyzer<'a> {
     pub fn with_thread_count(cache: &'a FileCache, thread_count: usize) -> Self {
         Self {
             cache,
+            semantic_cache: Arc::new(SemanticCache::new()),
             thread_count: Some(thread_count),
             options: AnalysisOptions::default(),
         }
@@ -67,6 +71,7 @@ impl<'a> ParallelAnalyzer<'a> {
     pub fn with_options(cache: &'a FileCache, options: AnalysisOptions) -> Self {
         Self {
             cache,
+            semantic_cache: Arc::new(SemanticCache::new()),
             thread_count: None,
             options,
         }
@@ -167,15 +172,29 @@ impl<'a> ParallelAnalyzer<'a> {
             hasher.finish()
         };
 
-        // Create semantic context
-        let context = SemanticContext::new(
-            file_path.to_path_buf(),
-            project_root.to_path_buf(),
-            options.semantic_depth,
-        );
+        // Check semantic cache first
+        let analysis_result =
+            if let Some(cached_result) = self.semantic_cache.get(file_path, content_hash) {
+                // Cache hit - use cached result
+                (*cached_result).clone()
+            } else {
+                // Cache miss - perform analysis
+                // Create semantic context
+                let context = SemanticContext::new(
+                    file_path.to_path_buf(),
+                    project_root.to_path_buf(),
+                    options.semantic_depth,
+                );
 
-        // Perform analysis
-        let analysis_result = analyzer.analyze_file(file_path, &content, &context)?;
+                // Perform analysis
+                let result = analyzer.analyze_file(file_path, &content, &context)?;
+
+                // Store in cache
+                self.semantic_cache
+                    .insert(file_path, content_hash, result.clone());
+
+                result
+            };
 
         // Process imports if enabled
         let imports = if options.trace_imports {
