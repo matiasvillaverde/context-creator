@@ -162,40 +162,57 @@ impl ModuleResolver for RustModuleResolver {
                                 let relative_path = module_path
                                     .strip_prefix(&format!("{crate_name}::"))
                                     .unwrap();
-                                let path = ResolverUtils::module_to_path(relative_path);
-                                let full_path = base_dir.join("src").join(path);
 
-                                tracing::debug!(
-                                    "Looking for module file at: {}",
-                                    full_path.display()
-                                );
+                                // For Rust, we need to find the module file, not the item within it
+                                // If importing my_lib::api::handle_api_request, we want to find api.rs
+                                // Split the path and try resolving progressively
+                                let parts: Vec<&str> = relative_path.split("::").collect();
 
-                                if let Some(resolved) =
-                                    ResolverUtils::find_with_extensions(&full_path, &["rs"])
-                                {
+                                // Try each possible module path from longest to shortest
+                                for i in (1..=parts.len()).rev() {
+                                    let module_path = parts[..i].join("::");
+                                    let path = ResolverUtils::module_to_path(&module_path);
+                                    let full_path = base_dir.join("src").join(path);
+
                                     tracing::debug!(
-                                        "Resolved crate import to: {}",
-                                        resolved.display()
+                                        "Trying module path '{}' at: {}",
+                                        module_path,
+                                        full_path.display()
                                     );
-                                    let validated_path = validate_import_path(base_dir, &resolved)?;
-                                    return Ok(ResolvedPath {
-                                        path: validated_path,
-                                        is_external: false,
-                                        confidence: 0.9,
-                                    });
-                                }
 
-                                // Try as a directory module (mod.rs)
-                                let mod_path = full_path.join("mod.rs");
-                                if mod_path.exists() {
-                                    let validated_path = validate_import_path(base_dir, &mod_path)?;
-                                    return Ok(ResolvedPath {
-                                        path: validated_path,
-                                        is_external: false,
-                                        confidence: 0.9,
-                                    });
+                                    if let Some(resolved) =
+                                        ResolverUtils::find_with_extensions(&full_path, &["rs"])
+                                    {
+                                        tracing::debug!(
+                                            "Resolved crate import to: {}",
+                                            resolved.display()
+                                        );
+                                        eprintln!(
+                                            "[DEBUG] Rust resolver: Resolved {} to {}",
+                                            module_path,
+                                            resolved.display()
+                                        );
+                                        let validated_path =
+                                            validate_import_path(base_dir, &resolved)?;
+                                        return Ok(ResolvedPath {
+                                            path: validated_path,
+                                            is_external: false,
+                                            confidence: 0.9,
+                                        });
+                                    }
+
+                                    // Try as a directory module (mod.rs)
+                                    let mod_path = full_path.join("mod.rs");
+                                    if mod_path.exists() {
+                                        let validated_path =
+                                            validate_import_path(base_dir, &mod_path)?;
+                                        return Ok(ResolvedPath {
+                                            path: validated_path,
+                                            is_external: false,
+                                            confidence: 0.9,
+                                        });
+                                    }
                                 }
-                                break;
                             }
                         }
                     }

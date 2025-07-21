@@ -64,6 +64,9 @@ impl ProjectBuilder for PythonProjectBuilder {
     fn build(self) -> (TempDir, PathBuf) {
         let root = self.temp_dir.path().to_path_buf();
 
+        // Create a .git directory to mark this as a project root
+        fs::create_dir_all(root.join(".git")).unwrap();
+
         for (path, content) in self.files {
             let full_path = root.join(&path);
             if let Some(parent) = full_path.parent() {
@@ -150,6 +153,9 @@ impl TypeScriptProjectBuilder {
 impl ProjectBuilder for TypeScriptProjectBuilder {
     fn build(self) -> (TempDir, PathBuf) {
         let root = self.temp_dir.path().to_path_buf();
+
+        // Create a .git directory to mark this as a project root
+        fs::create_dir_all(root.join(".git")).unwrap();
 
         // Add package.json for TypeScript projects
         let package_json = r#"{
@@ -263,6 +269,9 @@ impl RustProjectBuilder {
 impl ProjectBuilder for RustProjectBuilder {
     fn build(self) -> (TempDir, PathBuf) {
         let root = self.temp_dir.path().to_path_buf();
+
+        // Create a .git directory to mark this as a project root
+        fs::create_dir_all(root.join(".git")).unwrap();
 
         // Add Cargo.toml for Rust projects
         let cargo_toml = r#"[package]

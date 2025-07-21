@@ -268,7 +268,7 @@ fn main() {
 
     // Trace imports from main.rs
     let output = run_context_creator(
-        &["--include", "src/main.rs", "--trace-imports"],
+        &["--include", "src/main.rs", "--trace-imports", "--verbose"],
         &project_root,
     );
 

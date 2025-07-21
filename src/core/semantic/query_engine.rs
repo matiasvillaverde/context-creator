@@ -100,8 +100,35 @@ impl QueryEngine {
         let query_text = match language_name {
             "rust" => {
                 r#"
-                ; Use declarations
-                (use_declaration) @rust_import
+                ; Use declarations with simple paths (use std::collections::HashMap)
+                (use_declaration
+                  argument: [(scoped_identifier) (identifier)] @rust_import_path
+                ) @rust_simple_import
+
+                ; Use declarations with use lists (use crate::module::{item1, item2})
+                (use_declaration
+                  argument: (scoped_use_list
+                    path: [(scoped_identifier) (identifier)] @rust_module_path
+                    list: (use_list
+                      [(scoped_identifier) (identifier)] @rust_import_item
+                    )
+                  )
+                ) @rust_scoped_import
+
+                ; Use declarations with renamed imports (use foo as bar)
+                (use_declaration
+                  argument: (use_as_clause
+                    path: (scoped_identifier) @rust_import_path
+                    alias: (identifier) @rust_import_alias
+                  )
+                ) @rust_aliased_import
+
+                ; Use declarations with wildcard (use module::*)
+                (use_declaration
+                  argument: (use_wildcard
+                    (scoped_identifier) @rust_wildcard_path
+                  )
+                ) @rust_wildcard_import
 
                 ; Module declarations  
                 (mod_item
@@ -656,13 +683,43 @@ impl QueryEngine {
                 line = node.start_position().row + 1;
 
                 match capture_name.as_str() {
-                    "rust_import" => {
-                        // Parse Rust use declaration
-                        let (parsed_module, parsed_items, is_rel) =
-                            self.parse_rust_use_declaration(node, content);
-                        module = parsed_module;
-                        items = parsed_items;
-                        is_relative = is_rel;
+                    "rust_simple_import" => {
+                        // Simple Rust import like "use std::collections::HashMap"
+                        // The path will be captured by rust_import_path
+                    }
+                    "rust_scoped_import" => {
+                        // Scoped Rust import like "use crate::module::{item1, item2}"
+                        // The module path and items will be captured separately
+                    }
+                    "rust_aliased_import" => {
+                        // Aliased Rust import like "use foo as bar"
+                        // The path and alias will be captured separately
+                    }
+                    "rust_wildcard_import" => {
+                        // Wildcard Rust import like "use module::*"
+                        items.push("*".to_string());
+                    }
+                    "rust_import_path" | "rust_module_path" | "rust_wildcard_path" => {
+                        // Capture the module path for Rust imports
+                        if let Ok(path_text) = node.utf8_text(content.as_bytes()) {
+                            module = path_text.to_string();
+                            is_relative = path_text.starts_with("self::")
+                                || path_text.starts_with("super::")
+                                || path_text.starts_with("crate::");
+                        }
+                    }
+                    "rust_import_item" => {
+                        // Capture individual items in a scoped import
+                        if let Ok(item_text) = node.utf8_text(content.as_bytes()) {
+                            items.push(item_text.to_string());
+                        }
+                    }
+                    "rust_import_alias" => {
+                        // For aliased imports, we might want to track the alias
+                        // For now, we'll just add it to items
+                        if let Ok(alias_text) = node.utf8_text(content.as_bytes()) {
+                            items.push(format!("as {alias_text}"));
+                        }
                     }
                     "js_import" | "ts_import" => {
                         // For JavaScript/TypeScript, we rely on module_path and import_name captures
@@ -1186,6 +1243,7 @@ impl QueryEngine {
     }
 
     /// Parse Rust use declaration structure
+    #[allow(dead_code)]
     fn parse_rust_use_declaration(
         &self,
         node: tree_sitter::Node,
