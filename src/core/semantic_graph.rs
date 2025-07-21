@@ -207,11 +207,19 @@ fn apply_import_relationships(
         }
     }
 
+    // Build HashSets for existing imported_by for O(1) lookups
+    let mut existing_imported_by: Vec<std::collections::HashSet<PathBuf>> = files
+        .iter()
+        .map(|f| f.imported_by.iter().cloned().collect())
+        .collect();
+
     // Apply reverse dependencies
     for (imported_idx, importing_path) in reverse_deps {
-        if imported_idx < files.len() && !files[imported_idx].imported_by.contains(&importing_path)
+        if imported_idx < files.len()
+            && !existing_imported_by[imported_idx].contains(&importing_path)
         {
-            files[imported_idx].imported_by.push(importing_path);
+            files[imported_idx].imported_by.push(importing_path.clone());
+            existing_imported_by[imported_idx].insert(importing_path);
         }
     }
 }
@@ -260,16 +268,31 @@ fn process_function_calls(files: &mut [FileInfo]) {
         }
     }
 
-    // Apply relationships
+    // Apply relationships using HashSet for O(1) lookups
+    use std::collections::HashSet;
+
+    // Build HashSets for existing imports/imported_by for O(1) lookups
+    let mut existing_imports: Vec<HashSet<PathBuf>> = files
+        .iter()
+        .map(|f| f.imports.iter().cloned().collect())
+        .collect();
+
+    let mut existing_imported_by: Vec<HashSet<PathBuf>> = files
+        .iter()
+        .map(|f| f.imported_by.iter().cloned().collect())
+        .collect();
+
     for (caller_idx, called_idx) in relationships {
         let called_path = files[called_idx].path.clone();
-        if !files[caller_idx].imports.contains(&called_path) {
+        if !existing_imports[caller_idx].contains(&called_path) {
             files[caller_idx].imports.push(called_path.clone());
+            existing_imports[caller_idx].insert(called_path);
         }
 
         let caller_path = files[caller_idx].path.clone();
-        if !files[called_idx].imported_by.contains(&caller_path) {
-            files[called_idx].imported_by.push(caller_path);
+        if !existing_imported_by[called_idx].contains(&caller_path) {
+            files[called_idx].imported_by.push(caller_path.clone());
+            existing_imported_by[called_idx].insert(caller_path);
         }
     }
 }
@@ -336,16 +359,31 @@ fn process_type_references(files: &mut [FileInfo]) {
         }
     }
 
-    // Apply relationships
+    // Apply relationships using HashSet for O(1) lookups
+    use std::collections::HashSet;
+
+    // Build HashSets for existing imports/imported_by for O(1) lookups
+    let mut existing_imports: Vec<HashSet<PathBuf>> = files
+        .iter()
+        .map(|f| f.imports.iter().cloned().collect())
+        .collect();
+
+    let mut existing_imported_by: Vec<HashSet<PathBuf>> = files
+        .iter()
+        .map(|f| f.imported_by.iter().cloned().collect())
+        .collect();
+
     for (user_idx, def_idx) in relationships {
         let def_path = files[def_idx].path.clone();
-        if !files[user_idx].imports.contains(&def_path) {
+        if !existing_imports[user_idx].contains(&def_path) {
             files[user_idx].imports.push(def_path.clone());
+            existing_imports[user_idx].insert(def_path);
         }
 
         let user_path = files[user_idx].path.clone();
-        if !files[def_idx].imported_by.contains(&user_path) {
-            files[def_idx].imported_by.push(user_path);
+        if !existing_imported_by[def_idx].contains(&user_path) {
+            files[def_idx].imported_by.push(user_path.clone());
+            existing_imported_by[def_idx].insert(user_path);
         }
     }
 }

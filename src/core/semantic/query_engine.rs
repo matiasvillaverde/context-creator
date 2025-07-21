@@ -100,8 +100,35 @@ impl QueryEngine {
         let query_text = match language_name {
             "rust" => {
                 r#"
-                ; Use declarations
-                (use_declaration) @rust_import
+                ; Use declarations with simple paths (use std::collections::HashMap)
+                (use_declaration
+                  argument: [(scoped_identifier) (identifier)] @rust_import_path
+                ) @rust_simple_import
+
+                ; Use declarations with use lists (use crate::module::{item1, item2})
+                (use_declaration
+                  argument: (scoped_use_list
+                    path: [(scoped_identifier) (identifier)] @rust_module_path
+                    list: (use_list
+                      [(scoped_identifier) (identifier)] @rust_import_item
+                    )
+                  )
+                ) @rust_scoped_import
+
+                ; Use declarations with renamed imports (use foo as bar)
+                (use_declaration
+                  argument: (use_as_clause
+                    path: (scoped_identifier) @rust_import_path
+                    alias: (identifier) @rust_import_alias
+                  )
+                ) @rust_aliased_import
+
+                ; Use declarations with wildcard (use module::*)
+                (use_declaration
+                  argument: (use_wildcard
+                    (scoped_identifier) @rust_wildcard_path
+                  )
+                ) @rust_wildcard_import
 
                 ; Module declarations  
                 (mod_item
@@ -502,9 +529,15 @@ impl QueryEngine {
                   type: (type_identifier) @type_name
                 )
 
-                ; Scoped type identifiers
+                ; Scoped type identifiers with simple path
                 (scoped_type_identifier
                   path: (identifier) @module_name
+                  name: (type_identifier) @type_name
+                )
+                
+                ; Scoped type identifiers with scoped path (e.g., crate::models)
+                (scoped_type_identifier
+                  path: (scoped_identifier) @scoped_module
                   name: (type_identifier) @type_name
                 )
 
@@ -564,6 +597,12 @@ impl QueryEngine {
 
                 ; Generic/subscript type references
                 (subscript (identifier) @subscript_type)
+                
+                ; Attribute access on types (e.g., UserRole.ADMIN)
+                (attribute
+                  object: (identifier) @type_name
+                  (#match? @type_name "^[A-Z]")
+                )
             "#
             }
             "javascript" => {
@@ -644,13 +683,43 @@ impl QueryEngine {
                 line = node.start_position().row + 1;
 
                 match capture_name.as_str() {
-                    "rust_import" => {
-                        // Parse Rust use declaration
-                        let (parsed_module, parsed_items, is_rel) =
-                            self.parse_rust_use_declaration(node, content);
-                        module = parsed_module;
-                        items = parsed_items;
-                        is_relative = is_rel;
+                    "rust_simple_import" => {
+                        // Simple Rust import like "use std::collections::HashMap"
+                        // The path will be captured by rust_import_path
+                    }
+                    "rust_scoped_import" => {
+                        // Scoped Rust import like "use crate::module::{item1, item2}"
+                        // The module path and items will be captured separately
+                    }
+                    "rust_aliased_import" => {
+                        // Aliased Rust import like "use foo as bar"
+                        // The path and alias will be captured separately
+                    }
+                    "rust_wildcard_import" => {
+                        // Wildcard Rust import like "use module::*"
+                        items.push("*".to_string());
+                    }
+                    "rust_import_path" | "rust_module_path" | "rust_wildcard_path" => {
+                        // Capture the module path for Rust imports
+                        if let Ok(path_text) = node.utf8_text(content.as_bytes()) {
+                            module = path_text.to_string();
+                            is_relative = path_text.starts_with("self::")
+                                || path_text.starts_with("super::")
+                                || path_text.starts_with("crate::");
+                        }
+                    }
+                    "rust_import_item" => {
+                        // Capture individual items in a scoped import
+                        if let Ok(item_text) = node.utf8_text(content.as_bytes()) {
+                            items.push(item_text.to_string());
+                        }
+                    }
+                    "rust_import_alias" => {
+                        // For aliased imports, we might want to track the alias
+                        // For now, we'll just add it to items
+                        if let Ok(alias_text) = node.utf8_text(content.as_bytes()) {
+                            items.push(format!("as {alias_text}"));
+                        }
                     }
                     "js_import" | "ts_import" => {
                         // For JavaScript/TypeScript, we rely on module_path and import_name captures
@@ -842,6 +911,10 @@ impl QueryEngine {
                         "module_name" => {
                             module = Some(text.to_string());
                         }
+                        "scoped_module" => {
+                            // For scoped modules like "crate::models", use as-is
+                            module = Some(text.to_string());
+                        }
                         _ => {}
                     }
                 }
@@ -950,36 +1023,31 @@ impl QueryEngine {
 
         // If we have a module name, add module-based patterns
         if let Some(module) = module_name {
-            // Handle Rust module paths like "crate::models::User"
+            // Handle Rust module paths like "crate::models"
             if module.starts_with("crate::") {
                 let relative_path = module.strip_prefix("crate::").unwrap();
-                let path_parts: Vec<&str> = relative_path.split("::").collect();
+                // Convert module path to file path (e.g., "models" or "domain::types")
+                let module_path = relative_path.replace("::", "/");
 
-                if path_parts.len() > 1 {
-                    // Convert module path to file path
-                    // crate::models::User -> models/user.rs
-                    let module_path = path_parts[..path_parts.len() - 1].join("/");
-                    let type_name_lower = path_parts.last().unwrap().to_lowercase();
-
-                    for ext in &extensions {
-                        patterns.insert(0, format!("{module_path}/{type_name_lower}.{ext}"));
-                        patterns.insert(1, format!("{module_path}/mod.{ext}"));
-                    }
+                for ext in &extensions {
+                    // Try the type as a file in the module directory
+                    patterns.insert(0, format!("{module_path}/{type_name_lower}.{ext}"));
+                    // Try the module file itself (mod.rs)
+                    patterns.insert(1, format!("{module_path}/mod.{ext}"));
+                    // Try the module as a file (models.rs)
+                    patterns.insert(2, format!("{module_path}.{ext}"));
                 }
             } else if module.contains("::") {
-                // Handle other module paths like "shared::types::ApiResponse"
-                let path_parts: Vec<&str> = module.split("::").collect();
+                // Handle other module paths like "shared::types"
+                let module_path = module.replace("::", "/");
 
-                if path_parts.len() > 1 {
-                    // Convert module path to file path
-                    // shared::types::ApiResponse -> shared/types/mod.rs
-                    let module_path = path_parts[..path_parts.len() - 1].join("/");
-                    let type_name_lower = path_parts.last().unwrap().to_lowercase();
-
-                    for ext in &extensions {
-                        patterns.insert(0, format!("{module_path}/{type_name_lower}.{ext}"));
-                        patterns.insert(1, format!("{module_path}/mod.{ext}"));
-                    }
+                for ext in &extensions {
+                    // Try the type as a file in the module directory
+                    patterns.insert(0, format!("{module_path}/{type_name_lower}.{ext}"));
+                    // Try the module file itself (mod.rs)
+                    patterns.insert(1, format!("{module_path}/mod.{ext}"));
+                    // Try the module as a file
+                    patterns.insert(2, format!("{module_path}.{ext}"));
                 }
             } else {
                 // Handle simple module names
@@ -1175,6 +1243,7 @@ impl QueryEngine {
     }
 
     /// Parse Rust use declaration structure
+    #[allow(dead_code)]
     fn parse_rust_use_declaration(
         &self,
         node: tree_sitter::Node,
@@ -1213,7 +1282,26 @@ impl QueryEngine {
                     }
                 }
             } else {
-                // Handle simple imports like "use std::collections::HashMap;"
+                // Handle simple imports like "use std::collections::HashMap;" or "use my_lib::parsing::parse_line;"
+                // For Rust, we need to separate the module path from the imported item
+                let parts: Vec<&str> = clean_text.split("::").collect();
+                if parts.len() > 1 {
+                    // Check if the last part is likely a function/type (starts with lowercase for functions, uppercase for types)
+                    let last_part = parts.last().unwrap();
+                    if !last_part.is_empty() {
+                        let first_char = last_part.chars().next().unwrap();
+                        // If it's a function (lowercase) or type (uppercase), it's the imported item
+                        if first_char.is_alphabetic()
+                            && (first_char.is_lowercase() || first_char.is_uppercase())
+                        {
+                            // Module is everything except the last part
+                            let module = parts[..parts.len() - 1].join("::");
+                            let items = vec![last_part.to_string()];
+                            return (module, items, is_relative);
+                        }
+                    }
+                }
+                // Otherwise, it's just a module import
                 return (clean_text.to_string(), Vec::new(), is_relative);
             }
 
