@@ -512,8 +512,8 @@ fn test_stdin_with_nonexistent_directories_should_fail() {
 }
 
 #[test]
-fn test_prompt_with_file_instead_of_directory_should_fail() {
-    // Should fail: prompt with file instead of directory
+fn test_prompt_with_file_instead_of_directory_should_pass() {
+    // Should pass: prompt with file instead of directory (now supported)
     let temp_dir = TempDir::new().unwrap();
     let file_path = temp_dir.path().join("file.txt");
     std::fs::write(&file_path, "test content").unwrap();
@@ -521,15 +521,15 @@ fn test_prompt_with_file_instead_of_directory_should_fail() {
     let config = Config::parse_from([
         "context-creator",
         "--prompt",
-        "This should fail",
+        "This should pass",
         file_path.to_str().unwrap(),
     ]);
 
-    assert_eq!(config.get_prompt(), Some("This should fail".to_string()));
+    assert_eq!(config.get_prompt(), Some("This should pass".to_string()));
     assert_eq!(config.paths, Some(vec![file_path]));
 
-    // This should FAIL validation (file is not a directory)
-    assert!(config.validate().is_err());
+    // This should PASS validation (files are now accepted)
+    assert!(config.validate().is_ok());
 }
 
 // PERFORMANCE AND STRESS TESTS

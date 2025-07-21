@@ -1086,13 +1086,13 @@ fn test_e2e_multi_language_project() {
 /// Test end-to-end error handling scenarios
 #[test]
 fn test_e2e_error_handling() {
-    // Test with non-existent directory
+    // Test with non-existent path
     let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg("/nonexistent/directory/path");
 
     cmd.assert()
         .failure()
-        .stderr(predicate::str::contains("Directory does not exist"));
+        .stderr(predicate::str::contains("Path does not exist"));
 
     // Test with invalid output directory
     let temp_dir = TempDir::new().unwrap();

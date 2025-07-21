@@ -200,19 +200,44 @@ impl FileInfo {
     }
 }
 
-/// Walk a directory and collect file information
+/// Walk a path (file or directory) and collect file information
 pub fn walk_directory(root: &Path, options: WalkOptions) -> Result<Vec<FileInfo>> {
     if !root.exists() {
         return Err(ContextCreatorError::InvalidPath(format!(
-            "Directory does not exist: {}",
+            "Path does not exist: {}",
             root.display()
         ))
         .into());
     }
 
+    // Handle individual files
+    if root.is_file() {
+        let metadata = root.metadata()?;
+        let file_type = FileType::from_path(root);
+        let relative_path = PathBuf::from(
+            root.file_name()
+                .ok_or_else(|| anyhow::anyhow!("Invalid file name"))?,
+        );
+        let priority = calculate_priority(&file_type, &relative_path, &options.custom_priorities);
+
+        let file_info = FileInfo {
+            path: root.to_path_buf(),
+            relative_path,
+            size: metadata.len(),
+            file_type,
+            priority,
+            imports: Vec::new(),
+            imported_by: Vec::new(),
+            function_calls: Vec::new(),
+            type_references: Vec::new(),
+            exported_functions: Vec::new(),
+        };
+        return Ok(vec![file_info]);
+    }
+
     if !root.is_dir() {
         return Err(ContextCreatorError::InvalidPath(format!(
-            "Path is not a directory: {}",
+            "Path is neither a file nor a directory: {}",
             root.display()
         ))
         .into());
