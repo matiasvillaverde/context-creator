@@ -87,7 +87,6 @@ quiet = true
 }
 
 #[test]
-#[ignore = "Flaky on macOS CI - test only runs --help and doesn't actually test ignore patterns"]
 fn test_ignore_file_patterns_updated() {
     let temp_dir = TempDir::new().unwrap();
 
