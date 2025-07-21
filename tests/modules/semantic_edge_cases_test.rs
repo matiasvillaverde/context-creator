@@ -544,6 +544,21 @@ fn test_parent_directory_imports() {
     let sub_dir = src_dir.join("submodule");
     fs::create_dir_all(&sub_dir).unwrap();
 
+    // Create a .git directory to ensure proper project root detection
+    fs::create_dir_all(temp_dir.path().join(".git")).unwrap();
+
+    // Create Cargo.toml to make this a proper Rust project
+    fs::write(
+        temp_dir.path().join("Cargo.toml"),
+        r#"
+[package]
+name = "test_project"
+version = "0.1.0"
+edition = "2021"
+"#,
+    )
+    .unwrap();
+
     fs::write(
         src_dir.join("lib.rs"),
         r#"
