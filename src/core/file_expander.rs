@@ -168,14 +168,6 @@ fn expand_file_list_internal(
                     };
 
                     if let Ok(analysis) = analyzer.analyze_file(path, &content, &context) {
-                        eprintln!(
-                            "[DEBUG] Analyzed {} - {} imports found",
-                            path.display(),
-                            analysis.imports.len()
-                        );
-                        for imp in &analysis.imports {
-                            eprintln!("[DEBUG]   Import: {} (items: {:?})", imp.module, imp.items);
-                        }
                         // Convert imports to resolved file paths
                         file_info.imports = analysis
                             .imports
@@ -523,13 +515,6 @@ fn expand_file_list_internal(
             }
             ExpansionReason::Imports => {
                 // Process each import in the source file
-                if config.verbose > 0 {
-                    eprintln!("[DEBUG] Processing imports from {}", source_path.display());
-                    eprintln!("[DEBUG]   Import count: {}", source_file.imports.len());
-                    for imp in &source_file.imports {
-                        eprintln!("[DEBUG]   -> {}", imp.display());
-                    }
-                }
                 for import_path in &source_file.imports {
                     // Skip if doesn't exist
                     if !import_path.exists() {
