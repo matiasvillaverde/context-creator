@@ -92,8 +92,11 @@ jobs:
       run: cargo build --release --target ${{ matrix.target }} --all-features
     
     - name: Upload Release Asset
+      shell: bash
       run: |
         TAG=${GITHUB_REF#refs/tags/}
-        gh release upload $TAG ./target/${{ matrix.target }}/release/${{ matrix.artifact_name }}#${{ matrix.asset_name }}
+        # Copy the binary with the correct name for the release
+        cp ./target/${{ matrix.target }}/release/${{ matrix.artifact_name }} ./${{ matrix.asset_name }}
+        gh release upload $TAG ./${{ matrix.asset_name }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
