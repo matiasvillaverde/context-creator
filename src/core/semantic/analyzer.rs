@@ -106,7 +106,7 @@ pub struct TypeReference {
 }
 
 /// Results from semantic analysis
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct AnalysisResult {
     /// Import statements found
     pub imports: Vec<Import>,
