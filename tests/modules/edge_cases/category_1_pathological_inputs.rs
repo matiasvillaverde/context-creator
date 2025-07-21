@@ -64,7 +64,11 @@ fn test_04_broken_symbolic_link() {
 
     // Create and then delete the target to make a broken link
     fs::write(&target_file, "content").unwrap();
-    create_symlink(&target_file, &broken_link).unwrap();
+    if create_symlink(&target_file, &broken_link).is_err() {
+        // Skip test if symlinks cannot be created (e.g., insufficient permissions)
+        println!("Skipping broken symlink test - unable to create symlinks");
+        return;
+    }
     fs::remove_file(&target_file).unwrap();
 
     let output = run_context_creator(&[temp_dir.path().to_str().unwrap()]);
@@ -160,7 +164,11 @@ fn test_09_output_file_readonly() {
     fs::write(src_dir.join("main.py"), "# main").unwrap();
 
     // Create read-only file
-    create_readonly_file(&output_file, "existing content").unwrap();
+    if create_readonly_file(&output_file, "existing content").is_err() {
+        // Skip test if we can't create read-only files (e.g., permission issues)
+        println!("Skipping read-only file test - unable to set file permissions");
+        return;
+    }
 
     let output = run_context_creator(&[
         src_dir.to_str().unwrap(),
