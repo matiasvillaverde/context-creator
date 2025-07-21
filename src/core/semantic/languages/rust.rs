@@ -163,12 +163,20 @@ impl ModuleResolver for RustModuleResolver {
                                     .strip_prefix(&format!("{crate_name}::"))
                                     .unwrap();
 
+                                // IMPORTANT: For crate-level imports, we should also include lib.rs
+                                // as it's the crate root that defines the module structure
+                                // For now, we'll return the most specific module file we can find
+
                                 // For Rust, we need to find the module file, not the item within it
                                 // If importing my_lib::api::handle_api_request, we want to find api.rs
                                 // Split the path and try resolving progressively
                                 let parts: Vec<&str> = relative_path.split("::").collect();
 
-                                // Try each possible module path from longest to shortest
+                                // For Rust imports, we need to resolve to the actual module file
+                                // For `crate::utils::helpers::format_output`, we want to find helpers.rs
+                                // But we also need to ensure parent modules (utils/mod.rs) are included
+
+                                // Try to find the module file that contains the imported item
                                 for i in (1..=parts.len()).rev() {
                                     let module_path = parts[..i].join("::");
                                     let path = ResolverUtils::module_to_path(&module_path);
@@ -180,16 +188,12 @@ impl ModuleResolver for RustModuleResolver {
                                         full_path.display()
                                     );
 
+                                    // Try as a direct .rs file
                                     if let Some(resolved) =
                                         ResolverUtils::find_with_extensions(&full_path, &["rs"])
                                     {
                                         tracing::debug!(
                                             "Resolved crate import to: {}",
-                                            resolved.display()
-                                        );
-                                        eprintln!(
-                                            "[DEBUG] Rust resolver: Resolved {} to {}",
-                                            module_path,
                                             resolved.display()
                                         );
                                         let validated_path =
@@ -206,6 +210,8 @@ impl ModuleResolver for RustModuleResolver {
                                     if mod_path.exists() {
                                         let validated_path =
                                             validate_import_path(base_dir, &mod_path)?;
+                                        // For directory modules, we found the target
+                                        // This is the deepest module file we can find
                                         return Ok(ResolvedPath {
                                             path: validated_path,
                                             is_external: false,
@@ -248,14 +254,82 @@ impl ModuleResolver for RustModuleResolver {
         }
 
         // Handle relative imports (self, super)
-        if module_path.starts_with("self::") || module_path.starts_with("super::") {
-            if let Some(resolved) = ResolverUtils::resolve_relative(module_path, from_file, &["rs"])
-            {
-                return Ok(ResolvedPath {
-                    path: resolved,
-                    is_external: false,
-                    confidence: 0.9,
-                });
+        if module_path.starts_with("self::") {
+            // self:: refers to the current module
+            let rest = module_path.strip_prefix("self::").unwrap();
+            if let Some(parent) = from_file.parent() {
+                let path = ResolverUtils::module_to_path(rest);
+                let full_path = parent.join(path);
+                if let Some(resolved) = ResolverUtils::find_with_extensions(&full_path, &["rs"]) {
+                    let validated_path = validate_import_path(base_dir, &resolved)?;
+                    return Ok(ResolvedPath {
+                        path: validated_path,
+                        is_external: false,
+                        confidence: 0.9,
+                    });
+                }
+            }
+        } else if module_path.starts_with("super::") {
+            // super:: refers to the parent module
+            let rest = module_path.strip_prefix("super::").unwrap();
+            if let Some(parent) = from_file.parent() {
+                if let Some(grandparent) = parent.parent() {
+                    // For imports like "super::parent_function", we need to find the module file
+                    // that contains this function. First check if there's a lib.rs or mod.rs
+                    // in the grandparent directory
+
+                    // Try lib.rs first (common for library crates)
+                    let lib_rs = grandparent.join("lib.rs");
+                    if lib_rs.exists() {
+                        let validated_path = validate_import_path(base_dir, &lib_rs)?;
+                        return Ok(ResolvedPath {
+                            path: validated_path,
+                            is_external: false,
+                            confidence: 0.9,
+                        });
+                    }
+
+                    // Try mod.rs
+                    let mod_rs = grandparent.join("mod.rs");
+                    if mod_rs.exists() {
+                        let validated_path = validate_import_path(base_dir, &mod_rs)?;
+                        return Ok(ResolvedPath {
+                            path: validated_path,
+                            is_external: false,
+                            confidence: 0.9,
+                        });
+                    }
+
+                    // If the parent directory has a name, try parent_name.rs
+                    if let Some(parent_name) = parent.file_name() {
+                        let parent_rs =
+                            grandparent.join(format!("{}.rs", parent_name.to_string_lossy()));
+                        if parent_rs.exists() {
+                            let validated_path = validate_import_path(base_dir, &parent_rs)?;
+                            return Ok(ResolvedPath {
+                                path: validated_path,
+                                is_external: false,
+                                confidence: 0.9,
+                            });
+                        }
+                    }
+
+                    // If rest is not empty, it might be a submodule path
+                    if !rest.is_empty() {
+                        let path = ResolverUtils::module_to_path(rest);
+                        let full_path = grandparent.join(path);
+                        if let Some(resolved) =
+                            ResolverUtils::find_with_extensions(&full_path, &["rs"])
+                        {
+                            let validated_path = validate_import_path(base_dir, &resolved)?;
+                            return Ok(ResolvedPath {
+                                path: validated_path,
+                                is_external: false,
+                                confidence: 0.9,
+                            });
+                        }
+                    }
+                }
             }
         }
 

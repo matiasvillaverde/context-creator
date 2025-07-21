@@ -231,13 +231,7 @@ impl<'a> ParallelAnalyzer<'a> {
 
         // Get resolver for the file type
         if let Some(resolver) = get_resolver_for_file(file_path)? {
-            eprintln!(
-                "[DEBUG] Resolving {} imports for {}",
-                imports.len(),
-                file_path.display()
-            );
             for import in imports {
-                eprintln!("[DEBUG]   Resolving import: {}", import.module);
                 // Debug logging
                 tracing::debug!(
                     "Resolving import '{}' with items {:?} from file {}",
@@ -249,11 +243,6 @@ impl<'a> ParallelAnalyzer<'a> {
                 // Try to resolve the import
                 match resolver.resolve_import(&import.module, file_path, project_root) {
                     Ok(resolved) => {
-                        eprintln!(
-                            "[DEBUG]     -> Resolved to: {} (external: {})",
-                            resolved.path.display(),
-                            resolved.is_external
-                        );
                         tracing::debug!(
                             "  Resolved to: {} (external: {})",
                             resolved.path.display(),
