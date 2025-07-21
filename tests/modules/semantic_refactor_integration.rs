@@ -273,7 +273,6 @@ fn test_error_propagation_between_modules() {
 }
 
 #[test]
-#[ignore] // TODO: Performance regression - needs optimization
 fn test_performance_no_regression() {
     let (_temp_dir, mut files_original) = create_test_project();
     let cache = FileCache::new();
