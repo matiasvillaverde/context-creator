@@ -120,3 +120,7 @@ mod remote_parsing_test;
 // Security tests
 #[path = "modules/security_vulnerability_test.rs"]
 mod security_vulnerability_test;
+
+// Acceptance tests
+#[path = "modules/acceptance/mod.rs"]
+mod acceptance;

@@ -7,7 +7,7 @@ CARGO := cargo
 .DEFAULT_GOAL := help
 
 # Phony targets ensure these commands run even if a file with the same name exists.
-.PHONY: help build release check test test-fast doc fmt fmt-check lint validate clean bench run-example install dev
+.PHONY: help build release check test test-fast test-acceptance test-acceptance-verbose doc fmt fmt-check lint validate clean bench run-example install dev
 
 # ====================================================================================
 # Main Targets
@@ -28,6 +28,12 @@ test-fast: ## Run essential tests quickly (for CI under 1 minute).
 	$(CARGO) test --test lib semantic_include_types_test::
 	$(CARGO) test --test lib cli_test::
 	$(CARGO) test --test lib integration_test::
+
+test-acceptance: ## Run all acceptance tests.
+	$(CARGO) test --test lib acceptance:: --no-fail-fast
+
+test-acceptance-verbose: ## Run all acceptance tests with detailed output.
+	$(CARGO) test --test lib acceptance:: --no-fail-fast -- --nocapture
 
 run-example: ## Run the tool with example usage.
 	$(CARGO) run -- --help

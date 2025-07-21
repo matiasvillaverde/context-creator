@@ -290,7 +290,12 @@ fn append_file_content(
             .iter()
             .map(|tr| {
                 if let Some(module) = &tr.module {
-                    format!("{}.{}", module, tr.name)
+                    // Check if module already ends with the type name to avoid duplication
+                    if module.ends_with(&format!("::{}", tr.name)) {
+                        module.clone()
+                    } else {
+                        format!("{}.{}", module, tr.name)
+                    }
                 } else {
                     tr.name.clone()
                 }

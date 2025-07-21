@@ -100,6 +100,16 @@ impl RustAnalyzer {
                 if let Some(module_path) = type_to_module.get(&type_ref.name) {
                     type_ref.module = Some(module_path.clone());
                 }
+            } else if let Some(ref existing_module) = type_ref.module {
+                // Check if the module path ends with the type name (e.g., "crate::domain::Session" for type "Session")
+                // This happens when scoped_type_identifier captures the full path
+                if existing_module.ends_with(&format!("::{}", type_ref.name)) {
+                    // Remove the redundant type name from the module path
+                    let corrected_module = existing_module
+                        .strip_suffix(&format!("::{}", type_ref.name))
+                        .unwrap_or(existing_module);
+                    type_ref.module = Some(corrected_module.to_string());
+                }
             }
         }
     }
@@ -114,16 +124,106 @@ impl ModuleResolver for RustModuleResolver {
         from_file: &Path,
         base_dir: &Path,
     ) -> Result<ResolvedPath, ContextCreatorError> {
+        tracing::debug!(
+            "RustModuleResolver::resolve_import - module: '{}', from_file: {}, base_dir: {}",
+            module_path,
+            from_file.display(),
+            base_dir.display()
+        );
+
         // Validate module name for security
         validate_module_name(module_path)?;
 
-        // Handle standard library imports
-        if self.is_external_module(module_path) {
-            return Ok(ResolvedPath {
-                path: base_dir.join("Cargo.toml"), // Point to Cargo.toml as indicator
-                is_external: true,
-                confidence: 1.0,
-            });
+        // Handle current crate imports FIRST (e.g., my_lib::module)
+        // Check if this might be the current crate by looking for Cargo.toml
+        let cargo_path = base_dir.join("Cargo.toml");
+        tracing::debug!(
+            "Checking for Cargo.toml at: {}, exists: {}",
+            cargo_path.display(),
+            cargo_path.exists()
+        );
+        if cargo_path.exists() {
+            // Try to parse crate name from Cargo.toml
+            if let Ok(contents) = std::fs::read_to_string(&cargo_path) {
+                // Simple parsing to find package name
+                for line in contents.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.starts_with("name") && trimmed.contains('=') {
+                        // Extract the crate name from: name = "my_lib"
+                        if let Some(name_part) = trimmed.split('=').nth(1) {
+                            let crate_name = name_part.trim().trim_matches('"').trim_matches('\'');
+                            tracing::debug!(
+                                "Found crate name: '{}', checking against module path: '{}'",
+                                crate_name,
+                                module_path
+                            );
+                            if module_path.starts_with(&format!("{crate_name}::")) {
+                                // This is a reference to the current crate - treat it like crate::
+                                let relative_path = module_path
+                                    .strip_prefix(&format!("{crate_name}::"))
+                                    .unwrap();
+
+                                // IMPORTANT: For crate-level imports, we should also include lib.rs
+                                // as it's the crate root that defines the module structure
+                                // For now, we'll return the most specific module file we can find
+
+                                // For Rust, we need to find the module file, not the item within it
+                                // If importing my_lib::api::handle_api_request, we want to find api.rs
+                                // Split the path and try resolving progressively
+                                let parts: Vec<&str> = relative_path.split("::").collect();
+
+                                // For Rust imports, we need to resolve to the actual module file
+                                // For `crate::utils::helpers::format_output`, we want to find helpers.rs
+                                // But we also need to ensure parent modules (utils/mod.rs) are included
+
+                                // Try to find the module file that contains the imported item
+                                for i in (1..=parts.len()).rev() {
+                                    let module_path = parts[..i].join("::");
+                                    let path = ResolverUtils::module_to_path(&module_path);
+                                    let full_path = base_dir.join("src").join(path);
+
+                                    tracing::debug!(
+                                        "Trying module path '{}' at: {}",
+                                        module_path,
+                                        full_path.display()
+                                    );
+
+                                    // Try as a direct .rs file
+                                    if let Some(resolved) =
+                                        ResolverUtils::find_with_extensions(&full_path, &["rs"])
+                                    {
+                                        tracing::debug!(
+                                            "Resolved crate import to: {}",
+                                            resolved.display()
+                                        );
+                                        let validated_path =
+                                            validate_import_path(base_dir, &resolved)?;
+                                        return Ok(ResolvedPath {
+                                            path: validated_path,
+                                            is_external: false,
+                                            confidence: 0.9,
+                                        });
+                                    }
+
+                                    // Try as a directory module (mod.rs)
+                                    let mod_path = full_path.join("mod.rs");
+                                    if mod_path.exists() {
+                                        let validated_path =
+                                            validate_import_path(base_dir, &mod_path)?;
+                                        // For directory modules, we found the target
+                                        // This is the deepest module file we can find
+                                        return Ok(ResolvedPath {
+                                            path: validated_path,
+                                            is_external: false,
+                                            confidence: 0.9,
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // Handle crate-relative imports
@@ -154,14 +254,82 @@ impl ModuleResolver for RustModuleResolver {
         }
 
         // Handle relative imports (self, super)
-        if module_path.starts_with("self::") || module_path.starts_with("super::") {
-            if let Some(resolved) = ResolverUtils::resolve_relative(module_path, from_file, &["rs"])
-            {
-                return Ok(ResolvedPath {
-                    path: resolved,
-                    is_external: false,
-                    confidence: 0.9,
-                });
+        if module_path.starts_with("self::") {
+            // self:: refers to the current module
+            let rest = module_path.strip_prefix("self::").unwrap();
+            if let Some(parent) = from_file.parent() {
+                let path = ResolverUtils::module_to_path(rest);
+                let full_path = parent.join(path);
+                if let Some(resolved) = ResolverUtils::find_with_extensions(&full_path, &["rs"]) {
+                    let validated_path = validate_import_path(base_dir, &resolved)?;
+                    return Ok(ResolvedPath {
+                        path: validated_path,
+                        is_external: false,
+                        confidence: 0.9,
+                    });
+                }
+            }
+        } else if module_path.starts_with("super::") {
+            // super:: refers to the parent module
+            let rest = module_path.strip_prefix("super::").unwrap();
+            if let Some(parent) = from_file.parent() {
+                if let Some(grandparent) = parent.parent() {
+                    // For imports like "super::parent_function", we need to find the module file
+                    // that contains this function. First check if there's a lib.rs or mod.rs
+                    // in the grandparent directory
+
+                    // Try lib.rs first (common for library crates)
+                    let lib_rs = grandparent.join("lib.rs");
+                    if lib_rs.exists() {
+                        let validated_path = validate_import_path(base_dir, &lib_rs)?;
+                        return Ok(ResolvedPath {
+                            path: validated_path,
+                            is_external: false,
+                            confidence: 0.9,
+                        });
+                    }
+
+                    // Try mod.rs
+                    let mod_rs = grandparent.join("mod.rs");
+                    if mod_rs.exists() {
+                        let validated_path = validate_import_path(base_dir, &mod_rs)?;
+                        return Ok(ResolvedPath {
+                            path: validated_path,
+                            is_external: false,
+                            confidence: 0.9,
+                        });
+                    }
+
+                    // If the parent directory has a name, try parent_name.rs
+                    if let Some(parent_name) = parent.file_name() {
+                        let parent_rs =
+                            grandparent.join(format!("{}.rs", parent_name.to_string_lossy()));
+                        if parent_rs.exists() {
+                            let validated_path = validate_import_path(base_dir, &parent_rs)?;
+                            return Ok(ResolvedPath {
+                                path: validated_path,
+                                is_external: false,
+                                confidence: 0.9,
+                            });
+                        }
+                    }
+
+                    // If rest is not empty, it might be a submodule path
+                    if !rest.is_empty() {
+                        let path = ResolverUtils::module_to_path(rest);
+                        let full_path = grandparent.join(path);
+                        if let Some(resolved) =
+                            ResolverUtils::find_with_extensions(&full_path, &["rs"])
+                        {
+                            let validated_path = validate_import_path(base_dir, &resolved)?;
+                            return Ok(ResolvedPath {
+                                path: validated_path,
+                                is_external: false,
+                                confidence: 0.9,
+                            });
+                        }
+                    }
+                }
             }
         }
 
@@ -192,7 +360,20 @@ impl ModuleResolver for RustModuleResolver {
             }
         }
 
+        // Check if it's a known external module (like stdlib)
+        if self.is_external_module(module_path) {
+            return Ok(ResolvedPath {
+                path: base_dir.join("Cargo.toml"), // Point to Cargo.toml as indicator
+                is_external: true,
+                confidence: 1.0,
+            });
+        }
+
         // Otherwise, assume it's an external crate
+        tracing::debug!(
+            "Module '{}' not resolved locally, marking as external",
+            module_path
+        );
         Ok(ResolvedPath {
             path: base_dir.join("Cargo.toml"), // Point to Cargo.toml as indicator
             is_external: true,
