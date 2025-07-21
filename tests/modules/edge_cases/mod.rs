@@ -6,8 +6,8 @@
 pub mod category_1_pathological_inputs;
 pub mod category_2_file_content;
 pub mod category_3_python_semantic;
+pub mod category_4_typescript_semantic;
 pub mod helpers;
 // TODO: Implement remaining categories
-// pub mod category_4_typescript_semantic;
 // pub mod category_5_rust_semantic;
 // pub mod category_6_flag_interactions;
