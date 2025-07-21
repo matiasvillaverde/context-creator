@@ -8,7 +8,7 @@ use crate::core::cache::FileCache;
 use crate::core::semantic::function_call_index::FunctionCallIndex;
 use crate::core::semantic::path_validator::validate_import_path;
 use crate::core::semantic::type_resolver::{ResolutionLimits, TypeResolver};
-use crate::core::walker::{walk_directory, FileInfo};
+use crate::core::walker::FileInfo;
 use crate::utils::error::ContextCreatorError;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -217,28 +217,9 @@ fn expand_file_list_internal(
     }
 
     // Optimized caller expansion using pre-built index (O(n) instead of O(n²))
-    if config.include_callers {
-        // Create walk options for caller search that searches all files
-        // but still respects ignore patterns for security
-        let mut caller_walk_options = walk_options.clone();
-        caller_walk_options.include_patterns.clear(); // Search all files for callers
-
-        // Only perform project-wide analysis once
-        let mut project_files =
-            walk_directory(&project_root, caller_walk_options).map_err(|e| {
-                ContextCreatorError::ParseError(format!("Failed to walk directory: {e}"))
-            })?;
-
-        // If no files found in project, return early
-        if project_files.is_empty() {
-            return Ok(files_map);
-        }
-
-        // Perform semantic analysis to get function calls and exports
-        use crate::core::semantic_graph::perform_semantic_analysis_graph;
-        perform_semantic_analysis_graph(&mut project_files, config, cache).map_err(|e| {
-            ContextCreatorError::ParseError(format!("Failed to analyze files: {e}"))
-        })?;
+    if config.include_callers && all_files_context.is_some() {
+        // Use the already analyzed project files from context
+        let project_files: Vec<FileInfo> = all_files_context.unwrap().values().cloned().collect();
 
         // Build function call index for O(1) lookups
         let function_call_index = FunctionCallIndex::build(&project_files);
@@ -261,10 +242,7 @@ fn expand_file_list_internal(
 
                 if !should_ignore {
                     // Find the file info from analyzed project files
-                    if let Some(caller_info) = project_files
-                        .iter()
-                        .find(|f| f.path == caller_path)
-                        .cloned()
+                    if let Some(caller_info) = all_files_context.unwrap().get(&caller_path).cloned()
                     {
                         visited_paths.insert(caller_path.clone());
                         files_to_add.push((caller_path, caller_info));
