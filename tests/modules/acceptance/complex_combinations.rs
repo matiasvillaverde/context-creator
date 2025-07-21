@@ -257,9 +257,24 @@ fn main() {
             "--trace-imports",
             "--include-callers",
             "--include-types",
+            "--verbose",
         ],
         &project_root,
     );
+
+    // Also run with stderr capture to see debug output
+    let mut cmd = super::helpers::context_creator_cmd();
+    cmd.current_dir(&project_root).args([
+        "--include",
+        "src/main.rs",
+        "--trace-imports",
+        "--include-callers",
+        "--include-types",
+        "--verbose",
+    ]);
+    let result = cmd.output().expect("Failed to run command");
+    let stderr = String::from_utf8_lossy(&result.stderr);
+    eprintln!("\n=== STDERR OUTPUT ===\n{stderr}");
 
     // Should include everything through various semantic relationships
     assert_contains_file(&output, "src/main.rs");
@@ -337,9 +352,22 @@ def test_user_endpoint():
             "--trace-imports",
             "--ignore",
             "tests/**",
+            "--verbose",
         ],
         &project_root,
     );
+
+    // Also run with stderr capture to see debug output
+    let mut cmd = super::helpers::context_creator_cmd();
+    cmd.current_dir(&project_root).args([
+        "--include",
+        "src/services/*.py",
+        "--trace-imports",
+        "--verbose",
+    ]);
+    let result = cmd.output().expect("Failed to run command");
+    let stderr = String::from_utf8_lossy(&result.stderr);
+    eprintln!("\n=== STDERR OUTPUT ===\n{stderr}");
 
     // Should include services and their dependencies
     assert_contains_file(&output, "src/services/user_service.py");

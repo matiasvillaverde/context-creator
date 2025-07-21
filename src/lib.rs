@@ -266,15 +266,25 @@ fn process_directory(
 
         // Create initial set from our filtered files
         let mut initial_files_map = std::collections::HashMap::new();
+        eprintln!(
+            "[DEBUG] Creating initial files map from {} files",
+            files.len()
+        );
         for file in files {
+            eprintln!("[DEBUG]   Processing file: {}", file.path.display());
             // Try to canonicalize the path for lookup, but fall back to original if it fails
             let lookup_key = file
                 .path
                 .canonicalize()
                 .unwrap_or_else(|_| file.path.clone());
             if let Some(analyzed_file) = all_files_map.get(&lookup_key) {
+                eprintln!(
+                    "[DEBUG]     Found analyzed file with {} imports",
+                    analyzed_file.imports.len()
+                );
                 initial_files_map.insert(file.path.clone(), analyzed_file.clone());
             } else {
+                eprintln!("[DEBUG]     Using original file (no analysis found)");
                 initial_files_map.insert(file.path.clone(), file);
             }
         }
@@ -285,6 +295,10 @@ fn process_directory(
         }
 
         // Pass the all_files_map as context for expansion
+        eprintln!(
+            "[DEBUG] Starting file expansion with initial files: {:?}",
+            initial_files_map.keys().collect::<Vec<_>>()
+        );
         let files_map = core::file_expander::expand_file_list_with_context(
             initial_files_map,
             config,
@@ -292,6 +306,10 @@ fn process_directory(
             &walk_options,
             &all_files_map,
         )?;
+        eprintln!("[DEBUG] After expansion: {} files", files_map.len());
+        for path in files_map.keys() {
+            eprintln!("[DEBUG]   Expanded file: {}", path.display());
+        }
 
         // Convert back to Vec<FileInfo>
         files = files_map.into_values().collect();
