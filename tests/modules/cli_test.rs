@@ -319,7 +319,7 @@ fn test_no_arguments_defaults_to_current_directory() {
 }
 
 #[test]
-fn test_positional_with_file_path_validation_error() {
+fn test_positional_with_file_path_validation_success() {
     use std::fs;
     use tempfile::TempDir;
 
@@ -334,13 +334,9 @@ fn test_positional_with_file_path_validation_error() {
         "test.md",
     ]);
 
-    // Should fail validation because positional path points to a file, not directory
+    // Should pass validation because files are now accepted
     let result = config.validate();
-    assert!(result.is_err());
-    assert!(result
-        .unwrap_err()
-        .to_string()
-        .contains("Path is not a directory"));
+    assert!(result.is_ok());
 }
 
 #[test]

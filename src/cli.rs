@@ -146,7 +146,7 @@ pub struct Config {
 
     /// One or more directory paths to process
     /// IMPORTANT: Use `get_directories()` to access the correct input paths.
-    #[arg(value_name = "PATHS", help = "Process directories")]
+    #[arg(value_name = "PATHS", help = "Process files and directories")]
     pub paths: Option<Vec<PathBuf>>,
 
     /// Include files and directories matching glob patterns
@@ -323,20 +323,21 @@ impl Config {
                 ));
             }
         } else {
-            // Only validate directories if repo is not provided
-            let directories = self.get_directories();
-            for directory in &directories {
-                if !directory.exists() {
+            // Only validate paths if repo is not provided
+            let paths = self.get_directories();
+            for path in &paths {
+                if !path.exists() {
                     return Err(ContextCreatorError::InvalidPath(format!(
-                        "Directory does not exist: {}",
-                        directory.display()
+                        "Path does not exist: {}",
+                        path.display()
                     )));
                 }
 
-                if !directory.is_dir() {
+                // Allow both files and directories
+                if !path.is_dir() && !path.is_file() {
                     return Err(ContextCreatorError::InvalidPath(format!(
-                        "Path is not a directory: {}",
-                        directory.display()
+                        "Path is neither a file nor a directory: {}",
+                        path.display()
                     )));
                 }
             }

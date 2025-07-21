@@ -737,11 +737,8 @@ fn test_error_message_quality_for_invalid_combinations() {
     let result1 = config1.validate();
     assert!(result1.is_err());
     let error_msg1 = result1.unwrap_err().to_string();
-    // Current error (will change after fixing restrictions)
-    assert!(
-        error_msg1.contains("--prompt cannot be used with directory paths")
-            || error_msg1.contains("Cannot specify both --output and a prompt")
-    );
+    // After fixing restrictions, this now correctly fails with the expected error
+    assert!(error_msg1.contains("Cannot specify both --output and a prompt"));
 
     // Test 2: Copy with output file (should fail with clear message)
     let config2 = Config::parse_from([
@@ -774,30 +771,18 @@ fn test_error_message_quality_for_invalid_combinations() {
     let error_msg4 = result4.unwrap_err().to_string();
     assert!(error_msg4.contains("Repository URL must be a GitHub URL"));
 
-    // Test 5: Nonexistent directory (should fail with clear message)
-    // NOTE: Currently fails validation due to prompt + paths restriction
-    let result5 = Config::try_parse_from([
+    // Test 5: Nonexistent path (should fail with clear message)
+    let config5 = Config::parse_from([
         "context-creator",
         "--prompt",
         "Test nonexistent",
         "/definitely/does/not/exist",
     ]);
 
-    match result5 {
-        Ok(config5) => {
-            let validation_result = config5.validate();
-            assert!(validation_result.is_err());
-            let error_msg5 = validation_result.unwrap_err().to_string();
-            assert!(
-                error_msg5.contains("Directory does not exist")
-                    || error_msg5.contains("--prompt cannot be used with directory paths")
-            );
-        }
-        Err(_) => {
-            // Currently fails at parsing due to ArgGroup restrictions
-            expect_arggroup_failure(); // Expected failure
-        }
-    }
+    let validation_result = config5.validate();
+    assert!(validation_result.is_err());
+    let error_msg5 = validation_result.unwrap_err().to_string();
+    assert!(error_msg5.contains("Path does not exist"));
 
     // All error messages should be helpful and specific
     // All error message checks passed

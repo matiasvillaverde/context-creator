@@ -2,7 +2,16 @@ use anyhow::Result;
 use clap::Parser;
 use context_creator::{cli::Config, run};
 
-fn main() -> Result<()> {
+fn main() {
+    // Use a custom error handler to provide clean error messages
+    if let Err(err) = run_main() {
+        // Print error message without the backtrace
+        eprintln!("Error: {err:#}");
+        std::process::exit(1);
+    }
+}
+
+fn run_main() -> Result<()> {
     // Parse command line arguments
     let mut config = Config::parse();
 

@@ -290,7 +290,7 @@ fn test_llm_tool_options() {
         .stderr(predicate::str::contains("LLM tool: codex"));
 }
 
-/// Test error handling for invalid directory
+/// Test error handling for invalid path
 #[test]
 fn test_invalid_directory_error() {
     let mut cmd = Command::cargo_bin("context-creator").unwrap();
@@ -298,7 +298,7 @@ fn test_invalid_directory_error() {
 
     cmd.assert()
         .failure()
-        .stderr(predicate::str::contains("Directory does not exist"));
+        .stderr(predicate::str::contains("Path does not exist"));
 }
 
 /// Test error handling for invalid output directory

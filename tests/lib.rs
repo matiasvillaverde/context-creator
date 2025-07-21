@@ -124,3 +124,7 @@ mod security_vulnerability_test;
 // Acceptance tests
 #[path = "modules/acceptance/mod.rs"]
 mod acceptance;
+
+// Edge case tests
+#[path = "modules/edge_cases/mod.rs"]
+mod edge_cases;
