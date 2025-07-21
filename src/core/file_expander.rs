@@ -8,7 +8,7 @@ use crate::core::cache::FileCache;
 use crate::core::semantic::function_call_index::FunctionCallIndex;
 use crate::core::semantic::path_validator::validate_import_path;
 use crate::core::semantic::type_resolver::{ResolutionLimits, TypeResolver};
-use crate::core::walker::FileInfo;
+use crate::core::walker::{perform_semantic_analysis, walk_directory, FileInfo};
 use crate::utils::error::ContextCreatorError;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -217,9 +217,25 @@ fn expand_file_list_internal(
     }
 
     // Optimized caller expansion using pre-built index (O(n) instead of O(n²))
-    if config.include_callers && all_files_context.is_some() {
-        // Use the already analyzed project files from context
-        let project_files: Vec<FileInfo> = all_files_context.unwrap().values().cloned().collect();
+    if config.include_callers {
+        let project_files = if let Some(context) = all_files_context {
+            // Use the already analyzed project files from context
+            context.values().cloned().collect()
+        } else {
+            // Fallback: walk directory and analyze files when no context is provided
+            // This is less efficient but maintains backward compatibility
+            let mut project_walk_options = walk_options.clone();
+            project_walk_options.include_patterns.clear(); // Search entire project
+
+            let mut all_project_files = walk_directory(&project_root, project_walk_options)
+                .map_err(|e| ContextCreatorError::ContextGenerationError(e.to_string()))?;
+
+            // Perform semantic analysis on project files
+            perform_semantic_analysis(&mut all_project_files, config, cache)
+                .map_err(|e| ContextCreatorError::ContextGenerationError(e.to_string()))?;
+
+            all_project_files
+        };
 
         // Build function call index for O(1) lookups
         let function_call_index = FunctionCallIndex::build(&project_files);
@@ -242,8 +258,17 @@ fn expand_file_list_internal(
 
                 if !should_ignore {
                     // Find the file info from analyzed project files
-                    if let Some(caller_info) = all_files_context.unwrap().get(&caller_path).cloned()
-                    {
+                    let caller_info = if let Some(context) = all_files_context {
+                        context.get(&caller_path).cloned()
+                    } else {
+                        // Find in project_files by path
+                        project_files
+                            .iter()
+                            .find(|f| f.path == caller_path)
+                            .cloned()
+                    };
+
+                    if let Some(caller_info) = caller_info {
                         visited_paths.insert(caller_path.clone());
                         files_to_add.push((caller_path, caller_info));
                     }
