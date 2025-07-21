@@ -193,14 +193,6 @@ impl ModuleResolver for PythonModuleResolver {
             from_file.parent().unwrap_or(base_dir).to_path_buf(),
         ];
 
-        eprintln!(
-            "[DEBUG] Python resolver: module={}, base_dir={}, from_file={}",
-            module_path,
-            base_dir.display(),
-            from_file.display()
-        );
-        eprintln!("[DEBUG] Search paths: {search_paths:?}");
-
         for search_path in &search_paths {
             let mut current_path = search_path.clone();
 

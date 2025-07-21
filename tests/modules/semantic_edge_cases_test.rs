@@ -314,11 +314,23 @@ pub fn library_function() {
     )
     .unwrap();
 
+    // Create a Cargo.toml to make this a proper Rust project
+    fs::write(
+        temp_dir.path().join("Cargo.toml"),
+        r#"
+[package]
+name = "test_project"
+version = "0.1.0"
+edition = "2021"
+"#,
+    )
+    .unwrap();
+
     fs::write(
         tests_dir.join("lib.rs"),
         r#"
 // Test library that imports the main library
-use crate::library_function;
+use test_project::library_function;
 
 #[test]
 fn test_library() {
