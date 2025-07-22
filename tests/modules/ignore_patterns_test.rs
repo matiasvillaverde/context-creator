@@ -416,7 +416,7 @@ fn test_ignore_patterns_backward_compatibility() {
 fn test_ignore_patterns_with_repo() {
     let config = Config::parse_from([
         "context-creator",
-        "--repo",
+        "--remote",
         "https://github.com/owner/repo",
         "--ignore",
         "target/**",
@@ -425,7 +425,7 @@ fn test_ignore_patterns_with_repo() {
     ]);
 
     assert_eq!(
-        config.repo,
+        config.remote,
         Some("https://github.com/owner/repo".to_string())
     );
     assert_eq!(config.get_ignore_patterns(), vec!["target/**", "*.log"]);

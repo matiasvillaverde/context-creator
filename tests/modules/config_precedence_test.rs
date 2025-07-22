@@ -300,7 +300,7 @@ ignore = ["config_*.rs"]
         "context-creator",
         "--config",
         config_path.to_str().unwrap(),
-        "--repo",
+        "--remote",
         "https://github.com/owner/repo",
         "--ignore",
         "cli_*.rs",
@@ -311,7 +311,7 @@ ignore = ["config_*.rs"]
 
     // CLI patterns should take precedence
     assert_eq!(
-        config.repo,
+        config.remote,
         Some("https://github.com/owner/repo".to_string())
     );
     assert_eq!(config.get_ignore_patterns(), vec!["cli_*.rs"]);

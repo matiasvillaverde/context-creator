@@ -169,13 +169,13 @@ fn test_prompt_and_repo_now_allowed() {
         "context-creator",
         "--prompt",
         "Analyze",
-        "--repo",
+        "--remote",
         "https://github.com/owner/repo",
     ]);
 
     assert_eq!(config.get_prompt(), Some("Analyze".to_string()));
     assert_eq!(
-        config.repo,
+        config.remote,
         Some("https://github.com/owner/repo".to_string())
     );
 
@@ -244,13 +244,13 @@ fn test_prompt_with_repo() {
         "context-creator",
         "--prompt",
         "Find bugs",
-        "--repo",
+        "--remote",
         "https://github.com/owner/repo",
     ]);
 
     assert_eq!(config.get_prompt(), Some("Find bugs".to_string()));
     assert_eq!(
-        config.repo,
+        config.remote,
         Some("https://github.com/owner/repo".to_string())
     );
 
@@ -285,13 +285,13 @@ fn test_include_with_repo() {
         "context-creator",
         "--include",
         "src/**/*.js",
-        "--repo",
+        "--remote",
         "https://github.com/owner/repo",
     ]);
 
     assert_eq!(config.get_include_patterns(), vec!["src/**/*.js"]);
     assert_eq!(
-        config.repo,
+        config.remote,
         Some("https://github.com/owner/repo".to_string())
     );
 

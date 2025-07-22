@@ -47,7 +47,7 @@ USAGE EXAMPLES:
   context-creator --prompt \"Analyze core logic\" --ignore \"tests/**\" --ignore \"docs/**\"
   
   # Process a GitHub repository
-  context-creator --repo https://github.com/owner/repo
+  context-creator --remote https://github.com/owner/repo
   
   # Read prompt from stdin
   echo \"Review this code\" | context-creator --stdin .
@@ -57,13 +57,13 @@ USAGE EXAMPLES:
   context-creator --prompt \"Security audit\" src/auth/ src/security/
   
   # Combine prompt with GitHub repository
-  context-creator --prompt \"Find bugs\" --repo https://github.com/owner/repo
+  context-creator --prompt \"Find bugs\" --remote https://github.com/owner/repo
   
   # Combine stdin with specific directories
   echo \"Analyze patterns\" | context-creator --stdin src/ tests/
   
   # Combine include patterns with GitHub repository
-  context-creator --include \"**/*.rs\" --repo https://github.com/owner/repo
+  context-creator --include \"**/*.rs\" --remote https://github.com/owner/repo
   
   # Combine stdin with include patterns
   echo \"Review code\" | context-creator --stdin --include \"**/*.py\"
@@ -166,7 +166,7 @@ pub struct Config {
 
     /// GitHub repository URL to analyze (e.g., <https://github.com/owner/repo>)
     #[arg(long, help = "Process a GitHub repository")]
-    pub repo: Option<String>,
+    pub remote: Option<String>,
 
     /// Read prompt from stdin
     #[arg(long = "stdin", help = "Read prompt from standard input")]
@@ -252,7 +252,7 @@ impl Default for Config {
             paths: None,
             include: None,
             ignore: None,
-            repo: None,
+            remote: None,
             read_stdin: false,
             output_file: None,
             max_tokens: None,
@@ -284,12 +284,12 @@ impl Config {
         let has_input_source = self.get_prompt().is_some()
             || self.paths.is_some()
             || self.include.is_some()
-            || self.repo.is_some()
+            || self.remote.is_some()
             || self.read_stdin;
 
         if !has_input_source {
             return Err(ContextCreatorError::InvalidConfiguration(
-                "At least one input source must be provided: --prompt, paths, --include, --repo, or --stdin".to_string(),
+                "At least one input source must be provided: --prompt, paths, --include, --remote, or --stdin".to_string(),
             ));
         }
 
@@ -303,9 +303,9 @@ impl Config {
         // Note: Removed overly restrictive validation rules per issue #34
         // Now allowing flexible combinations like:
         // - --prompt with paths (--prompt "text" src/)
-        // - --prompt with --repo (--prompt "text" --repo url)
+        // - --prompt with --remote (--prompt "text" --remote url)
         // - --stdin with paths (echo "prompt" | context-creator --stdin src/)
-        // - --include with --repo (--include "**/*.rs" --repo url)
+        // - --include with --remote (--include "**/*.rs" --remote url)
         // - --include with --stdin (--stdin --include "**/*.rs")
         //
         // The only remaining restrictions are for legitimate conflicts:
@@ -313,7 +313,7 @@ impl Config {
         // - --copy with --output-file (can't copy to clipboard and write to file)
 
         // Validate repo URL if provided
-        if let Some(repo_url) = &self.repo {
+        if let Some(repo_url) = &self.remote {
             if !repo_url.starts_with("https://github.com/")
                 && !repo_url.starts_with("http://github.com/")
             {
@@ -374,11 +374,11 @@ impl Config {
         }
 
         // Validate repo and paths mutual exclusivity
-        // When --repo is specified, any positional paths are silently ignored in run()
+        // When --remote is specified, any positional paths are silently ignored in run()
         // This prevents user confusion by failing early with a clear error message
-        if self.repo.is_some() && self.paths.is_some() {
+        if self.remote.is_some() && self.paths.is_some() {
             return Err(ContextCreatorError::InvalidConfiguration(
-                "Cannot specify both --repo and local paths. Use --repo to analyze a remote repository, or provide local paths to analyze local directories.".to_string(),
+                "Cannot specify both --remote and local paths. Use --remote to analyze a remote repository, or provide local paths to analyze local directories.".to_string(),
             ));
         }
 
@@ -585,7 +585,7 @@ mod tests {
             paths: Some(vec![PathBuf::from("/nonexistent/directory")]),
             include: None,
             ignore: None,
-            repo: None,
+            remote: None,
             read_stdin: false,
             output_file: None,
             max_tokens: None,
@@ -620,7 +620,7 @@ mod tests {
             paths: Some(vec![file_path]),
             include: None,
             ignore: None,
-            repo: None,
+            remote: None,
             read_stdin: false,
             output_file: None,
             max_tokens: None,
@@ -652,7 +652,7 @@ mod tests {
             paths: Some(vec![temp_dir.path().to_path_buf()]),
             include: None,
             ignore: None,
-            repo: None,
+            remote: None,
             read_stdin: false,
             output_file: Some(PathBuf::from("/nonexistent/directory/output.md")),
             max_tokens: None,
@@ -684,7 +684,7 @@ mod tests {
             paths: Some(vec![temp_dir.path().to_path_buf()]),
             include: None,
             ignore: None,
-            repo: None,
+            remote: None,
             read_stdin: false,
             output_file: Some(temp_dir.path().join("output.md")),
             max_tokens: None,
@@ -985,7 +985,7 @@ mod tests {
             paths: Some(vec![temp_dir.path().to_path_buf()]),
             include: None,
             ignore: None,
-            repo: None,
+            remote: None,
             read_stdin: false,
             output_file: Some(PathBuf::from("output.md")),
             max_tokens: None,
@@ -1018,7 +1018,7 @@ mod tests {
             paths: Some(vec![temp_dir.path().to_path_buf()]),
             include: None,
             ignore: None,
-            repo: None,
+            remote: None,
             read_stdin: false,
             output_file: None,
             max_tokens: None,
@@ -1098,7 +1098,7 @@ mod tests {
             paths: Some(vec![dir1.clone(), dir2.clone()]),
             include: None,
             ignore: None,
-            repo: None,
+            remote: None,
             read_stdin: false,
             output_file: None,
             max_tokens: None,
@@ -1126,7 +1126,7 @@ mod tests {
             paths: Some(vec![dir1, PathBuf::from("/nonexistent/dir")]),
             include: None,
             ignore: None,
-            repo: None,
+            remote: None,
             read_stdin: false,
             output_file: None,
             max_tokens: None,
@@ -1163,7 +1163,7 @@ mod tests {
             paths: Some(vec![dir1, file1]),
             include: None,
             ignore: None,
-            repo: None,
+            remote: None,
             read_stdin: false,
             output_file: None,
             max_tokens: None,

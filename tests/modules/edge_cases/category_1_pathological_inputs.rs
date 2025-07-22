@@ -255,11 +255,11 @@ fn test_12_case_sensitivity_conflicts() {
     // Otherwise, the pattern didn't match (expected on case-sensitive matching)
 }
 
-/// Scenario 13: `--repo` with a branch that doesn't exist
+/// Scenario 13: `--remote` with a branch that doesn't exist
 #[test]
 fn test_13_repo_nonexistent_branch() {
     let output = run_context_creator(&[
-        "--repo",
+        "--remote",
         "https://github.com/rust-lang/rust#nonexistent-branch-xyz123",
     ]);
 
@@ -267,11 +267,11 @@ fn test_13_repo_nonexistent_branch() {
     assert!(!output.status.success());
 }
 
-/// Scenario 14: `--repo` with a repo that requires authentication
+/// Scenario 14: `--remote` with a repo that requires authentication
 #[test]
 fn test_14_repo_requires_auth() {
     // Using a private repo URL format
-    let output = run_context_creator(&["--repo", "git@github.com:private-org/private-repo.git"]);
+    let output = run_context_creator(&["--remote", "git@github.com:private-org/private-repo.git"]);
 
     // Should fail with some error (exact message may vary)
     assert!(!output.status.success());

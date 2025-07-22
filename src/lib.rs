@@ -30,7 +30,7 @@ pub fn run(mut config: Config) -> Result<()> {
     config.validate()?;
 
     // Handle remote repository if specified
-    let _temp_dir = if let Some(repo_url) = &config.repo {
+    let _temp_dir = if let Some(repo_url) = &config.remote {
         if config.verbose > 0 {
             debug!(
                 "Starting context-creator with remote repository: {}",
