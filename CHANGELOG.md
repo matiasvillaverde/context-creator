@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2025-01-22
+
+### Changed
+- Renamed `--repo` flag to `--remote` for consistency with similar tools like repomix
+- Improved flag naming conventions for better user experience
+
+### Added
+- Support for processing individual files (not just directories)
+- Comprehensive edge case test suite covering various scenarios
+- Enhanced error handling for symlinks and permission errors
+
+### Fixed
+- Graceful error handling without stack traces for better user experience
+- Symlink and permission errors in CI environments
+
 ## [1.0.2] - 2025-07-21
 
 ### Performance
