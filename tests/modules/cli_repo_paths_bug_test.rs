@@ -4,11 +4,11 @@ use clap::Parser;
 use context_creator::cli::Config;
 use tempfile::TempDir;
 
-// TEST TO DEMONSTRATE BUG: --repo overwrites positional PATHS without warning
+// TEST TO DEMONSTRATE BUG: --remote overwrites positional PATHS without warning
 
 #[test]
 fn test_repo_overwrites_paths_bug() {
-    // This test demonstrates the bug where --repo silently overwrites PATHS
+    // This test demonstrates the bug where --remote silently overwrites PATHS
     // The user provides both a repo URL and local paths, but the paths are ignored
 
     let temp_dir = TempDir::new().unwrap();
@@ -19,7 +19,7 @@ fn test_repo_overwrites_paths_bug() {
 
     let config = Config::parse_from([
         "context-creator",
-        "--repo",
+        "--remote",
         "https://github.com/owner/repo",
         local_src.to_str().unwrap(),
         local_tests.to_str().unwrap(),
@@ -27,7 +27,7 @@ fn test_repo_overwrites_paths_bug() {
 
     // CLI parsing should work
     assert_eq!(
-        config.repo,
+        config.remote,
         Some("https://github.com/owner/repo".to_string())
     );
     assert_eq!(
@@ -40,7 +40,7 @@ fn test_repo_overwrites_paths_bug() {
     let result = config.validate();
     assert!(result.is_err());
     let error_msg = result.unwrap_err().to_string();
-    assert!(error_msg.contains("Cannot specify both --repo and local paths"));
+    assert!(error_msg.contains("Cannot specify both --remote and local paths"));
 
     // This test documents the fixed behavior:
     // Validation now fails with clear error instead of silently overwriting paths
@@ -49,7 +49,7 @@ fn test_repo_overwrites_paths_bug() {
 #[test]
 fn test_repo_with_paths_should_fail_validation() {
     // This test shows what SHOULD happen - validation should fail with clear error
-    // when both --repo and paths are provided, since they conflict
+    // when both --remote and paths are provided, since they conflict
 
     let temp_dir = TempDir::new().unwrap();
     let local_src = temp_dir.path().join("src");
@@ -57,14 +57,14 @@ fn test_repo_with_paths_should_fail_validation() {
 
     let config = Config::parse_from([
         "context-creator",
-        "--repo",
+        "--remote",
         "https://github.com/owner/repo",
         local_src.to_str().unwrap(),
     ]);
 
     // Parsing should work
     assert_eq!(
-        config.repo,
+        config.remote,
         Some("https://github.com/owner/repo".to_string())
     );
     assert_eq!(config.paths, Some(vec![local_src]));
@@ -73,16 +73,20 @@ fn test_repo_with_paths_should_fail_validation() {
     let result = config.validate();
     assert!(result.is_err());
     let error_msg = result.unwrap_err().to_string();
-    assert!(error_msg.contains("Cannot specify both --repo and local paths"));
+    assert!(error_msg.contains("Cannot specify both --remote and local paths"));
 }
 
 #[test]
 fn test_repo_only_should_work() {
-    // Sanity check: --repo by itself should work fine
-    let config = Config::parse_from(["context-creator", "--repo", "https://github.com/owner/repo"]);
+    // Sanity check: --remote by itself should work fine
+    let config = Config::parse_from([
+        "context-creator",
+        "--remote",
+        "https://github.com/owner/repo",
+    ]);
 
     assert_eq!(
-        config.repo,
+        config.remote,
         Some("https://github.com/owner/repo".to_string())
     );
     assert_eq!(config.paths, None);
@@ -100,7 +104,7 @@ fn test_paths_only_should_work() {
 
     let config = Config::parse_from(["context-creator", local_src.to_str().unwrap()]);
 
-    assert_eq!(config.repo, None);
+    assert_eq!(config.remote, None);
     assert_eq!(config.paths, Some(vec![local_src]));
 
     // This should pass validation
@@ -118,7 +122,7 @@ fn test_repo_with_prompt_and_paths_complex_scenario() {
         "context-creator",
         "--prompt",
         "Compare local and remote code",
-        "--repo",
+        "--remote",
         "https://github.com/owner/repo",
         local_src.to_str().unwrap(),
     ]);
@@ -128,7 +132,7 @@ fn test_repo_with_prompt_and_paths_complex_scenario() {
         Some("Compare local and remote code".to_string())
     );
     assert_eq!(
-        config.repo,
+        config.remote,
         Some("https://github.com/owner/repo".to_string())
     );
     assert_eq!(config.paths, Some(vec![local_src]));
@@ -138,20 +142,24 @@ fn test_repo_with_prompt_and_paths_complex_scenario() {
     let result = config.validate();
     assert!(result.is_err());
     let error_msg = result.unwrap_err().to_string();
-    assert!(error_msg.contains("Cannot specify both --repo and local paths"));
+    assert!(error_msg.contains("Cannot specify both --remote and local paths"));
 }
 
 #[test]
 fn test_repo_only_debug() {
     // Debug test to understand why repo-only commands are failing
-    let config = Config::parse_from(["context-creator", "--repo", "https://github.com/owner/repo"]);
+    let config = Config::parse_from([
+        "context-creator",
+        "--remote",
+        "https://github.com/owner/repo",
+    ]);
 
-    println!("DEBUG: config.repo = {:?}", config.repo);
+    println!("DEBUG: config.remote = {:?}", config.remote);
     println!("DEBUG: config.paths = {:?}", config.paths);
     println!("DEBUG: config.include = {:?}", config.include);
 
     assert_eq!(
-        config.repo,
+        config.remote,
         Some("https://github.com/owner/repo".to_string())
     );
     assert_eq!(config.paths, None);
@@ -167,16 +175,19 @@ fn test_repo_only_debug() {
 #[test]
 fn test_repo_with_config_loading() {
     // Debug test to understand config loading behavior
-    let mut config =
-        Config::parse_from(["context-creator", "--repo", "https://github.com/owner/repo"]);
+    let mut config = Config::parse_from([
+        "context-creator",
+        "--remote",
+        "https://github.com/owner/repo",
+    ]);
 
     println!(
         "DEBUG: Before load_from_file: config.paths = {:?}",
         config.paths
     );
     println!(
-        "DEBUG: Before load_from_file: config.repo = {:?}",
-        config.repo
+        "DEBUG: Before load_from_file: config.remote = {:?}",
+        config.remote
     );
 
     // This mimics what happens in the main application
@@ -187,8 +198,8 @@ fn test_repo_with_config_loading() {
         config.paths
     );
     println!(
-        "DEBUG: After load_from_file: config.repo = {:?}",
-        config.repo
+        "DEBUG: After load_from_file: config.remote = {:?}",
+        config.remote
     );
 
     // This should pass validation
@@ -207,7 +218,7 @@ fn test_subprocess_repo_only_issue() {
     let mut cmd = Command::new("cargo");
     cmd.arg("run")
         .arg("--")
-        .arg("--repo")
+        .arg("--remote")
         .arg("https://github.com/fake/repo");
 
     let output = cmd.output().unwrap();
@@ -229,7 +240,7 @@ fn test_subprocess_repo_only_issue() {
     let stderr_str = String::from_utf8_lossy(&output.stderr);
 
     // Check if the error is about path validation (which would be wrong)
-    if stderr_str.contains("Cannot specify both --repo and local paths") {
+    if stderr_str.contains("Cannot specify both --remote and local paths") {
         panic!("Process failed due to path validation error when it should not have: {stderr_str}");
     }
 }
@@ -244,7 +255,7 @@ fn test_binary_vs_cargo_run() {
     let mut cmd = Command::new("cargo");
     cmd.arg("run")
         .arg("--")
-        .arg("--repo")
+        .arg("--remote")
         .arg("https://github.com/fake/repo");
 
     let output = cmd.output().unwrap();
@@ -259,7 +270,7 @@ fn test_binary_vs_cargo_run() {
 
     println!("\n=== Testing Command::cargo_bin ===");
     let mut cmd = AssertCommand::cargo_bin("context-creator").unwrap();
-    cmd.arg("--repo").arg("https://github.com/fake/repo");
+    cmd.arg("--remote").arg("https://github.com/fake/repo");
 
     let output = cmd.output().unwrap();
     println!(
@@ -273,7 +284,7 @@ fn test_binary_vs_cargo_run() {
 
     // Both should fail with remote fetch error, not path validation error
     let stderr_str = String::from_utf8_lossy(&output.stderr);
-    if stderr_str.contains("Cannot specify both --repo and local paths") {
+    if stderr_str.contains("Cannot specify both --remote and local paths") {
         panic!("Binary process failed due to path validation error when it should not have: {stderr_str}");
     }
 }

@@ -88,7 +88,7 @@ fn test_prompt_with_repo_and_options() {
         "context-creator",
         "--prompt",
         "Security audit of external repo",
-        "--repo",
+        "--remote",
         "https://github.com/owner/repo",
         "--max-tokens",
         "500000",
@@ -101,7 +101,7 @@ fn test_prompt_with_repo_and_options() {
         Some("Security audit of external repo".to_string())
     );
     assert_eq!(
-        config.repo,
+        config.remote,
         Some("https://github.com/owner/repo".to_string())
     );
     assert_eq!(config.max_tokens, Some(500000));
@@ -418,7 +418,7 @@ fn test_no_input_source_should_fail() {
     assert_eq!(config.get_prompt(), None);
     assert_eq!(config.paths, None);
     assert_eq!(config.include, None);
-    assert_eq!(config.repo, None);
+    assert_eq!(config.remote, None);
     assert!(!config.read_stdin);
 
     // This should FAIL validation (no input source)
@@ -444,8 +444,11 @@ fn test_existing_usage_patterns_still_work() {
     assert!(config3.validate().is_ok());
 
     // Pattern 4: Just repo
-    let config4 =
-        Config::parse_from(["context-creator", "--repo", "https://github.com/owner/repo"]);
+    let config4 = Config::parse_from([
+        "context-creator",
+        "--remote",
+        "https://github.com/owner/repo",
+    ]);
     assert!(config4.validate().is_ok());
 
     // Pattern 5: Prompt with include patterns (already supported)

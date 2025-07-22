@@ -16,7 +16,7 @@
 context-creator --prompt "Based on this codebase, suggest three ways I can improve performance."
 
 # Ask about architectural patterns in a remote repo
-context-creator --repo https://github.com/coderamp-labs/gitingest --prompt "What are the main architectural patterns here? Compare them to common Python best practices."
+context-creator --remote https://github.com/coderamp-labs/gitingest --prompt "What are the main architectural patterns here? Compare them to common Python best practices."
 
 # Save the formatted Markdown to a file
 context-creator -o context.md

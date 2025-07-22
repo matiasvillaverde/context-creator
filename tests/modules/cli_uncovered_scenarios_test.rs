@@ -172,7 +172,7 @@ fn test_copy_flag_with_flexible_combinations() {
         "--prompt",
         "Test repo copy",
         "--copy",
-        "--repo",
+        "--remote",
         "https://github.com/owner/repo",
     ]);
 
@@ -181,7 +181,7 @@ fn test_copy_flag_with_flexible_combinations() {
             assert_eq!(config3.get_prompt(), Some("Test repo copy".to_string()));
             assert!(config3.copy);
             assert_eq!(
-                config3.repo,
+                config3.remote,
                 Some("https://github.com/owner/repo".to_string())
             );
         }
@@ -232,7 +232,7 @@ fn test_tool_selection_with_flexible_combinations() {
         "--stdin",
         "--tool",
         "gemini",
-        "--repo",
+        "--remote",
         "https://github.com/owner/repo",
     ]);
 
@@ -241,7 +241,7 @@ fn test_tool_selection_with_flexible_combinations() {
             assert!(config2.read_stdin);
             assert_eq!(config2.llm_tool.command(), "gemini");
             assert_eq!(
-                config2.repo,
+                config2.remote,
                 Some("https://github.com/owner/repo".to_string())
             );
         }
@@ -337,7 +337,7 @@ fn test_token_limits_with_flexible_combinations() {
         "Test repo tokens",
         "--max-tokens",
         "1000000",
-        "--repo",
+        "--remote",
         "https://github.com/owner/repo",
     ]);
 
@@ -346,7 +346,7 @@ fn test_token_limits_with_flexible_combinations() {
             assert_eq!(config3.get_prompt(), Some("Test repo tokens".to_string()));
             assert_eq!(config3.max_tokens, Some(1000000));
             assert_eq!(
-                config3.repo,
+                config3.remote,
                 Some("https://github.com/owner/repo".to_string())
             );
             assert_eq!(config3.get_effective_max_tokens(), Some(1000000));
@@ -419,7 +419,7 @@ fn test_quiet_verbose_flags_with_flexible_combinations() {
         "--prompt",
         "Test progress",
         "--progress",
-        "--repo",
+        "--remote",
         "https://github.com/owner/repo",
     ]);
 
@@ -428,7 +428,7 @@ fn test_quiet_verbose_flags_with_flexible_combinations() {
             assert_eq!(config3.get_prompt(), Some("Test progress".to_string()));
             assert!(config3.progress);
             assert_eq!(
-                config3.repo,
+                config3.remote,
                 Some("https://github.com/owner/repo".to_string())
             );
         }
@@ -461,14 +461,14 @@ fn test_quiet_verbose_flags_with_flexible_combinations() {
 #[test]
 fn test_multiple_repo_urls_edge_case() {
     // Scenario 7: Multiple repo arguments (should fail gracefully)
-    // This tests multiple --repo flags behavior
+    // This tests multiple --remote flags behavior
 
     // Test 1: Try parsing multiple repo URLs (should fail at parse time)
     let result = Config::try_parse_from([
         "context-creator",
-        "--repo",
+        "--remote",
         "https://github.com/owner/repo1",
-        "--repo",
+        "--remote",
         "https://github.com/owner/repo2",
     ]);
 
@@ -478,7 +478,7 @@ fn test_multiple_repo_urls_edge_case() {
     // Test 2: Single repo with other options should work
     let config = Config::parse_from([
         "context-creator",
-        "--repo",
+        "--remote",
         "https://github.com/owner/repo",
         "--max-tokens",
         "100000",
@@ -486,7 +486,7 @@ fn test_multiple_repo_urls_edge_case() {
     ]);
 
     assert_eq!(
-        config.repo,
+        config.remote,
         Some("https://github.com/owner/repo".to_string())
     );
     assert_eq!(config.max_tokens, Some(100000));
@@ -761,10 +761,10 @@ fn test_error_message_quality_for_invalid_combinations() {
     assert!(result3.is_err());
     let error_msg3 = result3.unwrap_err().to_string();
     assert!(error_msg3.contains("At least one input source must be provided"));
-    assert!(error_msg3.contains("--prompt, paths, --include, --repo, or --stdin"));
+    assert!(error_msg3.contains("--prompt, paths, --include, --remote, or --stdin"));
 
     // Test 4: Invalid repo URL (should fail with clear message)
-    let config4 = Config::parse_from(["context-creator", "--repo", "not-a-github-url"]);
+    let config4 = Config::parse_from(["context-creator", "--remote", "not-a-github-url"]);
 
     let result4 = config4.validate();
     assert!(result4.is_err());
@@ -838,7 +838,7 @@ fn test_semantic_options_with_flexible_combinations() {
         "--include-types",
         "--semantic-depth",
         "10",
-        "--repo",
+        "--remote",
         "https://github.com/owner/repo",
     ]);
 
@@ -849,7 +849,7 @@ fn test_semantic_options_with_flexible_combinations() {
             assert!(config2.include_types);
             assert_eq!(config2.semantic_depth, 10);
             assert_eq!(
-                config2.repo,
+                config2.remote,
                 Some("https://github.com/owner/repo".to_string())
             );
             // Will pass validation after we fix restrictions

@@ -172,12 +172,12 @@ impl ConfigFile {
         }
 
         // Apply directory default if CLI used default (".") AND no repo is specified
-        // This prevents conflict with --repo validation
+        // This prevents conflict with --remote validation
         let current_paths = cli_config.get_directories();
         if current_paths.len() == 1
             && current_paths[0] == PathBuf::from(".")
             && self.defaults.directory.is_some()
-            && cli_config.repo.is_none()
+            && cli_config.remote.is_none()
         {
             cli_config.paths = Some(vec![self.defaults.directory.clone().unwrap()]);
         }
@@ -341,7 +341,7 @@ progress = true
             paths: Some(vec![PathBuf::from(".")]),
             include: None,
             ignore: None,
-            repo: None,
+            remote: None,
             read_stdin: false,
             output_file: None,
             max_tokens: None,
@@ -459,7 +459,7 @@ max_tokens = 200000
             paths: Some(vec![PathBuf::from(".")]),
             include: None,
             ignore: None,
-            repo: None,
+            remote: None,
             read_stdin: false,
             output_file: None,
             max_tokens: None,

@@ -88,7 +88,7 @@ exit /b 1
     let new_path = format!("{}:{}", mock_bin_dir.display(), original_path);
 
     cmd.env("PATH", new_path);
-    cmd.arg("--repo").arg("https://github.com/fake/repo");
+    cmd.arg("--remote").arg("https://github.com/fake/repo");
 
     cmd.assert()
         .success()
@@ -161,7 +161,7 @@ exit /b 1
 
     // Set PATH with only our mock bin (no gh available)
     cmd.env("PATH", mock_bin_dir.display().to_string());
-    cmd.arg("--repo").arg("https://github.com/fake/repo");
+    cmd.arg("--remote").arg("https://github.com/fake/repo");
 
     cmd.assert()
         .success()
@@ -171,7 +171,7 @@ exit /b 1
 #[test]
 fn test_invalid_repo_url() {
     let mut cmd = Command::cargo_bin("context-creator").unwrap();
-    cmd.arg("--repo").arg("https://gitlab.com/fake/repo");
+    cmd.arg("--remote").arg("https://gitlab.com/fake/repo");
 
     cmd.assert().failure().stderr(predicate::str::contains(
         "Repository URL must be a GitHub URL",
@@ -181,12 +181,12 @@ fn test_invalid_repo_url() {
 #[test]
 fn test_repo_and_directory_mutually_exclusive_cli() {
     let mut cmd = Command::cargo_bin("context-creator").unwrap();
-    cmd.arg("--repo")
+    cmd.arg("--remote")
         .arg("https://github.com/fake/repo")
         .arg(".");
 
     cmd.assert().failure().stderr(predicate::str::contains(
-        "Cannot specify both --repo and local paths",
+        "Cannot specify both --remote and local paths",
     ));
 }
 
@@ -200,7 +200,7 @@ fn test_no_git_or_gh_available() {
 
     // Set PATH to empty directory (no commands available)
     cmd.env("PATH", empty_bin_dir.display().to_string());
-    cmd.arg("--repo").arg("https://github.com/fake/repo");
+    cmd.arg("--remote").arg("https://github.com/fake/repo");
 
     cmd.assert().failure().stderr(predicate::str::contains(
         "Neither gh CLI nor git is available",
@@ -213,7 +213,7 @@ fn test_parse_own_repository() {
     // This test requires gh or git to be available and network access
     // Use our own repository as the test case
     let mut cmd = Command::cargo_bin("context-creator").unwrap();
-    cmd.arg("--repo")
+    cmd.arg("--remote")
         .arg("https://github.com/matiasvillaverde/context-creator");
 
     let assert = cmd.assert();

@@ -44,9 +44,13 @@ fn test_llm_tool_install_instructions() {
 
 #[test]
 fn test_repo_argument() {
-    let config = Config::parse_from(["context-creator", "--repo", "https://github.com/owner/repo"]);
+    let config = Config::parse_from([
+        "context-creator",
+        "--remote",
+        "https://github.com/owner/repo",
+    ]);
     assert_eq!(
-        config.repo,
+        config.remote,
         Some("https://github.com/owner/repo".to_string())
     );
 }
@@ -56,13 +60,13 @@ fn test_repo_and_directory_now_disallowed() {
     // This combination is now disallowed to prevent silent overwriting bug
     let config = Config::parse_from([
         "context-creator",
-        "--repo",
+        "--remote",
         "https://github.com/owner/repo",
         ".",
     ]);
 
     assert_eq!(
-        config.repo,
+        config.remote,
         Some("https://github.com/owner/repo".to_string())
     );
     assert_eq!(config.paths, Some(vec![PathBuf::from(".")]));
@@ -73,18 +77,18 @@ fn test_repo_and_directory_now_disallowed() {
     assert!(result
         .unwrap_err()
         .to_string()
-        .contains("Cannot specify both --repo and local paths"));
+        .contains("Cannot specify both --remote and local paths"));
 }
 
 #[test]
 fn test_valid_repo_url_accepted() {
     let config = Config::parse_from([
         "context-creator",
-        "--repo",
+        "--remote",
         "https://github.com/matiasvillaverde/context-creator",
     ]);
     assert_eq!(
-        config.repo,
+        config.remote,
         Some("https://github.com/matiasvillaverde/context-creator".to_string())
     );
 }
@@ -281,14 +285,14 @@ fn test_include_with_repo_now_allowed() {
     // This combination is now allowed per issue #34
     let config = Config::parse_from([
         "context-creator",
-        "--repo",
+        "--remote",
         "https://github.com/owner/repo",
         "--include",
         "src/",
     ]);
 
     assert_eq!(
-        config.repo,
+        config.remote,
         Some("https://github.com/owner/repo".to_string())
     );
     assert_eq!(config.get_include_patterns(), vec!["src/"]);
