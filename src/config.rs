@@ -337,29 +337,9 @@ progress = true
         };
 
         let mut cli_config = CliConfig {
-            prompt: None,
             paths: Some(vec![PathBuf::from(".")]),
-            include: None,
-            ignore: None,
-            remote: None,
-            read_stdin: false,
-            output_file: None,
-            max_tokens: None,
-            llm_tool: LlmTool::default(),
-            quiet: false,
-            verbose: 0,
-            log_format: crate::cli::LogFormat::default(),
-            config: None,
-            progress: false,
-            copy: false,
-            enhanced_context: false,
-            trace_imports: false,
-            include_callers: false,
-            include_types: false,
             semantic_depth: 3,
-            custom_priorities: vec![],
-            config_token_limits: None,
-            config_defaults_max_tokens: None,
+            ..CliConfig::default()
         };
 
         config_file.apply_to_cli_config(&mut cli_config);
@@ -455,29 +435,9 @@ max_tokens = 200000
         };
 
         let mut cli_config = CliConfig {
-            prompt: None,
             paths: Some(vec![PathBuf::from(".")]),
-            include: None,
-            ignore: None,
-            remote: None,
-            read_stdin: false,
-            output_file: None,
-            max_tokens: None,
-            llm_tool: LlmTool::default(),
-            quiet: false,
-            verbose: 0,
-            log_format: crate::cli::LogFormat::default(),
-            config: None,
-            progress: false,
-            copy: false,
-            enhanced_context: false,
-            trace_imports: false,
-            include_callers: false,
-            include_types: false,
             semantic_depth: 3,
-            custom_priorities: vec![],
-            config_token_limits: None,
-            config_defaults_max_tokens: None,
+            ..CliConfig::default()
         };
 
         config_file.apply_to_cli_config(&mut cli_config);

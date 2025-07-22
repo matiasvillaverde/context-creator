@@ -985,29 +985,9 @@ mod tests {
 
         // Create CLI config and apply config file
         let mut config = crate::cli::Config {
-            prompt: None,
             paths: Some(vec![root.to_path_buf()]),
-            include: None,
-            ignore: None,
-            remote: None,
-            read_stdin: false,
-            output_file: None,
-            max_tokens: None,
-            llm_tool: crate::cli::LlmTool::default(),
-            quiet: false,
-            verbose: 0,
-            log_format: crate::cli::LogFormat::default(),
-            config: None,
-            progress: false,
-            copy: false,
-            enhanced_context: false,
-            trace_imports: false,
-            include_callers: false,
-            include_types: false,
             semantic_depth: 3,
-            custom_priorities: vec![],
-            config_token_limits: None,
-            config_defaults_max_tokens: None,
+            ..Default::default()
         };
         config_file.apply_to_cli_config(&mut config);
 
@@ -1067,29 +1047,9 @@ mod tests {
         };
 
         let mut config = crate::cli::Config {
-            prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
-            include: None,
-            ignore: None,
-            remote: None,
-            read_stdin: false,
-            output_file: None,
-            max_tokens: None,
-            llm_tool: crate::cli::LlmTool::default(),
-            quiet: false,
-            verbose: 0,
-            log_format: crate::cli::LogFormat::default(),
-            config: None,
-            progress: false,
-            copy: false,
-            enhanced_context: false,
-            trace_imports: false,
-            include_callers: false,
-            include_types: false,
             semantic_depth: 3,
-            custom_priorities: vec![],
-            config_token_limits: None,
-            config_defaults_max_tokens: None,
+            ..Default::default()
         };
         config_file.apply_to_cli_config(&mut config);
 
@@ -1116,29 +1076,9 @@ mod tests {
         };
 
         let mut config = crate::cli::Config {
-            prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
-            include: None,
-            ignore: None,
-            remote: None,
-            read_stdin: false,
-            output_file: None,
-            max_tokens: None,
-            llm_tool: crate::cli::LlmTool::default(),
-            quiet: false,
-            verbose: 0,
-            log_format: crate::cli::LogFormat::default(),
-            config: None,
-            progress: false,
-            copy: false,
-            enhanced_context: false,
-            trace_imports: false,
-            include_callers: false,
-            include_types: false,
             semantic_depth: 3,
-            custom_priorities: vec![],
-            config_token_limits: None,
-            config_defaults_max_tokens: None,
+            ..Default::default()
         };
         config_file.apply_to_cli_config(&mut config);
 
@@ -1167,29 +1107,9 @@ mod tests {
         };
 
         let mut config = crate::cli::Config {
-            prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
-            include: None,
-            ignore: None,
-            remote: None,
-            read_stdin: false,
-            output_file: None,
-            max_tokens: None,
-            llm_tool: crate::cli::LlmTool::default(),
-            quiet: false,
-            verbose: 0,
-            log_format: crate::cli::LogFormat::default(),
-            config: None,
-            progress: false,
-            copy: false,
-            enhanced_context: false,
-            trace_imports: false,
-            include_callers: false,
-            include_types: false,
             semantic_depth: 3,
-            custom_priorities: vec![],
-            config_token_limits: None,
-            config_defaults_max_tokens: None,
+            ..Default::default()
         };
         config_file.apply_to_cli_config(&mut config);
 
@@ -1233,29 +1153,9 @@ mod tests {
         };
 
         let mut config = crate::cli::Config {
-            prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
-            include: None,
-            ignore: None,
-            remote: None,
-            read_stdin: false,
-            output_file: None,
-            max_tokens: None,
-            llm_tool: crate::cli::LlmTool::default(),
-            quiet: false,
-            verbose: 0,
-            log_format: crate::cli::LogFormat::default(),
-            config: None,
-            progress: false,
-            copy: false,
-            enhanced_context: false,
-            trace_imports: false,
-            include_callers: false,
-            include_types: false,
             semantic_depth: 3,
-            custom_priorities: vec![],
-            config_token_limits: None,
-            config_defaults_max_tokens: None,
+            ..Default::default()
         };
         config_file.apply_to_cli_config(&mut config);
 
@@ -1306,29 +1206,9 @@ mod tests {
     fn test_walk_options_from_config_with_include_patterns() {
         // Test that CLI include patterns are passed to WalkOptions
         let config = crate::cli::Config {
-            prompt: None,
-            paths: None,
             include: Some(vec!["**/*.rs".to_string(), "**/test[0-9].py".to_string()]),
-            ignore: None,
-            remote: None,
-            read_stdin: false,
-            output_file: None,
-            max_tokens: None,
-            llm_tool: crate::cli::LlmTool::default(),
-            quiet: false,
-            verbose: 0,
-            log_format: crate::cli::LogFormat::default(),
-            config: None,
-            progress: false,
-            copy: false,
-            enhanced_context: false,
-            trace_imports: false,
-            include_callers: false,
-            include_types: false,
             semantic_depth: 3,
-            custom_priorities: vec![],
-            config_token_limits: None,
-            config_defaults_max_tokens: None,
+            ..Default::default()
         };
 
         let options = WalkOptions::from_config(&config).unwrap();
@@ -1341,29 +1221,8 @@ mod tests {
     fn test_walk_options_from_config_empty_include_patterns() {
         // Test that empty include patterns work correctly
         let config = crate::cli::Config {
-            prompt: None,
-            paths: None,
-            include: None,
-            ignore: None,
-            remote: None,
-            read_stdin: false,
-            output_file: None,
-            max_tokens: None,
-            llm_tool: crate::cli::LlmTool::default(),
-            quiet: false,
-            verbose: 0,
-            log_format: crate::cli::LogFormat::default(),
-            config: None,
-            progress: false,
-            copy: false,
-            enhanced_context: false,
-            trace_imports: false,
-            include_callers: false,
-            include_types: false,
             semantic_depth: 3,
-            custom_priorities: vec![],
-            config_token_limits: None,
-            config_defaults_max_tokens: None,
+            ..Default::default()
         };
 
         let options = WalkOptions::from_config(&config).unwrap();
@@ -1374,34 +1233,14 @@ mod tests {
     fn test_walk_options_filters_empty_patterns() {
         // Test that empty/whitespace patterns are filtered out
         let config = crate::cli::Config {
-            prompt: None,
-            paths: None,
             include: Some(vec![
                 "**/*.rs".to_string(),
                 "".to_string(),
                 "   ".to_string(),
                 "*.py".to_string(),
             ]),
-            ignore: None,
-            remote: None,
-            read_stdin: false,
-            output_file: None,
-            max_tokens: None,
-            llm_tool: crate::cli::LlmTool::default(),
-            quiet: false,
-            verbose: 0,
-            log_format: crate::cli::LogFormat::default(),
-            config: None,
-            progress: false,
-            copy: false,
-            enhanced_context: false,
-            trace_imports: false,
-            include_callers: false,
-            include_types: false,
             semantic_depth: 3,
-            custom_priorities: vec![],
-            config_token_limits: None,
-            config_defaults_max_tokens: None,
+            ..Default::default()
         };
 
         let options = WalkOptions::from_config(&config).unwrap();
@@ -1671,27 +1510,9 @@ mod tests {
         let config = Config {
             prompt: Some("test prompt".to_string()),
             paths: Some(vec![PathBuf::from(".")]),
-            include: None,
-            ignore: None,
-            remote: None,
-            read_stdin: false,
-            output_file: None,
-            max_tokens: None,
             llm_tool: crate::cli::LlmTool::Gemini,
-            quiet: false,
-            verbose: 0,
-            log_format: crate::cli::LogFormat::default(),
-            config: None,
-            progress: false,
-            copy: false,
-            enhanced_context: false,
-            trace_imports: false,
-            include_callers: false,
-            include_types: false,
             semantic_depth: 3,
-            custom_priorities: vec![],
-            config_token_limits: None,
-            config_defaults_max_tokens: None,
+            ..Default::default()
         };
 
         let options = WalkOptions::from_config(&config).unwrap();
@@ -1703,29 +1524,10 @@ mod tests {
         use crate::cli::Config;
 
         let config = Config {
-            prompt: None,
             paths: Some(vec![PathBuf::from(".")]),
-            include: None,
-            ignore: None,
-            remote: None,
-            read_stdin: false,
-            output_file: None,
-            max_tokens: None,
             llm_tool: crate::cli::LlmTool::Gemini,
-            quiet: false,
-            verbose: 0,
-            log_format: crate::cli::LogFormat::default(),
-            config: None,
-            progress: false,
-            copy: false,
-            enhanced_context: false,
-            trace_imports: false,
-            include_callers: false,
-            include_types: false,
             semantic_depth: 3,
-            custom_priorities: vec![],
-            config_token_limits: None,
-            config_defaults_max_tokens: None,
+            ..Default::default()
         };
 
         let options = WalkOptions::from_config(&config).unwrap();
