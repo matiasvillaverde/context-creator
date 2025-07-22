@@ -1,11 +1,13 @@
 //! Context creation functionality for LLM consumption
 
+use crate::cli::OutputFormat;
 use crate::core::cache::FileCache;
 use crate::core::walker::FileInfo;
+use crate::formatters::{create_formatter, DigestData};
 use crate::utils::file_ext::FileType;
 use anyhow::Result;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing::warn;
 
@@ -116,35 +118,57 @@ pub fn generate_markdown(
     options: ContextOptions,
     cache: Arc<FileCache>,
 ) -> Result<String> {
-    // Pre-allocate string with estimated capacity
-    let estimated_size = estimate_output_size(&files, &options, &cache);
-    let mut output = String::with_capacity(estimated_size);
+    let mut output = create_output_buffer(&files, &options, &cache);
 
-    // Add document header
+    add_document_header(&mut output, &options);
+    add_statistics_section(&mut output, &files, &options);
+    add_file_tree_section(&mut output, &files, &options);
+
+    let sorted_files = sort_files_by_priority(files, &options);
+    add_table_of_contents(&mut output, &sorted_files, &options);
+    add_file_contents(&mut output, sorted_files, &options, &cache)?;
+
+    Ok(output)
+}
+
+// Helper functions - each 10 lines or less
+
+fn create_output_buffer(
+    files: &[FileInfo],
+    options: &ContextOptions,
+    cache: &Arc<FileCache>,
+) -> String {
+    let estimated_size = estimate_output_size(files, options, cache);
+    String::with_capacity(estimated_size)
+}
+
+fn add_document_header(output: &mut String, options: &ContextOptions) {
     if !options.doc_header_template.is_empty() {
         let header = options.doc_header_template.replace("{directory}", ".");
         output.push_str(&header);
         output.push_str("\n\n");
     }
+}
 
-    // Add statistics if requested
+fn add_statistics_section(output: &mut String, files: &[FileInfo], options: &ContextOptions) {
     if options.include_stats {
-        let stats = generate_statistics(&files);
+        let stats = generate_statistics(files);
         output.push_str(&stats);
         output.push_str("\n\n");
     }
+}
 
-    // Add file tree if requested
+fn add_file_tree_section(output: &mut String, files: &[FileInfo], options: &ContextOptions) {
     if options.include_tree {
-        let tree = generate_file_tree(&files, &options);
+        let tree = generate_file_tree(files, options);
         output.push_str("## File Structure\n\n");
         output.push_str("```\n");
         output.push_str(&tree);
         output.push_str("```\n\n");
     }
+}
 
-    // Sort files if requested
-    let mut files = files;
+fn sort_files_by_priority(mut files: Vec<FileInfo>, options: &ContextOptions) -> Vec<FileInfo> {
     if options.sort_by_priority {
         files.sort_by(|a, b| {
             b.priority
@@ -153,38 +177,101 @@ pub fn generate_markdown(
                 .then_with(|| a.relative_path.cmp(&b.relative_path))
         });
     }
+    files
+}
 
-    // Add table of contents if requested
+fn add_table_of_contents(output: &mut String, files: &[FileInfo], options: &ContextOptions) {
     if options.include_toc {
         output.push_str("## Table of Contents\n\n");
-        for file in &files {
-            let anchor = path_to_anchor(&file.relative_path);
-            output.push_str(&format!(
-                "- [{path}](#{anchor})\n",
-                path = file.relative_path.display(),
-                anchor = anchor
-            ));
+        for file in files {
+            add_toc_entry(output, file);
         }
         output.push('\n');
     }
+}
 
-    // Group files if requested
+fn add_toc_entry(output: &mut String, file: &FileInfo) {
+    let anchor = path_to_anchor(&file.relative_path);
+    output.push_str(&format!(
+        "- [{path}](#{anchor})\n",
+        path = file.relative_path.display(),
+        anchor = anchor
+    ));
+}
+
+fn add_file_contents(
+    output: &mut String,
+    files: Vec<FileInfo>,
+    options: &ContextOptions,
+    cache: &Arc<FileCache>,
+) -> Result<()> {
     if options.group_by_type {
-        let grouped = group_files_by_type(files);
-        for (file_type, group_files) in grouped {
-            output.push_str(&format!("## {} Files\n\n", file_type_display(&file_type)));
-            for file in group_files {
-                append_file_content(&mut output, &file, &options, &cache)?;
-            }
-        }
+        add_grouped_files(output, files, options, cache)
     } else {
-        // Add all files
-        for file in files {
-            append_file_content(&mut output, &file, &options, &cache)?;
+        add_ungrouped_files(output, files, options, cache)
+    }
+}
+
+fn add_grouped_files(
+    output: &mut String,
+    files: Vec<FileInfo>,
+    options: &ContextOptions,
+    cache: &Arc<FileCache>,
+) -> Result<()> {
+    let grouped = group_files_by_type(files);
+    for (file_type, group_files) in grouped {
+        output.push_str(&format!("## {} Files\n\n", file_type_display(&file_type)));
+        for file in group_files {
+            append_file_content(output, &file, options, cache)?;
         }
     }
+    Ok(())
+}
 
-    Ok(output)
+fn add_ungrouped_files(
+    output: &mut String,
+    files: Vec<FileInfo>,
+    options: &ContextOptions,
+    cache: &Arc<FileCache>,
+) -> Result<()> {
+    for file in files {
+        append_file_content(output, &file, options, cache)?;
+    }
+    Ok(())
+}
+
+/// Generate digest using the appropriate formatter
+pub fn generate_digest(
+    files: Vec<FileInfo>,
+    options: ContextOptions,
+    cache: Arc<FileCache>,
+    output_format: OutputFormat,
+    base_directory: &str,
+) -> Result<String> {
+    // Create formatter based on output format
+    let mut formatter = create_formatter(output_format);
+
+    // Create digest data
+    let data = DigestData {
+        files: &files,
+        options: &options,
+        cache: &cache,
+        base_directory,
+    };
+
+    // Render all sections
+    formatter.render_header(&data)?;
+    formatter.render_statistics(&data)?;
+    formatter.render_file_tree(&data)?;
+    formatter.render_toc(&data)?;
+
+    // Render file details
+    for file in &files {
+        formatter.render_file_details(file, &data)?;
+    }
+
+    // Finalize and return
+    Ok(formatter.finalize())
 }
 
 /// Append a single file's content to the output
@@ -194,17 +281,34 @@ fn append_file_content(
     options: &ContextOptions,
     cache: &FileCache,
 ) -> Result<()> {
-    // Read file content from cache
-    let content = match cache.get_or_load(&file.path) {
-        Ok(content) => content,
+    let content = load_file_content(file, cache)?;
+    add_file_header(output, file, options);
+    add_semantic_info(output, file);
+    add_file_body(output, &content, &file.file_type);
+    Ok(())
+}
+
+fn load_file_content(file: &FileInfo, cache: &FileCache) -> Result<String> {
+    match cache.get_or_load(&file.path) {
+        Ok(content) => Ok(content.to_string()),
         Err(e) => {
             warn!("Could not read file {}: {}", file.path.display(), e);
-            return Ok(());
+            Ok(String::new())
         }
-    };
+    }
+}
 
-    // Add file header with optional metadata
-    let path_with_metadata = if options.enhanced_context {
+fn add_file_header(output: &mut String, file: &FileInfo, options: &ContextOptions) {
+    let path_with_metadata = format_path_with_metadata(file, options);
+    let header = options
+        .file_header_template
+        .replace("{path}", &path_with_metadata);
+    output.push_str(&header);
+    output.push_str("\n\n");
+}
+
+pub fn format_path_with_metadata(file: &FileInfo, options: &ContextOptions) -> String {
+    if options.enhanced_context {
         format!(
             "{} ({}, {})",
             file.relative_path.display(),
@@ -213,80 +317,108 @@ fn append_file_content(
         )
     } else {
         file.relative_path.display().to_string()
-    };
+    }
+}
 
-    let header = options
-        .file_header_template
-        .replace("{path}", &path_with_metadata);
-    output.push_str(&header);
-    output.push_str("\n\n");
+fn add_semantic_info(output: &mut String, file: &FileInfo) {
+    add_imports_info(output, &file.imports);
+    add_imported_by_info(output, &file.imported_by);
+    add_function_calls_info(output, &file.function_calls);
+    add_type_references_info(output, &file.type_references);
+}
 
-    // Add semantic information if available
-    if !file.imports.is_empty() {
+fn add_imports_info(output: &mut String, imports: &[PathBuf]) {
+    if !imports.is_empty() {
         output.push_str("Imports: ");
-        let import_names: Vec<String> = file
-            .imports
-            .iter()
-            .map(|p| {
-                let filename = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
-
-                // For Python __init__.py files, use the parent directory name
-                if filename == "__init__.py" {
-                    p.parent()
-                        .and_then(|parent| parent.file_name())
-                        .and_then(|n| n.to_str())
-                        .unwrap_or("unknown")
-                        .to_string()
-                } else {
-                    // Remove common extensions
-                    filename
-                        .strip_suffix(".py")
-                        .or_else(|| filename.strip_suffix(".rs"))
-                        .or_else(|| filename.strip_suffix(".js"))
-                        .or_else(|| filename.strip_suffix(".ts"))
-                        .unwrap_or(filename)
-                        .to_string()
-                }
-            })
-            .collect();
-        output.push_str(&format!("{}\n\n", import_names.join(", ")));
+        let names = format_import_names(imports);
+        output.push_str(&format!("{}\n\n", names.join(", ")));
     }
+}
 
-    if !file.imported_by.is_empty() {
+pub fn format_import_names(imports: &[PathBuf]) -> Vec<String> {
+    imports.iter().map(|p| format_import_name(p)).collect()
+}
+
+fn format_import_name(path: &Path) -> String {
+    let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+
+    if filename == "__init__.py" {
+        get_python_module_name(path)
+    } else {
+        strip_common_extensions(filename).to_string()
+    }
+}
+
+fn get_python_module_name(path: &Path) -> String {
+    path.parent()
+        .and_then(|parent| parent.file_name())
+        .and_then(|n| n.to_str())
+        .unwrap_or("unknown")
+        .to_string()
+}
+
+fn strip_common_extensions(filename: &str) -> &str {
+    filename
+        .strip_suffix(".py")
+        .or_else(|| filename.strip_suffix(".rs"))
+        .or_else(|| filename.strip_suffix(".js"))
+        .or_else(|| filename.strip_suffix(".ts"))
+        .unwrap_or(filename)
+}
+
+fn add_imported_by_info(output: &mut String, imported_by: &[PathBuf]) {
+    if !imported_by.is_empty() {
         output.push_str("Imported by: ");
-        let imported_by_names: Vec<String> = file
-            .imported_by
-            .iter()
-            .map(|p| {
-                p.file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or_else(|| p.to_str().unwrap_or("unknown"))
-                    .to_string()
-            })
-            .collect();
-        output.push_str(&format!("{}\n\n", imported_by_names.join(", ")));
+        let names = format_imported_by_names(imported_by);
+        output.push_str(&format!("{}\n\n", names.join(", ")));
     }
+}
 
-    if !file.function_calls.is_empty() {
+pub fn format_imported_by_names(imported_by: &[PathBuf]) -> Vec<String> {
+    imported_by
+        .iter()
+        .map(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or_else(|| p.to_str().unwrap_or("unknown"))
+                .to_string()
+        })
+        .collect()
+}
+
+fn add_function_calls_info(
+    output: &mut String,
+    calls: &[crate::core::semantic::analyzer::FunctionCall],
+) {
+    if !calls.is_empty() {
         output.push_str("Function calls: ");
-        let function_names: Vec<String> = file
-            .function_calls
-            .iter()
-            .map(|fc| {
-                if let Some(module) = &fc.module {
-                    format!("{}.{}", module, fc.name)
-                } else {
-                    fc.name.clone()
-                }
-            })
-            .collect();
-        output.push_str(&format!("{}\n\n", function_names.join(", ")));
+        let names = format_function_call_names(calls);
+        output.push_str(&format!("{}\n\n", names.join(", ")));
     }
+}
 
-    if !file.type_references.is_empty() {
+fn format_function_call_names(
+    calls: &[crate::core::semantic::analyzer::FunctionCall],
+) -> Vec<String> {
+    calls
+        .iter()
+        .map(|fc| {
+            if let Some(module) = &fc.module {
+                format!("{}.{}", module, fc.name)
+            } else {
+                fc.name.clone()
+            }
+        })
+        .collect()
+}
+
+fn add_type_references_info(
+    output: &mut String,
+    refs: &[crate::core::semantic::analyzer::TypeReference],
+) {
+    if !refs.is_empty() {
         output.push_str("Type references: ");
-        let type_names: Vec<String> = file
-            .type_references
+        let names: Vec<String> = refs
             .iter()
             .map(|tr| {
                 if let Some(module) = &tr.module {
@@ -301,54 +433,69 @@ fn append_file_content(
                 }
             })
             .collect();
-        output.push_str(&format!("{}\n\n", type_names.join(", ")));
+        output.push_str(&format!("{}\n\n", names.join(", ")));
     }
+}
 
-    // Add language hint for syntax highlighting
-    let language = get_language_hint(&file.file_type);
+fn add_file_body(output: &mut String, content: &str, file_type: &FileType) {
+    let language = get_language_hint(file_type);
     output.push_str(&format!("```{language}\n"));
-    output.push_str(&content);
+    output.push_str(content);
     if !content.ends_with('\n') {
         output.push('\n');
     }
     output.push_str("```\n\n");
-
-    Ok(())
 }
 
 /// Generate statistics about the files
-fn generate_statistics(files: &[FileInfo]) -> String {
-    let total_files = files.len();
-    let total_size: u64 = files.iter().map(|f| f.size).sum();
+pub fn generate_statistics(files: &[FileInfo]) -> String {
+    let mut stats = create_stats_buffer(files.len());
+    add_stats_header(&mut stats);
+    add_file_count(&mut stats, files.len());
+    add_total_size(&mut stats, calculate_total_size(files));
+    add_file_type_breakdown(&mut stats, count_file_types(files));
+    stats
+}
 
-    // Count by file type
+fn create_stats_buffer(file_count: usize) -> String {
+    String::with_capacity(500 + file_count * 50)
+}
+
+fn add_stats_header(stats: &mut String) {
+    stats.push_str("## Statistics\n\n");
+}
+
+fn add_file_count(stats: &mut String, count: usize) {
+    stats.push_str(&format!("- Total files: {count}\n"));
+}
+
+fn add_total_size(stats: &mut String, size: u64) {
+    stats.push_str(&format!("- Total size: {} bytes\n", format_size(size)));
+}
+
+fn calculate_total_size(files: &[FileInfo]) -> u64 {
+    files.iter().map(|f| f.size).sum()
+}
+
+fn count_file_types(files: &[FileInfo]) -> Vec<(FileType, usize)> {
     let mut type_counts: HashMap<FileType, usize> = HashMap::new();
     for file in files {
         *type_counts.entry(file.file_type.clone()).or_insert(0) += 1;
     }
-
-    // Pre-allocate with estimated capacity
-    let mut stats = String::with_capacity(500 + type_counts.len() * 50);
-    stats.push_str("## Statistics\n\n");
-    stats.push_str(&format!("- Total files: {total_files}\n"));
-    stats.push_str(&format!(
-        "- Total size: {} bytes\n",
-        format_size(total_size)
-    ));
-    stats.push_str("\n### Files by type:\n");
-
     let mut types: Vec<_> = type_counts.into_iter().collect();
     types.sort_by_key(|(_, count)| std::cmp::Reverse(*count));
+    types
+}
 
+fn add_file_type_breakdown(stats: &mut String, types: Vec<(FileType, usize)>) {
+    stats.push_str("\n### Files by type:\n");
     for (file_type, count) in types {
         stats.push_str(&format!("- {}: {}\n", file_type_display(&file_type), count));
     }
-
-    stats
 }
 
 /// Generate a file tree representation
-fn generate_file_tree(files: &[FileInfo], options: &ContextOptions) -> String {
+pub fn generate_file_tree(files: &[FileInfo], options: &ContextOptions) -> String {
     use std::collections::{BTreeMap, HashMap};
 
     #[derive(Default)]
@@ -485,7 +632,7 @@ fn group_files_by_type(files: Vec<FileInfo>) -> Vec<(FileType, Vec<FileInfo>)> {
 }
 
 /// Get display name for file type
-fn file_type_display(file_type: &FileType) -> &'static str {
+pub fn file_type_display(file_type: &FileType) -> &'static str {
     match file_type {
         FileType::Rust => "Rust",
         FileType::Python => "Python",
@@ -521,7 +668,7 @@ fn file_type_display(file_type: &FileType) -> &'static str {
 }
 
 /// Get language hint for syntax highlighting
-fn get_language_hint(file_type: &FileType) -> &'static str {
+pub fn get_language_hint(file_type: &FileType) -> &'static str {
     match file_type {
         FileType::Rust => "rust",
         FileType::Python => "python",
@@ -593,7 +740,7 @@ fn file_type_priority(file_type: &FileType) -> u8 {
 }
 
 /// Convert path to anchor-friendly string
-fn path_to_anchor(path: &Path) -> String {
+pub fn path_to_anchor(path: &Path) -> String {
     path.display()
         .to_string()
         .replace(['/', '\\', '.', ' '], "-")

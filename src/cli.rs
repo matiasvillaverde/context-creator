@@ -622,7 +622,8 @@ mod tests {
             ..Default::default()
         };
 
-        assert!(config.validate().is_err());
+        // Files are now allowed as paths
+        assert!(config.validate().is_ok());
     }
 
     #[test]
@@ -1016,11 +1017,11 @@ mod tests {
         fs::create_dir(&dir1).unwrap();
         fs::write(&file1, "test content").unwrap();
 
-        // Mix of directory and file - should fail
+        // Mix of directory and file - now allowed
         let config = Config {
             paths: Some(vec![dir1, file1]),
             ..Default::default()
         };
-        assert!(config.validate().is_err());
+        assert!(config.validate().is_ok());
     }
 }

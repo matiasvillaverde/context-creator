@@ -7,6 +7,7 @@
 pub mod cli;
 pub mod config;
 pub mod core;
+pub mod formatters;
 pub mod logging;
 pub mod remote;
 pub mod utils;
@@ -290,15 +291,26 @@ fn process_directory(
         );
     }
 
-    // Generate markdown
-    let markdown =
-        core::context_builder::generate_markdown(prioritized_files, context_options, cache)?;
+    // Generate output using the appropriate formatter
+    let output = if config.output_format == cli::OutputFormat::Markdown {
+        // Use existing generate_markdown for backward compatibility
+        core::context_builder::generate_markdown(prioritized_files, context_options, cache)?
+    } else {
+        // Use new formatter system
+        core::context_builder::generate_digest(
+            prioritized_files,
+            context_options,
+            cache,
+            config.output_format,
+            &path.display().to_string(),
+        )?
+    };
 
     if config.progress && !config.quiet {
-        info!("Markdown generation complete");
+        info!("Output generation complete");
     }
 
-    Ok(markdown)
+    Ok(output)
 }
 
 /// Execute LLM CLI with the generated context

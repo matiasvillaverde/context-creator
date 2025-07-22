@@ -48,6 +48,8 @@ mod glob_pattern_test;
 mod ignore_patterns_test;
 
 // Output format tests
+#[path = "modules/formatters_test.rs"]
+mod formatters_test;
 #[path = "modules/output_format_test.rs"]
 mod output_format_test;
 
