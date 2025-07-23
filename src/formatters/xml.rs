@@ -14,7 +14,7 @@ impl XmlFormatter {
     /// Create a new XmlFormatter
     pub fn new() -> Self {
         Self {
-            buffer: String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<code_digest>\n"),
+            buffer: String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<context_creator>\n"),
             in_files_section: false,
         }
     }
@@ -78,7 +78,7 @@ impl DigestFormatter for XmlFormatter {
         if self.in_files_section {
             self.buffer.push_str("  </files>\n");
         }
-        self.buffer.push_str("</code_digest>\n");
+        self.buffer.push_str("</context_creator>\n");
         self.buffer
     }
 

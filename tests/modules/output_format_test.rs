@@ -82,7 +82,7 @@ fn test_xml_style_outputs_valid_xml() {
 
     let output = std::fs::read_to_string(temp_dir.path().join("output.xml")).unwrap();
     assert!(output.contains("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
-    assert!(output.contains("<code_digest>"));
+    assert!(output.contains("<context_creator>"));
     assert!(output.contains("<file_summary>"));
     assert!(output.contains("<files>"));
     assert!(output.contains("<![CDATA["));
