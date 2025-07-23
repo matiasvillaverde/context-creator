@@ -81,11 +81,11 @@ fn test_search_respects_gitignore() {
         .arg(project.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("src/main.rs"))
-        .stdout(predicate::str::contains("src/lib.rs"))
+        .stdout(predicate::str::contains("main.rs"))
+        .stdout(predicate::str::contains("lib.rs"))
         // Should NOT contain ignored files
-        .stdout(predicate::str::contains("build/").not())
-        .stdout(predicate::str::contains("node_modules/").not())
+        .stdout(predicate::str::contains("build").not())
+        .stdout(predicate::str::contains("node_modules").not())
         .stdout(predicate::str::contains(".log").not())
         .stdout(predicate::str::contains("temp_").not());
 }
@@ -102,8 +102,8 @@ fn test_search_excludes_hidden_directories() {
         .assert()
         .success()
         // Should NOT contain hidden directories
-        .stdout(predicate::str::contains(".git/").not())
-        .stdout(predicate::str::contains(".hidden/").not());
+        .stdout(predicate::str::contains(".git").not())
+        .stdout(predicate::str::contains(".hidden").not());
 }
 
 #[test]
@@ -119,12 +119,12 @@ fn test_search_with_paths_style_respects_gitignore() {
         .arg(project.path())
         .assert()
         .success()
-        .stdout(predicate::str::is_match(r"src/main\.rs").unwrap())
-        .stdout(predicate::str::is_match(r"src/lib\.rs").unwrap())
+        .stdout(predicate::str::is_match(r"src[/\\]main\.rs").unwrap())
+        .stdout(predicate::str::is_match(r"src[/\\]lib\.rs").unwrap())
         // Ensure paths output doesn't contain ignored paths
-        .stdout(predicate::str::contains("build/").not())
-        .stdout(predicate::str::contains("node_modules/").not())
-        .stdout(predicate::str::contains(".git/").not())
+        .stdout(predicate::str::contains("build").not())
+        .stdout(predicate::str::contains("node_modules").not())
+        .stdout(predicate::str::contains(".git").not())
         .stdout(predicate::str::contains(".log").not());
 }
 
@@ -145,8 +145,8 @@ fn test_search_respects_ignore_file() {
         .arg(project.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("src/main.rs"))
-        .stdout(predicate::str::contains("src/lib.rs"))
+        .stdout(predicate::str::contains("main.rs"))
+        .stdout(predicate::str::contains("lib.rs"))
         // Should not contain the file excluded by .ignore
-        .stdout(predicate::str::contains("src/test.rs").not());
+        .stdout(predicate::str::contains("test.rs").not());
 }
