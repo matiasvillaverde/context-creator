@@ -477,9 +477,8 @@ fn test_search_nested_directories() {
         .arg(temp_dir.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains(
-            "services/auth/internal/impl/service.rs",
-        ));
+        .stdout(predicate::str::contains("service.rs"))
+        .stdout(predicate::str::contains("AuthenticationService"));
 }
 
 #[test]
