@@ -5,6 +5,7 @@
 //! large language model consumption.
 
 pub mod cli;
+pub mod commands;
 pub mod config;
 pub mod core;
 pub mod formatters;
@@ -29,6 +30,11 @@ pub fn run(mut config: Config) -> Result<()> {
     // Validate configuration BEFORE processing
     // This ensures mutual exclusivity checks work correctly
     config.validate()?;
+
+    // Handle search command if present
+    if matches!(&config.command, Some(cli::Commands::Search { .. })) {
+        return commands::run_search(config);
+    }
 
     // Handle remote repository if specified
     let _temp_dir = if let Some(repo_url) = &config.remote {

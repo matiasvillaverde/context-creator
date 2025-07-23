@@ -40,8 +40,12 @@ mod cli_test;
 mod cli_uncovered_scenarios_test;
 #[path = "modules/logging_test.rs"]
 mod logging_test;
+#[path = "modules/search_acceptance_test.rs"]
+mod search_acceptance_test;
 #[path = "modules/search_command_test.rs"]
 mod search_command_test;
+#[path = "modules/search_integration_test.rs"]
+mod search_integration_test;
 #[path = "modules/search_test.rs"]
 mod search_test;
 
