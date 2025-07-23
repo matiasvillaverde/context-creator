@@ -4,6 +4,7 @@
 //! by running the compiled binary against well-defined project structures and
 //! asserting the correctness of generated Markdown output.
 
+pub mod binary_filtering;
 pub mod builders;
 pub mod complex_combinations;
 pub mod core_inclusion;
