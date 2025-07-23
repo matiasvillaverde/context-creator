@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2025-07-23
+
+### Added
+- Binary file filtering: automatically detect and exclude non-processable binary files from the context
+- Integration and acceptance tests for binary file filtering functionality
+
+### Fixed
+- Search command now properly respects gitignore patterns and excludes hidden files
+- Various test improvements for Windows and CI compatibility
+
 ## [1.1.0] - 2025-01-22
 
 ### Changed
@@ -82,7 +92,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - First public release
 
-[Unreleased]: https://github.com/matiasvillaverde/context-creator/compare/v1.0.2...HEAD
+[Unreleased]: https://github.com/matiasvillaverde/context-creator/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/matiasvillaverde/context-creator/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/matiasvillaverde/context-creator/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/matiasvillaverde/context-creator/compare/v0.3.0...v1.0.2
 [0.3.0]: https://github.com/matiasvillaverde/context-creator/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/matiasvillaverde/context-creator/compare/v0.1.1...v0.2.0
