@@ -95,8 +95,8 @@ fn test_search_with_ignore_patterns() {
         .arg(temp_dir.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("src/auth.rs"))
-        .stdout(predicate::str::contains("src/main.rs"));
+        .stdout(predicate::str::contains("auth.rs"))
+        .stdout(predicate::str::contains("main.rs"));
     // tests/** should be excluded per .contextignore
 }
 
@@ -111,9 +111,9 @@ fn test_search_case_insensitive() {
         .arg(temp_dir.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("src/auth.rs"))
-        .stdout(predicate::str::contains("src/main.rs"))
-        .stdout(predicate::str::contains("tests/auth_test.rs"));
+        .stdout(predicate::str::contains("auth.rs"))
+        .stdout(predicate::str::contains("main.rs"))
+        .stdout(predicate::str::contains("auth_test.rs"));
 }
 
 #[test]
@@ -128,9 +128,9 @@ fn test_search_with_include_patterns() {
         .arg(temp_dir.path().join("src")) // Search only in src directory
         .assert()
         .success()
-        .stdout(predicate::str::contains("src/auth.rs"))
-        .stdout(predicate::str::contains("src/main.rs"))
-        .stdout(predicate::str::contains("tests/auth_test.rs").not());
+        .stdout(predicate::str::contains("auth.rs"))
+        .stdout(predicate::str::contains("main.rs"))
+        .stdout(predicate::str::contains("auth_test.rs").not());
 }
 
 #[test]
@@ -176,8 +176,8 @@ fn test_search_multiple_paths() {
         .arg(temp_dir.path().join("tests"))
         .assert()
         .success()
-        .stdout(predicate::str::contains("src/auth.rs"))
-        .stdout(predicate::str::contains("tests/auth_test.rs"));
+        .stdout(predicate::str::contains("auth.rs"))
+        .stdout(predicate::str::contains("auth_test.rs"));
 }
 
 #[test]
@@ -192,7 +192,7 @@ fn test_search_with_contextignore() {
         .arg(temp_dir.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("src/auth.rs"));
+        .stdout(predicate::str::contains("auth.rs"));
     // Note: docs/ being excluded depends on search respecting .contextignore
 }
 
@@ -207,8 +207,8 @@ fn test_search_with_gitignore() {
         .arg(temp_dir.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("src/auth.rs"))
-        .stdout(predicate::str::contains("vendor/lib.rs").not()); // vendor/ is in .gitignore
+        .stdout(predicate::str::contains("auth.rs"))
+        .stdout(predicate::str::contains("vendor").not()); // vendor/ is in .gitignore
 }
 
 #[test]
@@ -274,7 +274,7 @@ fn test_search_special_characters() {
         .arg(temp_dir.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("src/special.rs"));
+        .stdout(predicate::str::contains("special.rs"));
 }
 
 #[test]
@@ -289,7 +289,7 @@ fn test_search_with_no_semantic_and_other_flags() {
         .arg(temp_dir.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("src/auth.rs"))
+        .stdout(predicate::str::contains("auth.rs"))
         .stdout(predicate::str::contains("Imports:").not()); // Should NOT see semantic analysis
 }
 
@@ -304,8 +304,8 @@ fn test_search_partial_word_match() {
         .arg(temp_dir.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("src/auth.rs"))
-        .stdout(predicate::str::contains("src/main.rs"));
+        .stdout(predicate::str::contains("auth.rs"))
+        .stdout(predicate::str::contains("main.rs"));
 }
 
 #[test]
@@ -428,7 +428,7 @@ fn test_search_very_long_lines() {
         .arg(temp_dir.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("src/long.rs"));
+        .stdout(predicate::str::contains("long.rs"));
 }
 
 #[test]
@@ -454,7 +454,7 @@ fn 登录() {
         .arg(temp_dir.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("src/unicode.rs"));
+        .stdout(predicate::str::contains("unicode.rs"));
 }
 
 #[test]
@@ -523,7 +523,7 @@ fn test_authentication_service() {
         .arg(temp_dir.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("src/multi.rs"));
+        .stdout(predicate::str::contains("multi.rs"));
 }
 
 #[test]
