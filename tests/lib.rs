@@ -42,6 +42,8 @@ mod cli_uncovered_scenarios_test;
 mod logging_test;
 #[path = "modules/search_command_test.rs"]
 mod search_command_test;
+#[path = "modules/search_test.rs"]
+mod search_test;
 
 // Pattern and ignore tests
 #[path = "modules/glob_pattern_test.rs"]
