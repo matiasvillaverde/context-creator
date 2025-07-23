@@ -20,9 +20,9 @@ fn test_binary_filtering_with_prompt() {
 
     let (_temp_dir, project_root) = create_mixed_content_project();
 
-    // Run with prompt (enables binary filtering) and output file
+    // Run with prompt (enables binary filtering)
     let output = run_context_creator(
-        &["--prompt", "Analyze this code", "--output-file", "test.md"],
+        &["--prompt", "Analyze this code"],
         &project_root,
     );
 
@@ -50,7 +50,7 @@ fn test_binary_filtering_uppercase_extensions() {
     ]);
 
     let output = run_context_creator(
-        &["--prompt", "Test uppercase", "--output-file", "test.md"],
+        &["--prompt", "Test uppercase"],
         &project_root,
     );
 
@@ -71,7 +71,7 @@ fn test_binary_filtering_mixed_case_extensions() {
     ]);
 
     let output = run_context_creator(
-        &["--prompt", "Test mixed case", "--output-file", "test.md"],
+        &["--prompt", "Test mixed case"],
         &project_root,
     );
 
@@ -94,7 +94,7 @@ fn test_binary_filtering_extensionless_text_files() {
     ]);
 
     let output = run_context_creator(
-        &["--prompt", "Test extensionless", "--output-file", "test.md"],
+        &["--prompt", "Test extensionless"],
         &project_root,
     );
 
@@ -118,12 +118,7 @@ fn test_binary_filtering_misleading_names() {
     ]);
 
     let output = run_context_creator(
-        &[
-            "--prompt",
-            "Test misleading names",
-            "--output-file",
-            "test.md",
-        ],
+        &["--prompt", "Test misleading names"],
         &project_root,
     );
 
@@ -145,12 +140,7 @@ fn test_binary_filtering_compound_extensions() {
     ]);
 
     let output = run_context_creator(
-        &[
-            "--prompt",
-            "Test compound extensions",
-            "--output-file",
-            "test.md",
-        ],
+        &["--prompt", "Test compound extensions"],
         &project_root,
     );
 
@@ -175,7 +165,7 @@ fn test_binary_filtering_dotfiles() {
     ]);
 
     let _output = run_context_creator(
-        &["--prompt", "Test dotfiles", "--output-file", "test.md"],
+        &["--prompt", "Test dotfiles"],
         &project_root,
     );
 
@@ -198,7 +188,7 @@ fn test_binary_filtering_unicode_filenames() {
     ]);
 
     let output = run_context_creator(
-        &["--prompt", "Test unicode", "--output-file", "test.md"],
+        &["--prompt", "Test unicode"],
         &project_root,
     );
 
@@ -219,7 +209,7 @@ fn test_binary_filtering_long_filenames() {
     ]);
 
     let output = run_context_creator(
-        &["--prompt", "Test long names", "--output-file", "test.md"],
+        &["--prompt", "Test long names"],
         &project_root,
     );
 
@@ -245,7 +235,7 @@ fn test_binary_filtering_symlinks() {
     std::os::unix::fs::symlink(root.join("real_code.rs"), root.join("link_to_code.rs")).unwrap();
 
     let output = run_context_creator(
-        &["--prompt", "Test symlinks", "--output-file", "test.md"],
+        &["--prompt", "Test symlinks"],
         root,
     );
 
