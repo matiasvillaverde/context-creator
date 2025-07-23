@@ -1,6 +1,6 @@
 //! Command-line interface configuration and parsing
 
-use clap::{Parser, ValueEnum};
+use clap::{Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 use tracing::debug;
 
@@ -154,10 +154,31 @@ impl LlmTool {
     }
 }
 
+/// Available commands for context-creator
+#[derive(Subcommand, Debug, Clone)]
+pub enum Commands {
+    /// Search for files containing the specified term
+    Search {
+        /// Search pattern (case-insensitive)
+        pattern: String,
+
+        /// Disable automatic semantic analysis
+        #[arg(long = "no-semantic")]
+        no_semantic: bool,
+
+        /// Search within specific paths
+        #[arg(value_name = "PATHS")]
+        paths: Option<Vec<PathBuf>>,
+    },
+}
+
 /// High-performance CLI tool to convert codebases to Markdown for LLM context
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None, after_help = AFTER_HELP_MSG)]
 pub struct Config {
+    /// Subcommand to execute
+    #[command(subcommand)]
+    pub command: Option<Commands>,
     /// The prompt to send to the LLM for processing
     #[arg(short = 'p', long = "prompt", help = "Process a text prompt directly")]
     pub prompt: Option<String>,
@@ -270,6 +291,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            command: None,
             prompt: None,
             paths: None,
             include: None,
@@ -302,6 +324,11 @@ impl Config {
     /// Validate the configuration
     pub fn validate(&self) -> Result<(), crate::utils::error::ContextCreatorError> {
         use crate::utils::error::ContextCreatorError;
+
+        // If a command is provided, it's a valid input source on its own
+        if self.command.is_some() {
+            return Ok(());
+        }
 
         // Validate that at least one input source is provided
         let has_input_source = self.get_prompt().is_some()
