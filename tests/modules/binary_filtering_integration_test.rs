@@ -51,11 +51,21 @@ fn test_binary_filtering_integration() {
         .map(|f| f.relative_path.to_string_lossy().to_string())
         .collect();
 
-    assert!(file_names.iter().any(|f| f.replace('\\', "/") == "src/main.rs"));
-    assert!(file_names.iter().any(|f| f.replace('\\', "/") == "README.md"));
-    assert!(!file_names.iter().any(|f| f.replace('\\', "/") == "assets/logo.png"));
-    assert!(!file_names.iter().any(|f| f.replace('\\', "/") == "video.mp4"));
-    assert!(!file_names.iter().any(|f| f.replace('\\', "/") == "binary.exe"));
+    assert!(file_names
+        .iter()
+        .any(|f| f.replace('\\', "/") == "src/main.rs"));
+    assert!(file_names
+        .iter()
+        .any(|f| f.replace('\\', "/") == "README.md"));
+    assert!(!file_names
+        .iter()
+        .any(|f| f.replace('\\', "/") == "assets/logo.png"));
+    assert!(!file_names
+        .iter()
+        .any(|f| f.replace('\\', "/") == "video.mp4"));
+    assert!(!file_names
+        .iter()
+        .any(|f| f.replace('\\', "/") == "binary.exe"));
 }
 
 #[test]
@@ -120,7 +130,10 @@ fn test_binary_filtering_case_insensitive() {
     let files = walk_directory(root, options).unwrap();
 
     assert_eq!(files.len(), 1);
-    assert_eq!(files[0].relative_path.to_string_lossy().replace('\\', "/"), "test.rs");
+    assert_eq!(
+        files[0].relative_path.to_string_lossy().replace('\\', "/"),
+        "test.rs"
+    );
 }
 
 #[test]
