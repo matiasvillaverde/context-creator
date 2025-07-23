@@ -25,19 +25,43 @@ fn test_search_command_finds_files() {
 #[test]
 fn test_search_command_auto_enables_semantic_flags() {
     // This test verifies that semantic flags are automatically enabled
-    // We'll check this by looking for semantic-related output in verbose mode
     let temp_dir = TempDir::new().unwrap();
 
-    std::fs::write(temp_dir.path().join("test.rs"), "use auth::login;").unwrap();
+    // Create a file that imports a module
+    std::fs::write(
+        temp_dir.path().join("main.rs"),
+        r#"
+use auth::login;
+
+fn main() {
+    login("user", "pass");
+}
+"#,
+    )
+    .unwrap();
+
+    // Create the imported module
+    std::fs::write(
+        temp_dir.path().join("auth.rs"),
+        r#"
+pub fn login(username: &str, password: &str) -> bool {
+    // login logic
+    true
+}
+"#,
+    )
+    .unwrap();
 
     let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg("search")
         .arg("login")
         .arg(temp_dir.path())
         .assert()
-        .success();
-    // The actual semantic feature is blocked by issue #18
-    // For now, we just verify the command runs successfully
+        .success()
+        .stdout(predicate::str::contains("main.rs")) // File with import
+        .stdout(predicate::str::contains("auth.rs")) // File with function
+        .stdout(predicate::str::contains("Function calls: login")) // Semantic metadata
+        .stdout(predicate::str::contains("Type references: login")); // Semantic relationships
 }
 
 #[test]

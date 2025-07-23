@@ -46,6 +46,8 @@ mod search_acceptance_test;
 mod search_command_test;
 #[path = "modules/search_integration_test.rs"]
 mod search_integration_test;
+#[path = "modules/search_semantic_test.rs"]
+mod search_semantic_test;
 #[path = "modules/search_test.rs"]
 mod search_test;
 
