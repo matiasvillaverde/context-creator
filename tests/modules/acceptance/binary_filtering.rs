@@ -3,7 +3,7 @@
 //! These tests validate the binary file handling behavior:
 //! - When using --output-file or default behavior: binary files ARE included
 //! - When using --prompt: binary files are filtered (tested in integration tests)
-//! 
+//!
 //! These acceptance tests verify that binary files are properly included
 //! in the output when NOT using prompt mode, which is the expected behavior
 //! for generating context files for manual review.
