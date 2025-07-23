@@ -3,9 +3,12 @@
 use crate::{
     cli::{Commands, Config},
     core::search::{find_files_with_matches, SearchConfig},
+    core::walker::{FileInfo, WalkOptions},
+    ContextOptions,
 };
 use anyhow::Result;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 /// Run the search command
 pub fn run_search(mut config: Config) -> Result<()> {
@@ -89,9 +92,6 @@ pub fn run_search(mut config: Config) -> Result<()> {
 
         // Create a temporary directory list file to pass specific files
         // We'll use the existing pipeline but with a custom file filter
-        use crate::core::walker::{FileInfo, WalkOptions};
-        use crate::ContextOptions;
-        use std::sync::Arc;
 
         // Convert matched files to FileInfo
         let mut files = Vec::new();
