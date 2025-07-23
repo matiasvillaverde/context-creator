@@ -47,6 +47,12 @@ mod glob_pattern_test;
 #[path = "modules/ignore_patterns_test.rs"]
 mod ignore_patterns_test;
 
+// Output format tests
+#[path = "modules/formatters_test.rs"]
+mod formatters_test;
+#[path = "modules/output_format_test.rs"]
+mod output_format_test;
+
 // Semantic analysis tests
 #[path = "integration/cli_include_callers_simple_test.rs"]
 mod cli_include_callers_simple_test;

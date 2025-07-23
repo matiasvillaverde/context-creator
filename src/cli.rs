@@ -93,6 +93,24 @@ pub enum LogFormat {
     Json,
 }
 
+/// Output format options for the generated context
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Default)]
+pub enum OutputFormat {
+    /// Markdown format (default)
+    #[value(name = "markdown")]
+    #[default]
+    Markdown,
+    /// XML format with structured data
+    #[value(name = "xml")]
+    Xml,
+    /// Plain text format
+    #[value(name = "plain")]
+    Plain,
+    /// List of file paths only
+    #[value(name = "paths")]
+    Paths,
+}
+
 impl LlmTool {
     /// Get the command name for the tool
     pub fn command(&self) -> &'static str {
@@ -212,6 +230,10 @@ pub struct Config {
     #[arg(long = "enhanced-context")]
     pub enhanced_context: bool,
 
+    /// Output format style
+    #[arg(long = "style", value_enum, default_value = "markdown")]
+    pub output_format: OutputFormat,
+
     /// Enable import tracing for included files
     #[arg(long, help = "Include files that import the specified modules")]
     pub trace_imports: bool,
@@ -264,6 +286,7 @@ impl Default for Config {
             progress: false,
             copy: false,
             enhanced_context: false,
+            output_format: OutputFormat::default(),
             trace_imports: false,
             include_callers: false,
             include_types: false,
@@ -581,29 +604,8 @@ mod tests {
     #[test]
     fn test_config_validation_invalid_directory() {
         let config = Config {
-            prompt: None,
             paths: Some(vec![PathBuf::from("/nonexistent/directory")]),
-            include: None,
-            ignore: None,
-            remote: None,
-            read_stdin: false,
-            output_file: None,
-            max_tokens: None,
-            llm_tool: LlmTool::default(),
-            quiet: false,
-            verbose: 0,
-            log_format: LogFormat::default(),
-            config: None,
-            progress: false,
-            copy: false,
-            enhanced_context: false,
-            trace_imports: false,
-            include_callers: false,
-            include_types: false,
-            semantic_depth: 5,
-            custom_priorities: vec![],
-            config_token_limits: None,
-            config_defaults_max_tokens: None,
+            ..Default::default()
         };
 
         assert!(config.validate().is_err());
@@ -616,61 +618,21 @@ mod tests {
         fs::write(&file_path, "test").unwrap();
 
         let config = Config {
-            prompt: None,
             paths: Some(vec![file_path]),
-            include: None,
-            ignore: None,
-            remote: None,
-            read_stdin: false,
-            output_file: None,
-            max_tokens: None,
-            llm_tool: LlmTool::default(),
-            quiet: false,
-            verbose: 0,
-            log_format: LogFormat::default(),
-            config: None,
-            progress: false,
-            copy: false,
-            enhanced_context: false,
-            trace_imports: false,
-            include_callers: false,
-            include_types: false,
-            semantic_depth: 5,
-            custom_priorities: vec![],
-            config_token_limits: None,
-            config_defaults_max_tokens: None,
+            ..Default::default()
         };
 
-        assert!(config.validate().is_err());
+        // Files are now allowed as paths
+        assert!(config.validate().is_ok());
     }
 
     #[test]
     fn test_config_validation_invalid_output_directory() {
         let temp_dir = TempDir::new().unwrap();
         let config = Config {
-            prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
-            include: None,
-            ignore: None,
-            remote: None,
-            read_stdin: false,
             output_file: Some(PathBuf::from("/nonexistent/directory/output.md")),
-            max_tokens: None,
-            llm_tool: LlmTool::default(),
-            quiet: false,
-            verbose: 0,
-            log_format: LogFormat::default(),
-            config: None,
-            progress: false,
-            copy: false,
-            enhanced_context: false,
-            trace_imports: false,
-            include_callers: false,
-            include_types: false,
-            semantic_depth: 5,
-            custom_priorities: vec![],
-            config_token_limits: None,
-            config_defaults_max_tokens: None,
+            ..Default::default()
         };
 
         assert!(config.validate().is_err());
@@ -682,27 +644,8 @@ mod tests {
         let config = Config {
             prompt: Some("test prompt".to_string()),
             paths: Some(vec![temp_dir.path().to_path_buf()]),
-            include: None,
-            ignore: None,
-            remote: None,
-            read_stdin: false,
             output_file: Some(temp_dir.path().join("output.md")),
-            max_tokens: None,
-            llm_tool: LlmTool::default(),
-            quiet: false,
-            verbose: 0,
-            log_format: LogFormat::default(),
-            config: None,
-            progress: false,
-            copy: false,
-            enhanced_context: false,
-            trace_imports: false,
-            include_callers: false,
-            include_types: false,
-            semantic_depth: 5,
-            custom_priorities: vec![],
-            config_token_limits: None,
-            config_defaults_max_tokens: None,
+            ..Default::default()
         };
 
         assert!(config.validate().is_err());
@@ -981,29 +924,9 @@ mod tests {
     fn test_config_validation_output_file_in_current_dir() {
         let temp_dir = TempDir::new().unwrap();
         let config = Config {
-            prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
-            include: None,
-            ignore: None,
-            remote: None,
-            read_stdin: false,
             output_file: Some(PathBuf::from("output.md")),
-            max_tokens: None,
-            llm_tool: LlmTool::default(),
-            quiet: false,
-            verbose: 0,
-            log_format: LogFormat::default(),
-            config: None,
-            progress: false,
-            copy: false,
-            enhanced_context: false,
-            trace_imports: false,
-            include_callers: false,
-            include_types: false,
-            semantic_depth: 5,
-            custom_priorities: vec![],
-            config_token_limits: None,
-            config_defaults_max_tokens: None,
+            ..Default::default()
         };
 
         // Should not error for files in current directory
@@ -1014,29 +937,8 @@ mod tests {
     fn test_config_load_from_file_no_config() {
         let temp_dir = TempDir::new().unwrap();
         let mut config = Config {
-            prompt: None,
             paths: Some(vec![temp_dir.path().to_path_buf()]),
-            include: None,
-            ignore: None,
-            remote: None,
-            read_stdin: false,
-            output_file: None,
-            max_tokens: None,
-            llm_tool: LlmTool::default(),
-            quiet: false,
-            verbose: 0,
-            log_format: LogFormat::default(),
-            config: None,
-            progress: false,
-            copy: false,
-            enhanced_context: false,
-            trace_imports: false,
-            include_callers: false,
-            include_types: false,
-            semantic_depth: 5,
-            custom_priorities: vec![],
-            config_token_limits: None,
-            config_defaults_max_tokens: None,
+            ..Default::default()
         };
 
         // Should not error when no config file is found
@@ -1094,57 +996,15 @@ mod tests {
 
         // All directories exist - should succeed
         let config = Config {
-            prompt: None,
             paths: Some(vec![dir1.clone(), dir2.clone()]),
-            include: None,
-            ignore: None,
-            remote: None,
-            read_stdin: false,
-            output_file: None,
-            max_tokens: None,
-            llm_tool: LlmTool::default(),
-            quiet: false,
-            verbose: 0,
-            log_format: LogFormat::default(),
-            config: None,
-            progress: false,
-            copy: false,
-            enhanced_context: false,
-            trace_imports: false,
-            include_callers: false,
-            include_types: false,
-            semantic_depth: 5,
-            custom_priorities: vec![],
-            config_token_limits: None,
-            config_defaults_max_tokens: None,
+            ..Default::default()
         };
         assert!(config.validate().is_ok());
 
         // One directory doesn't exist - should fail
         let config = Config {
-            prompt: None,
             paths: Some(vec![dir1, PathBuf::from("/nonexistent/dir")]),
-            include: None,
-            ignore: None,
-            remote: None,
-            read_stdin: false,
-            output_file: None,
-            max_tokens: None,
-            llm_tool: LlmTool::default(),
-            quiet: false,
-            verbose: 0,
-            log_format: LogFormat::default(),
-            config: None,
-            progress: false,
-            copy: false,
-            enhanced_context: false,
-            trace_imports: false,
-            include_callers: false,
-            include_types: false,
-            semantic_depth: 5,
-            custom_priorities: vec![],
-            config_token_limits: None,
-            config_defaults_max_tokens: None,
+            ..Default::default()
         };
         assert!(config.validate().is_err());
     }
@@ -1157,32 +1017,11 @@ mod tests {
         fs::create_dir(&dir1).unwrap();
         fs::write(&file1, "test content").unwrap();
 
-        // Mix of directory and file - should fail
+        // Mix of directory and file - now allowed
         let config = Config {
-            prompt: None,
             paths: Some(vec![dir1, file1]),
-            include: None,
-            ignore: None,
-            remote: None,
-            read_stdin: false,
-            output_file: None,
-            max_tokens: None,
-            llm_tool: LlmTool::default(),
-            quiet: false,
-            verbose: 0,
-            log_format: LogFormat::default(),
-            config: None,
-            progress: false,
-            copy: false,
-            enhanced_context: false,
-            trace_imports: false,
-            include_callers: false,
-            include_types: false,
-            semantic_depth: 5,
-            custom_priorities: vec![],
-            config_token_limits: None,
-            config_defaults_max_tokens: None,
+            ..Default::default()
         };
-        assert!(config.validate().is_err());
+        assert!(config.validate().is_ok());
     }
 }
