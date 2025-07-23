@@ -373,7 +373,7 @@ mod edge_case_tests {
 
     #[test]
     fn test_help_shows_glob_examples() {
-        // Test that help text includes glob pattern examples
+        // Test that help text mentions examples command
         let mut cmd = Command::cargo_bin("context-creator").unwrap();
         cmd.arg("--help");
 
@@ -381,6 +381,18 @@ mod edge_case_tests {
             .success()
             .stdout(predicate::str::contains("glob pattern"))
             .stdout(predicate::str::contains("quote patterns"))
-            .stdout(predicate::str::contains("**/*.py"));
+            .stdout(predicate::str::contains(
+                "For usage examples, run: context-creator examples",
+            ));
+
+        // Test that examples command shows glob examples
+        let mut cmd = Command::cargo_bin("context-creator").unwrap();
+        cmd.arg("examples");
+
+        cmd.assert()
+            .success()
+            .stdout(predicate::str::contains("**/*.py"))
+            .stdout(predicate::str::contains("Pattern Matching:"))
+            .stdout(predicate::str::contains("--include \"**/*.py\""));
     }
 }
