@@ -1,7 +1,7 @@
 //! Directory walking functionality with .gitignore and .context-creator-ignore support
 
 use crate::utils::error::ContextCreatorError;
-use crate::utils::file_ext::FileType;
+use crate::utils::file_ext::{is_binary_extension, FileType};
 use anyhow::Result;
 use glob::Pattern;
 use ignore::{Walk, WalkBuilder};
@@ -471,11 +471,21 @@ fn process_file(path: &Path, root: &Path, options: &WalkOptions) -> Result<Optio
         }
     }
 
+    // Filter binary files if option is enabled
+    if options.filter_binary_files && is_binary_extension(path) {
+        return Ok(None);
+    }
+
     // Calculate relative path
     let relative_path = path.strip_prefix(root).unwrap_or(path).to_path_buf();
 
     // Determine file type
     let file_type = FileType::from_path(path);
+
+    // Also filter FileType::Other when binary filtering is enabled
+    if options.filter_binary_files && file_type == FileType::Other {
+        return Ok(None);
+    }
 
     // Calculate priority based on file type and custom priorities
     let priority = calculate_priority(&file_type, &relative_path, &options.custom_priorities);
@@ -1532,5 +1542,116 @@ mod tests {
 
         let options = WalkOptions::from_config(&config).unwrap();
         assert!(!options.filter_binary_files);
+    }
+
+    // === Binary File Filtering Tests (TDD - Red Phase) ===
+
+    #[test]
+    fn test_filter_binary_files_when_enabled() {
+        // Given: A directory with mixed file types
+        let temp_dir = TempDir::new().unwrap();
+        let root = temp_dir.path();
+
+        // Create test files
+        File::create(root.join("image.jpg")).unwrap();
+        File::create(root.join("video.mp4")).unwrap();
+        File::create(root.join("main.rs")).unwrap();
+        File::create(root.join("config.json")).unwrap();
+
+        // When: Walking with filter_binary_files = true
+        let options = WalkOptions {
+            filter_binary_files: true,
+            ..Default::default()
+        };
+        let files = walk_directory(root, options).unwrap();
+
+        // Then: Only text files are returned
+        assert_eq!(files.len(), 2);
+        assert!(files
+            .iter()
+            .any(|f| f.relative_path == PathBuf::from("main.rs")));
+        assert!(files
+            .iter()
+            .any(|f| f.relative_path == PathBuf::from("config.json")));
+        assert!(!files
+            .iter()
+            .any(|f| f.relative_path == PathBuf::from("image.jpg")));
+        assert!(!files
+            .iter()
+            .any(|f| f.relative_path == PathBuf::from("video.mp4")));
+    }
+
+    #[test]
+    fn test_no_filtering_when_disabled() {
+        // Given: Same mixed directory
+        let temp_dir = TempDir::new().unwrap();
+        let root = temp_dir.path();
+
+        // Create test files
+        File::create(root.join("image.jpg")).unwrap();
+        File::create(root.join("video.mp4")).unwrap();
+        File::create(root.join("main.rs")).unwrap();
+        File::create(root.join("config.json")).unwrap();
+
+        // When: Walking with filter_binary_files = false
+        let options = WalkOptions {
+            filter_binary_files: false,
+            ..Default::default()
+        };
+        let files = walk_directory(root, options).unwrap();
+
+        // Then: All files are returned
+        assert_eq!(files.len(), 4);
+        assert!(files
+            .iter()
+            .any(|f| f.relative_path == PathBuf::from("main.rs")));
+        assert!(files
+            .iter()
+            .any(|f| f.relative_path == PathBuf::from("config.json")));
+        assert!(files
+            .iter()
+            .any(|f| f.relative_path == PathBuf::from("image.jpg")));
+        assert!(files
+            .iter()
+            .any(|f| f.relative_path == PathBuf::from("video.mp4")));
+    }
+
+    #[test]
+    fn test_edge_case_files_without_extensions() {
+        // Given: Files without extensions and text files with misleading names
+        let temp_dir = TempDir::new().unwrap();
+        let root = temp_dir.path();
+
+        // Create edge case files
+        File::create(root.join("README")).unwrap();
+        File::create(root.join("LICENSE")).unwrap();
+        File::create(root.join("Makefile")).unwrap();
+        File::create(root.join("Dockerfile")).unwrap();
+        File::create(root.join("binary.exe")).unwrap();
+
+        // When: Walking with filter_binary_files = true
+        let options = WalkOptions {
+            filter_binary_files: true,
+            ..Default::default()
+        };
+        let files = walk_directory(root, options).unwrap();
+
+        // Then: Text files without extensions are kept, binaries are filtered
+        assert_eq!(files.len(), 4);
+        assert!(files
+            .iter()
+            .any(|f| f.relative_path == PathBuf::from("README")));
+        assert!(files
+            .iter()
+            .any(|f| f.relative_path == PathBuf::from("LICENSE")));
+        assert!(files
+            .iter()
+            .any(|f| f.relative_path == PathBuf::from("Makefile")));
+        assert!(files
+            .iter()
+            .any(|f| f.relative_path == PathBuf::from("Dockerfile")));
+        assert!(!files
+            .iter()
+            .any(|f| f.relative_path == PathBuf::from("binary.exe")));
     }
 }

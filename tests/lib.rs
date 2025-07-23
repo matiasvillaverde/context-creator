@@ -10,6 +10,8 @@
 mod semantic_test_helpers;
 
 // Core functionality tests
+#[path = "modules/binary_filtering_integration_test.rs"]
+mod binary_filtering_integration_test;
 #[path = "modules/binary_name_test.rs"]
 mod binary_name_test;
 #[path = "modules/cache_integration_test.rs"]
