@@ -392,25 +392,23 @@ fn test_search_binary_file_exclusion() {
 
 #[test]
 fn test_search_symlink_handling() {
-    use std::os::unix::fs::symlink;
-
     let temp_dir = create_test_project();
-    let link_path = temp_dir.path().join("src/auth_link.rs");
-
-    // Create symlink to auth.rs
-    #[cfg(unix)]
-    symlink(temp_dir.path().join("src/auth.rs"), &link_path).unwrap();
 
     #[cfg(unix)]
     {
-        let mut cmd = Command::cargo_bin("context-creator").unwrap();
-        cmd.arg("search")
-            .arg("AuthenticationService")
-            .arg(temp_dir.path())
-            .assert()
-            .success();
-        // Should handle symlinks gracefully (either follow or skip)
+        use std::os::unix::fs::symlink;
+        let link_path = temp_dir.path().join("src/auth_link.rs");
+        // Create symlink to auth.rs
+        symlink(temp_dir.path().join("src/auth.rs"), &link_path).unwrap();
     }
+
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
+    cmd.arg("search")
+        .arg("AuthenticationService")
+        .arg(temp_dir.path())
+        .assert()
+        .success();
+    // Should handle symlinks gracefully (either follow or skip)
 }
 
 #[test]
