@@ -23,7 +23,15 @@ const MAX_FILE_SIZE: u64 = 10 * 1024 * 1024;
 pub fn find_files_with_matches(config: &SearchConfig) -> Result<Vec<PathBuf>> {
     // Build the walker with include/exclude patterns
     let mut builder = WalkBuilder::new(config.path);
-    builder.hidden(false);
+
+    // Configure walker to respect gitignore and exclude hidden files
+    builder
+        .hidden(true) // Ignore hidden files (including .git)
+        .git_ignore(true) // Respect .gitignore
+        .git_global(true) // Respect global gitignore
+        .git_exclude(true) // Respect .git/info/exclude
+        .ignore(true) // Respect .ignore files
+        .parents(true); // Respect parent .gitignore files
 
     // Enable parallel walking for maximum performance
     builder.threads(num_cpus::get());

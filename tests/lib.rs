@@ -44,6 +44,8 @@ mod logging_test;
 mod search_acceptance_test;
 #[path = "modules/search_command_test.rs"]
 mod search_command_test;
+#[path = "modules/search_gitignore_test.rs"]
+mod search_gitignore_test;
 #[path = "modules/search_integration_test.rs"]
 mod search_integration_test;
 #[path = "modules/search_semantic_test.rs"]
