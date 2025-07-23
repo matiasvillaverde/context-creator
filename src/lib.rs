@@ -31,9 +31,14 @@ pub fn run(mut config: Config) -> Result<()> {
     // This ensures mutual exclusivity checks work correctly
     config.validate()?;
 
-    // Handle search command if present
-    if matches!(&config.command, Some(cli::Commands::Search { .. })) {
-        return commands::run_search(config);
+    // Handle commands if present
+    match &config.command {
+        Some(cli::Commands::Search { .. }) => return commands::run_search(config),
+        Some(cli::Commands::Examples) => {
+            println!("{}", cli::USAGE_EXAMPLES);
+            return Ok(());
+        }
+        None => {} // Continue with normal processing
     }
 
     // Handle remote repository if specified

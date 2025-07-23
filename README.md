@@ -133,6 +133,27 @@ The tool:
 3. Finds all callers (checkout flow, refund handlers, admin tools)
 4. Builds a complete context of how payments flow through your system
 
+### 🔍 Search Command
+
+Search for specific terms across your codebase and automatically build comprehensive context:
+
+```bash
+# Search with automatic semantic analysis
+context-creator search "AuthenticationService"
+
+# Search without semantic analysis (faster, but less comprehensive)
+context-creator search "TODO" --no-semantic
+
+# Search in specific directories
+context-creator search "database" src/ tests/
+```
+
+The search command:
+- Uses parallel processing across all CPU cores
+- Streams files line-by-line (memory efficient)
+- Respects `.gitignore` and `.contextignore` patterns
+- Automatically enables `--trace-imports`, `--include-callers`, and `--include-types` for comprehensive context
+
 ## Configuration
 
 ### `.contextkeep` - Prioritize Critical Files

@@ -4,7 +4,82 @@ use clap::{Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 use tracing::debug;
 
-/// Help message explaining custom priority rules and usage
+/// Usage examples for the examples command
+pub const USAGE_EXAMPLES: &str = "\
+USAGE EXAMPLES:
+
+Basic Usage:
+  # Process current directory
+  context-creator
+  
+  # Process specific directories
+  context-creator src/ tests/ docs/
+  
+  # Save to file
+  context-creator -o context.md
+
+Pattern Matching:
+  # Include specific file types (quote patterns to prevent shell expansion)
+  context-creator --include \"**/*.py\" --include \"src/**/*.{rs,toml}\"
+  
+  # Exclude patterns
+  context-creator --ignore \"**/*_test.py\" --ignore \"**/migrations/**\"
+  
+  # Combine includes and excludes
+  context-creator --include \"**/*.ts\" --ignore \"node_modules/**\"
+
+Search Command:
+  # Search for a term with automatic semantic analysis
+  context-creator search \"AuthenticationService\"
+  
+  # Search without semantic analysis (faster)
+  context-creator search \"TODO\" --no-semantic
+  
+  # Search in specific directories
+  context-creator search \"database\" src/ tests/
+
+Semantic Analysis:
+  # Trace import dependencies
+  context-creator --trace-imports --include \"**/auth.py\"
+  
+  # Find function callers
+  context-creator --include-callers --include \"**/payment.ts\"
+  
+  # Include type definitions
+  context-creator --include-types --include \"**/models/**\"
+  
+  # Control traversal depth
+  context-creator --semantic-depth 5 --include \"src/core/**\"
+
+LLM Integration:
+  # Ask questions about your codebase
+  context-creator --prompt \"How does authentication work?\"
+  
+  # Targeted analysis
+  context-creator --prompt \"Review security\" --include \"src/auth/**\"
+  
+  # Read prompt from stdin
+  echo \"Find performance issues\" | context-creator --stdin
+
+Remote Repositories:
+  # Analyze GitHub repository
+  context-creator --repo https://github.com/owner/repo
+  
+  # With specific patterns
+  context-creator --repo https://github.com/facebook/react --include \"**/*.js\"
+
+Advanced Options:
+  # Copy to clipboard
+  context-creator --include \"**/*.py\" --copy
+  
+  # Set token limit
+  context-creator --max-tokens 100000
+  
+  # Verbose logging
+  context-creator -vv --include \"src/**\"
+";
+
+/// Help message explaining custom priority rules
 const AFTER_HELP_MSG: &str = "\
 CUSTOM PRIORITY RULES:
   Custom priority rules are processed in a 'first-match-wins' basis. Rules are 
@@ -21,52 +96,7 @@ CUSTOM PRIORITY RULES:
     pattern = \"tests/*\"
     weight = -2.0
 
-USAGE EXAMPLES:
-  # Process current directory with a prompt
-  context-creator --prompt \"Analyze this code\"
-  
-  # Process specific directories (positional arguments)
-  context-creator src/ tests/ docs/
-  
-  # Process specific directories (explicit include flags)
-  context-creator --include src/ --include tests/ --include docs/
-  
-  # Process files matching glob patterns (QUOTE patterns to prevent shell expansion)
-  context-creator --include \"**/*.py\" --include \"src/**/*.{rs,toml}\"
-  
-  # Process specific file types across all directories
-  context-creator --include \"**/*repository*.py\" --include \"**/test[0-9].py\"
-  
-  # Combine prompt with include patterns for targeted analysis
-  context-creator --prompt \"Review security\" --include \"src/auth/**\" --include \"src/security/**\"
-  
-  # Use ignore patterns to exclude unwanted files
-  context-creator --include \"**/*.rs\" --ignore \"target/**\" --ignore \"**/*_test.rs\"
-  
-  # Combine prompt with ignore patterns
-  context-creator --prompt \"Analyze core logic\" --ignore \"tests/**\" --ignore \"docs/**\"
-  
-  # Process a GitHub repository
-  context-creator --remote https://github.com/owner/repo
-  
-  # Read prompt from stdin
-  echo \"Review this code\" | context-creator --stdin .
-  
-  # FLEXIBLE COMBINATIONS (NEW):
-  # Combine prompt with specific directories
-  context-creator --prompt \"Security audit\" src/auth/ src/security/
-  
-  # Combine prompt with GitHub repository
-  context-creator --prompt \"Find bugs\" --remote https://github.com/owner/repo
-  
-  # Combine stdin with specific directories
-  echo \"Analyze patterns\" | context-creator --stdin src/ tests/
-  
-  # Combine include patterns with GitHub repository
-  context-creator --include \"**/*.rs\" --remote https://github.com/owner/repo
-  
-  # Combine stdin with include patterns
-  echo \"Review code\" | context-creator --stdin --include \"**/*.py\"
+For usage examples, run: context-creator examples
 ";
 
 /// Supported LLM CLI tools
@@ -170,6 +200,9 @@ pub enum Commands {
         #[arg(value_name = "PATHS")]
         paths: Option<Vec<PathBuf>>,
     },
+
+    /// Show usage examples
+    Examples,
 }
 
 /// High-performance CLI tool to convert codebases to Markdown for LLM context
