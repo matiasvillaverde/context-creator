@@ -34,6 +34,11 @@ pub fn run(mut config: Config) -> Result<()> {
     // Handle commands if present
     match &config.command {
         Some(cli::Commands::Search { .. }) => return commands::run_search(config),
+        Some(cli::Commands::Diff { .. }) => {
+            // TODO: Implement diff command
+            println!("Diff command not yet implemented");
+            return Ok(());
+        }
         Some(cli::Commands::Examples) => {
             println!("{}", cli::USAGE_EXAMPLES);
             return Ok(());
