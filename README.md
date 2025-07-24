@@ -38,6 +38,9 @@ context-creator --prompt "I need to add WebAuthn support. Which files need chang
 
 # Architecture review
 context-creator --prompt "Generate a dependency graph of the payment processing module"
+
+# Analyze git changes
+context-creator diff HEAD~1 HEAD
 ```
 
 ## Real-World Examples
@@ -66,6 +69,12 @@ Include relevant files and create a sequence diagram."
 ```bash
 context-creator --prompt "Review authentication and authorization code for vulnerabilities.
 Focus on JWT handling and session management."
+```
+
+### 📋 Change Analysis
+```bash
+context-creator diff HEAD~10 HEAD --prompt "Summarize all changes in the last 10 commits.
+What are the main features added and potential risks introduced?"
 ```
 
 ## How It Works
@@ -153,6 +162,52 @@ The search command:
 - Streams files line-by-line (memory efficient)
 - Respects `.gitignore` and `.contextignore` patterns
 - Automatically enables `--trace-imports`, `--include-callers`, and `--include-types` for comprehensive context
+
+### 📈 Git Diff Command
+
+Analyze changes between git references with intelligent context building:
+
+```bash
+# Compare current working directory with last commit
+context-creator diff HEAD~1 HEAD
+
+# Compare two branches
+context-creator diff main feature-branch
+
+# Compare with specific commit hash
+context-creator diff a1b2c3d HEAD
+
+# Save diff analysis to file
+context-creator --output-file diff-analysis.md diff HEAD~1 HEAD
+
+# Apply token limits to focus on most important changes
+context-creator --max-tokens 50000 diff HEAD~5 HEAD
+
+# Include semantic analysis of changed files
+context-creator --trace-imports --include-callers --include-types diff main HEAD
+```
+
+The diff command:
+- **Security hardened** - Validates git references to prevent command injection attacks
+- **Markdown formatted** - Generates structured analysis with file contents and statistics
+- **Token aware** - Respects token limits and prioritizes most important changed files
+- **Semantic integration** - Optionally includes dependency analysis of changed files
+- **Change statistics** - Shows files changed, lines added/removed, and estimated token usage
+
+#### Git Diff Output Format
+
+The generated analysis includes:
+1. **Diff Statistics** - Summary of files changed, lines added/removed
+2. **Changed Files List** - All modified files with relative paths
+3. **File Contents** - Full content of changed files with syntax highlighting
+4. **Context Statistics** - Token count and processing summary
+5. **Semantic Analysis** - Optional dependency and caller information
+
+Perfect for:
+- **Code reviews** - Generate comprehensive change summaries
+- **Feature documentation** - Document what changed in a feature branch
+- **Impact analysis** - Understand scope of changes across git references
+- **LLM analysis** - Feed git diffs to AI for automated review and suggestions
 
 ## Configuration
 
