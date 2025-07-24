@@ -22,7 +22,7 @@ fn test_version_output_contains_new_name() {
         .assert()
         .success()
         .stdout(predicate::str::contains("context-creator"))
-        .stdout(predicate::str::contains("1.2.0"));
+        .stdout(predicate::str::contains("1.3.0"));
 }
 
 #[test]
