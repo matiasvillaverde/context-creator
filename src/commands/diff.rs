@@ -1,9 +1,7 @@
 //! Git diff command implementation
 
 use crate::cli::{Commands, Config};
-use crate::core::{
-    cache::FileCache, context_builder::ContextOptions,
-};
+use crate::core::{cache::FileCache, context_builder::ContextOptions};
 use crate::utils::git;
 use anyhow::{anyhow, Result};
 use std::path::PathBuf;
@@ -19,7 +17,7 @@ pub fn run_diff(config: Config) -> Result<()> {
 
     // Determine the working directory (current directory by default)
     let working_dir = std::env::current_dir()?;
-    
+
     // Check if we're in a git repository
     if !git::is_git_repository(&working_dir) {
         return Err(anyhow!(
@@ -38,7 +36,7 @@ pub fn run_diff(config: Config) -> Result<()> {
     };
 
     if changed_files.is_empty() {
-        println!("No files changed between {} and {}", from, to);
+        println!("No files changed between {from} and {to}");
         return Ok(());
     }
 
@@ -80,7 +78,13 @@ pub fn run_diff(config: Config) -> Result<()> {
     };
 
     // Generate the diff markdown
-    let mut markdown = generate_diff_markdown(&from, &to, &stats, &files_to_process, &context_options, cache)?;
+    let mut markdown = generate_diff_markdown(DiffMarkdownParams {
+        from: &from,
+        to: &to,
+        stats: &stats,
+        files: &files_to_process,
+        cache,
+    })?;
 
     // Handle semantic analysis if requested
     if config.trace_imports || config.include_callers || config.include_types {
@@ -95,66 +99,67 @@ pub fn run_diff(config: Config) -> Result<()> {
         std::fs::write(output_file, &markdown)?;
         info!("Diff analysis written to: {:?}", output_file);
     } else {
-        print!("{}", markdown);
+        print!("{markdown}");
     }
 
     Ok(())
 }
 
-/// Generate markdown content for the diff
-fn generate_diff_markdown(
-    from: &str,
-    to: &str,
-    stats: &git::DiffStats,
-    files: &[PathBuf],
-    _context_options: &ContextOptions,
+/// Parameters for generating diff markdown
+struct DiffMarkdownParams<'a> {
+    from: &'a str,
+    to: &'a str,
+    stats: &'a git::DiffStats,
+    files: &'a [PathBuf],
     cache: Arc<FileCache>,
-) -> Result<String> {
+}
+
+/// Generate markdown content for the diff
+fn generate_diff_markdown(params: DiffMarkdownParams) -> Result<String> {
     let mut markdown = String::new();
 
     // Header
-    markdown.push_str(&format!("# Git Diff Analysis: {} → {}\n\n", from, to));
+    markdown.push_str(&format!(
+        "# Git Diff Analysis: {} → {}\n\n",
+        params.from, params.to
+    ));
 
     // Statistics
     markdown.push_str("## Diff Statistics\n\n");
     markdown.push_str(&format!(
         "- **Files changed**: {}\n",
-        stats.files_changed
+        params.stats.files_changed
     ));
-    markdown.push_str(&format!("- **Lines added**: {}\n", stats.insertions));
-    markdown.push_str(&format!("- **Lines removed**: {}\n", stats.deletions));
-    markdown.push_str("\n");
+    markdown.push_str(&format!("- **Lines added**: {}\n", params.stats.insertions));
+    markdown.push_str(&format!(
+        "- **Lines removed**: {}\n",
+        params.stats.deletions
+    ));
+    markdown.push('\n');
 
     // Changed files summary
     markdown.push_str("## Changed Files\n\n");
-    for file in files {
-        let relative_path = file
-            .strip_prefix(std::env::current_dir()?)
-            .unwrap_or(file);
+    for file in params.files {
+        let relative_path = file.strip_prefix(std::env::current_dir()?).unwrap_or(file);
         markdown.push_str(&format!("- `{}`\n", relative_path.display()));
     }
-    markdown.push_str("\n");
+    markdown.push('\n');
 
     // File contents
     markdown.push_str("## File Contents\n\n");
-    
-    for file in files {
-        let relative_path = file
-            .strip_prefix(std::env::current_dir()?)
-            .unwrap_or(file);
-            
+
+    for file in params.files {
+        let relative_path = file.strip_prefix(std::env::current_dir()?).unwrap_or(file);
+
         markdown.push_str(&format!("### {}\n\n", relative_path.display()));
-        
+
         // Determine file extension for syntax highlighting
-        let extension = file
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .unwrap_or("");
-        
+        let extension = file.extension().and_then(|ext| ext.to_str()).unwrap_or("");
+
         let language = match extension {
             "rs" => "rust",
             "py" => "python",
-            "js" => "javascript", 
+            "js" => "javascript",
             "ts" => "typescript",
             "go" => "go",
             "java" => "java",
@@ -170,12 +175,12 @@ fn generate_diff_markdown(
         };
 
         // Read file content
-        match cache.get_or_load(file) {
+        match params.cache.get_or_load(file) {
             Ok(content) => {
-                markdown.push_str(&format!("```{}\n{}\n```\n\n", language, content));
+                markdown.push_str(&format!("```{language}\n{content}\n```\n\n"));
             }
             Err(e) => {
-                markdown.push_str(&format!("*Error reading file: {}*\n\n", e));
+                markdown.push_str(&format!("*Error reading file: {e}*\n\n"));
             }
         }
     }
@@ -183,8 +188,8 @@ fn generate_diff_markdown(
     // Context statistics
     let total_tokens = estimate_token_count(&markdown);
     markdown.push_str("## Context Statistics\n\n");
-    markdown.push_str(&format!("- **Files processed**: {}\n", files.len()));
-    markdown.push_str(&format!("- **Estimated tokens**: {}\n", total_tokens));
+    markdown.push_str(&format!("- **Files processed**: {}\n", params.files.len()));
+    markdown.push_str(&format!("- **Estimated tokens**: {total_tokens}\n"));
 
     Ok(markdown)
 }

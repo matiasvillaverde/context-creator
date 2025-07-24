@@ -18,7 +18,7 @@ fn validate_git_reference(git_ref: &str) -> Result<()> {
     if git_ref.is_empty() {
         return Err(anyhow!("Git reference cannot be empty"));
     }
-    
+
     // Check for dangerous characters that could be used for command injection
     let dangerous_chars = [';', '&', '|', '`', '$', '(', ')', '\n', '\r'];
     for &ch in &dangerous_chars {
@@ -26,12 +26,12 @@ fn validate_git_reference(git_ref: &str) -> Result<()> {
             return Err(anyhow!("Invalid character in git reference: '{}'", ch));
         }
     }
-    
+
     // Additional length check to prevent extremely long inputs
     if git_ref.len() > 256 {
         return Err(anyhow!("Git reference too long"));
     }
-    
+
     Ok(())
 }
 
@@ -43,11 +43,11 @@ fn sanitize_git_error(error_output: &str) -> String {
         .filter(|line| !line.contains("fatal:") || line.contains("unknown revision"))
         .collect::<Vec<_>>()
         .join("\n");
-    
+
     if sanitized.is_empty() {
         "Invalid git reference".to_string()
     } else {
-        format!("Git error: {}", sanitized)
+        format!("Git error: {sanitized}")
     }
 }
 
@@ -74,7 +74,7 @@ pub fn get_changed_files<P: AsRef<Path>>(
     // Validate git references to prevent command injection
     validate_git_reference(from)?;
     validate_git_reference(to)?;
-    
+
     let output = Command::new("git")
         .args(["diff", "--name-only", from, to])
         .current_dir(repo_path.as_ref())
@@ -88,7 +88,7 @@ pub fn get_changed_files<P: AsRef<Path>>(
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let mut files = Vec::new();
-    
+
     for line in stdout.lines() {
         let line = line.trim();
         if !line.is_empty() {
@@ -106,7 +106,7 @@ pub fn get_diff_stats<P: AsRef<Path>>(repo_path: P, from: &str, to: &str) -> Res
     // Validate git references to prevent command injection
     validate_git_reference(from)?;
     validate_git_reference(to)?;
-    
+
     let output = Command::new("git")
         .args(["diff", "--numstat", from, to])
         .current_dir(repo_path.as_ref())

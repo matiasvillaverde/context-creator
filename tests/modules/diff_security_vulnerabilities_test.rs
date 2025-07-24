@@ -81,26 +81,21 @@ fn test_command_injection_vulnerability_in_git_references() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
 
-    println!("Command output: {}", stdout);
-    println!("Command stderr: {}", stderr);
+    println!("Command output: {stdout}");
+    println!("Command stderr: {stderr}");
 
     // If injection_proof.txt exists, it means command injection occurred
     if injection_proof.exists() {
-        panic!(
-            "CRITICAL SECURITY VULNERABILITY: Command injection successful! File created at: {:?}",
-            injection_proof
-        );
+        panic!("CRITICAL SECURITY VULNERABILITY: Command injection successful! File created at: {injection_proof:?}");
     }
 
     // Even if injection didn't occur, the git reference should be rejected
     // A secure implementation should validate git references
     assert!(
-        output.status.success() == false
+        !output.status.success()
             || stdout.contains("invalid")
             || stderr.contains("invalid"),
-        "Git references containing shell commands should be rejected. Got stdout: {}, stderr: {}",
-        stdout,
-        stderr
+        "Git references containing shell commands should be rejected. Got stdout: {stdout}, stderr: {stderr}"
     );
 }
 
@@ -125,14 +120,12 @@ fn test_path_traversal_vulnerability_in_file_paths() {
     // The current implementation doesn't validate file paths returned by git
     // This is a potential vulnerability if git output is not trusted
     println!("Testing path traversal resistance...");
-    println!("Output: {}", stdout);
+    println!("Output: {stdout}");
 
     // A secure implementation should sanitize all file paths
     // This test documents the expected security behavior
-    assert!(
-        true, // This test documents the vulnerability rather than testing it directly
-        "Path traversal vulnerability exists in git.rs line 42 - paths should be validated"
-    );
+    // Test passes - documenting the security consideration
+    println!("Path traversal vulnerability exists in git.rs line 42 - paths should be validated");
 }
 
 /// TEST FAILURE: Git reference validation test
@@ -167,24 +160,19 @@ fn test_git_reference_validation_missing() {
 
         // A secure implementation should reject these references
         // Currently, they may be passed directly to git command
-        println!("Testing malicious ref: {}", malicious_ref);
-        println!("Stdout: {}", stdout);
-        println!("Stderr: {}", stderr);
+        println!("Testing malicious ref: {malicious_ref}");
+        println!("Stdout: {stdout}");
+        println!("Stderr: {stderr}");
 
         // Document the security expectation
         if output.status.success() && !stderr.contains("invalid") && !stdout.contains("invalid") {
-            println!(
-                "WARNING: Malicious git reference '{}' was not rejected. This indicates insufficient input validation.",
-                malicious_ref
-            );
+            println!("WARNING: Malicious git reference '{malicious_ref}' was not rejected. This indicates insufficient input validation.");
         }
     }
 
     // This test documents that git reference validation is missing
-    assert!(
-        true,
-        "Git reference validation is missing - all malicious patterns should be rejected"
-    );
+    // Test passes - documenting the security consideration
+    println!("Git reference validation is missing - all malicious patterns should be rejected");
 }
 
 /// TEST FAILURE: Error message information disclosure test
@@ -202,22 +190,20 @@ fn test_error_message_information_disclosure() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    println!("Error output: {}", stderr);
-    println!("Stdout: {}", stdout);
+    println!("Error output: {stderr}");
+    println!("Stdout: {stdout}");
 
     // Current implementation in git.rs lines 34, 57, 102 exposes raw git stderr
     // This could leak sensitive information about the repository or filesystem
 
     // A secure implementation should sanitize error messages
     if stderr.contains("fatal:") || stderr.contains("error:") {
-        println!("WARNING: Raw git error messages exposed: {}", stderr);
+        println!("WARNING: Raw git error messages exposed: {stderr}");
     }
 
     // Document the security expectation
-    assert!(
-        true,
-        "Error messages should be sanitized to prevent information disclosure"
-    );
+    // Test passes - documenting the security consideration
+    println!("Error messages should be sanitized to prevent information disclosure");
 }
 
 /// TEST FAILURE: Resource exhaustion test
@@ -239,10 +225,8 @@ fn test_no_resource_limits_on_git_operations() {
         .unwrap();
 
     // Document the security expectation
-    assert!(
-        true,
-        "Git operations should have timeouts and resource limits to prevent DoS attacks"
-    );
+    // Test passes - documenting the security consideration
+    println!("Git operations should have timeouts and resource limits to prevent DoS attacks");
 
     println!("Git operations have no resource limits - potential DoS vulnerability");
 }
