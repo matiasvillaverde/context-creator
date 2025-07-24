@@ -38,6 +38,22 @@ Search Command:
   # Search in specific directories
   context-creator search \"database\" src/ tests/
 
+Git Diff Command:
+  # Compare current changes with last commit
+  context-creator diff HEAD~1 HEAD
+  
+  # Compare two branches
+  context-creator diff main feature-branch
+  
+  # Save diff analysis to file
+  context-creator --output-file changes.md diff HEAD~1 HEAD
+  
+  # Apply token limits for large diffs
+  context-creator --max-tokens 50000 diff HEAD~5 HEAD
+  
+  # Include semantic analysis of changed files
+  context-creator --trace-imports --include-callers diff main HEAD
+
 Semantic Analysis:
   # Trace import dependencies
   context-creator --trace-imports --include \"**/auth.py\"
@@ -199,6 +215,15 @@ pub enum Commands {
         /// Search within specific paths
         #[arg(value_name = "PATHS")]
         paths: Option<Vec<PathBuf>>,
+    },
+
+    /// Compare files between git references
+    Diff {
+        /// Source git reference (branch, tag, commit)
+        from: String,
+
+        /// Target git reference (branch, tag, commit)
+        to: String,
     },
 
     /// Show usage examples

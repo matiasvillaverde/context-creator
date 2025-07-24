@@ -40,6 +40,16 @@ mod cli_repo_paths_bug_test;
 mod cli_test;
 #[path = "modules/cli_uncovered_scenarios_test.rs"]
 mod cli_uncovered_scenarios_test;
+#[path = "modules/diff_cli_test.rs"]
+mod diff_cli_test;
+#[path = "modules/diff_functionality_missing_test.rs"]
+mod diff_functionality_missing_test;
+#[path = "modules/diff_security_vulnerabilities_test.rs"]
+mod diff_security_vulnerabilities_test;
+#[path = "modules/git_utilities_test.rs"]
+mod git_utilities_test;
+#[path = "modules/git_utilities_vulnerability_test.rs"]
+mod git_utilities_vulnerability_test;
 #[path = "modules/logging_test.rs"]
 mod logging_test;
 #[path = "modules/search_acceptance_test.rs"]
