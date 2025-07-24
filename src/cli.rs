@@ -201,6 +201,15 @@ pub enum Commands {
         paths: Option<Vec<PathBuf>>,
     },
 
+    /// Compare files between git references
+    Diff {
+        /// Source git reference (branch, tag, commit)
+        from: String,
+
+        /// Target git reference (branch, tag, commit)
+        to: String,
+    },
+
     /// Show usage examples
     Examples,
 }
