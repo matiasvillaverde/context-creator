@@ -254,6 +254,7 @@ fn bench_end_to_end_processing(c: &mut Criterion) {
                         include_toc: true,
                         enhanced_context: false,
                         git_context: false,
+                        git_context_depth: 3,
                     };
 
                     let cache = Arc::new(FileCache::new());
