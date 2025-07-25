@@ -129,6 +129,27 @@ context-creator --prompt "Quick auth overview" --include-types --semantic-depth 
 context-creator --prompt "Full dependency analysis" --include-types --semantic-depth 10
 ```
 
+#### `--git-context` - Include Git History in File Headers
+```bash
+# Include recent commit messages for each file
+context-creator --prompt "Review recent changes" --git-context
+
+# Combine with enhanced context for full metadata
+context-creator --enhanced-context --git-context
+
+# Useful for understanding code evolution
+context-creator --include "src/auth/**" --git-context --prompt "How has authentication evolved?"
+```
+
+When enabled, adds git commit history to each file header:
+```markdown
+## src/auth/login.rs
+Git history:
+  - feat: add OAuth2 support by John Doe
+  - fix: handle rate limiting in login flow by Jane Smith
+  - refactor: extract validation logic by John Doe
+```
+
 ### 📊 Real-World Dependency Graph Example
 
 When you run:

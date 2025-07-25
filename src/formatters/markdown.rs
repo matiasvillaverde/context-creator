@@ -6,7 +6,9 @@ use crate::core::context_builder::{
     generate_statistics, get_language_hint, path_to_anchor,
 };
 use crate::core::walker::FileInfo;
+use crate::utils::git::{format_git_context_to_markdown, get_file_git_context_with_depth};
 use anyhow::Result;
+use std::path::Path;
 
 /// Formatter that outputs standard Markdown format
 pub struct MarkdownFormatter {
@@ -85,7 +87,23 @@ impl DigestFormatter for MarkdownFormatter {
             .file_header_template
             .replace("{path}", &path_with_metadata);
         self.buffer.push_str(&header);
-        self.buffer.push_str("\n\n");
+        self.buffer.push('\n');
+
+        // Add git context if enabled
+        if data.options.git_context {
+            // Find the repository root from the file path
+            let repo_root = file.path.parent().unwrap_or(Path::new("."));
+            if let Some(git_context) = get_file_git_context_with_depth(
+                repo_root,
+                &file.path,
+                data.options.git_context_depth,
+            ) {
+                self.buffer
+                    .push_str(&format_git_context_to_markdown(&git_context));
+            }
+        }
+
+        self.buffer.push('\n');
 
         // Add semantic information
         add_markdown_semantic_info(&mut self.buffer, file);

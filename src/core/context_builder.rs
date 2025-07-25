@@ -5,6 +5,7 @@ use crate::core::cache::FileCache;
 use crate::core::walker::FileInfo;
 use crate::formatters::{create_formatter, DigestData};
 use crate::utils::file_ext::FileType;
+use crate::utils::git::{format_git_context_to_markdown, get_file_git_context_with_depth};
 use anyhow::Result;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -32,6 +33,10 @@ pub struct ContextOptions {
     pub include_toc: bool,
     /// Enable enhanced context with file metadata
     pub enhanced_context: bool,
+    /// Include git commit history in file headers
+    pub git_context: bool,
+    /// Number of git commits to show per file
+    pub git_context_depth: usize,
 }
 
 impl ContextOptions {
@@ -47,6 +52,8 @@ impl ContextOptions {
             doc_header_template: "# Code Context: {directory}".to_string(),
             include_toc: true,
             enhanced_context: config.enhanced_context,
+            git_context: config.git_context,
+            git_context_depth: config.git_context_depth,
         })
     }
 }
@@ -63,6 +70,8 @@ impl Default for ContextOptions {
             doc_header_template: "# Code Context: {directory}".to_string(),
             include_toc: true,
             enhanced_context: false,
+            git_context: false,
+            git_context_depth: 3,
         }
     }
 }
@@ -304,7 +313,20 @@ fn add_file_header(output: &mut String, file: &FileInfo, options: &ContextOption
         .file_header_template
         .replace("{path}", &path_with_metadata);
     output.push_str(&header);
-    output.push_str("\n\n");
+    output.push('\n');
+
+    // Add git context if enabled
+    if options.git_context {
+        // Find the repository root from the file path
+        let repo_root = file.path.parent().unwrap_or(Path::new("."));
+        if let Some(git_context) =
+            get_file_git_context_with_depth(repo_root, &file.path, options.git_context_depth)
+        {
+            output.push_str(&format_git_context_to_markdown(&git_context));
+        }
+    }
+
+    output.push('\n');
 }
 
 pub fn format_path_with_metadata(file: &FileInfo, options: &ContextOptions) -> String {
@@ -957,6 +979,8 @@ mod tests {
             doc_header_template: "# Code Context".to_string(),
             include_toc: true,
             enhanced_context: false,
+            git_context: false,
+            git_context_depth: 3,
         };
 
         let cache = create_test_cache();
@@ -1010,6 +1034,8 @@ mod tests {
             doc_header_template: "# Code Context".to_string(),
             include_toc: true,
             enhanced_context: true,
+            git_context: false,
+            git_context_depth: 3,
         };
 
         let cache = create_test_cache();
@@ -1049,6 +1075,8 @@ mod tests {
             doc_header_template: "# Code Context".to_string(),
             include_toc: true,
             enhanced_context: true,
+            git_context: false,
+            git_context_depth: 3,
         };
 
         let cache = create_test_cache();
@@ -1087,6 +1115,8 @@ mod tests {
             doc_header_template: "# Code Context".to_string(),
             include_toc: true,
             enhanced_context: false,
+            git_context: false,
+            git_context_depth: 3,
         };
 
         let cache = create_test_cache();

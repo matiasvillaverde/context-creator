@@ -157,6 +157,8 @@ fn bench_file_prioritization(c: &mut Criterion) {
             doc_header_template: "# Code Context".to_string(),
             include_toc: true,
             enhanced_context: false,
+            git_context: false,
+            git_context_depth: 3,
         };
 
         group.throughput(Throughput::Elements(file_count as u64));
@@ -197,6 +199,8 @@ fn bench_markdown_generation(c: &mut Criterion) {
             doc_header_template: "# Code Context".to_string(),
             include_toc: true,
             enhanced_context: false,
+            git_context: false,
+            git_context_depth: 3,
         };
 
         group.throughput(Throughput::Elements(file_count as u64));
@@ -249,6 +253,8 @@ fn bench_end_to_end_processing(c: &mut Criterion) {
                         doc_header_template: "# Code Context".to_string(),
                         include_toc: true,
                         enhanced_context: false,
+                        git_context: false,
+                        git_context_depth: 3,
                     };
 
                     let cache = Arc::new(FileCache::new());
