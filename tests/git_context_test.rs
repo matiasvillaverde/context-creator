@@ -181,54 +181,63 @@ fn test_get_file_git_context_limit_commits() {
 fn test_path_resolution_with_repo_discovery() {
     let repo = setup_git_repo_with_file_history();
     let repo_path = repo.path();
-    
+
     // Create a subdirectory with a file
     let subdir = repo_path.join("src");
     std::fs::create_dir(&subdir).unwrap();
     let nested_file = subdir.join("lib.rs");
     std::fs::write(&nested_file, "pub fn hello() {}").unwrap();
-    
+
     // Commit the nested file
     Command::new("git")
         .args(["add", "."])
         .current_dir(repo_path)
         .status()
         .expect("Failed to git add");
-    
+
     Command::new("git")
         .args(["commit", "-m", "feat: add nested file"])
         .current_dir(repo_path)
         .status()
         .expect("Failed to create commit");
-    
+
     // Test with absolute paths - should work correctly
     let context = get_file_git_context(repo_path, &nested_file);
-    assert!(context.is_some(), "Should find git context for nested file with absolute paths");
-    
+    assert!(
+        context.is_some(),
+        "Should find git context for nested file with absolute paths"
+    );
+
     // Test that we can find the repo root from the subdirectory
     let context_from_subdir = get_file_git_context(&subdir, &nested_file);
-    assert!(context_from_subdir.is_some(), "Should find git context when starting from subdirectory");
+    assert!(
+        context_from_subdir.is_some(),
+        "Should find git context when starting from subdirectory"
+    );
 }
 
-#[test] 
+#[test]
 fn test_relative_path_handling() {
     let repo = setup_git_repo_with_file_history();
     let repo_path = repo.path();
     let file_path = repo_path.join("test_file.rs");
-    
+
     // Test that relative paths work correctly
     let context = get_file_git_context(repo_path, &file_path);
     assert!(context.is_some(), "Should handle paths correctly");
-    
+
     if let Some(ctx) = context {
-        assert!(!ctx.recent_commits.is_empty(), "Should find commits for the file");
+        assert!(
+            !ctx.recent_commits.is_empty(),
+            "Should find commits for the file"
+        );
     }
 }
 
 #[test]
 fn test_format_git_context_to_markdown() {
     use context_creator::utils::git::{format_git_context_to_markdown, CommitInfo, GitContext};
-    
+
     let git_context = GitContext {
         recent_commits: vec![
             CommitInfo {
@@ -245,28 +254,41 @@ fn test_format_git_context_to_markdown() {
             },
         ],
     };
-    
+
     let result = format_git_context_to_markdown(&git_context);
-    
+
     assert!(result.contains("Git history:\n"), "Should contain header");
-    assert!(result.contains("feat: add new feature by John Doe"), "Should contain first commit");
-    assert!(result.contains("fix: resolve bug with whitespace by Jane Smith"), "Should contain trimmed second commit");
-    assert!(result.contains("docs: update README by Bob Wilson"), "Should contain third commit");
-    
+    assert!(
+        result.contains("feat: add new feature by John Doe"),
+        "Should contain first commit"
+    );
+    assert!(
+        result.contains("fix: resolve bug with whitespace by Jane Smith"),
+        "Should contain trimmed second commit"
+    );
+    assert!(
+        result.contains("docs: update README by Bob Wilson"),
+        "Should contain third commit"
+    );
+
     // Test that it limits to 3 commits
     let lines: Vec<&str> = result.lines().collect();
-    let commit_lines: Vec<&str> = lines.iter().filter(|line| line.trim().starts_with("- ")).copied().collect();
+    let commit_lines: Vec<&str> = lines
+        .iter()
+        .filter(|line| line.trim().starts_with("- "))
+        .copied()
+        .collect();
     assert_eq!(commit_lines.len(), 3, "Should show exactly 3 commits");
 }
 
 #[test]
 fn test_format_empty_git_context() {
     use context_creator::utils::git::{format_git_context_to_markdown, GitContext};
-    
+
     let git_context = GitContext {
         recent_commits: vec![],
     };
-    
+
     let result = format_git_context_to_markdown(&git_context);
     assert_eq!(result, "", "Empty git context should return empty string");
 }
@@ -277,8 +299,11 @@ fn test_git_context_error_logging() {
     // without panicking, and that it returns None gracefully
     let non_existent_path = std::path::Path::new("/definitely/does/not/exist");
     let result = get_file_git_context(non_existent_path, non_existent_path);
-    
-    assert!(result.is_none(), "Should return None for non-existent paths");
+
+    assert!(
+        result.is_none(),
+        "Should return None for non-existent paths"
+    );
 }
 
 #[test]
@@ -288,21 +313,24 @@ fn test_git_context_corrupted_repo() {
     let fake_git_dir = temp_dir.path().join(".git");
     std::fs::create_dir(&fake_git_dir).unwrap();
     std::fs::write(fake_git_dir.join("HEAD"), "invalid content").unwrap();
-    
+
     let test_file = temp_dir.path().join("test.rs");
     std::fs::write(&test_file, "// test content").unwrap();
-    
+
     let result = get_file_git_context(temp_dir.path(), &test_file);
-    assert!(result.is_none(), "Should handle corrupted git repos gracefully");
+    assert!(
+        result.is_none(),
+        "Should handle corrupted git repos gracefully"
+    );
 }
 
 #[test]
 fn test_git_context_depth_configuration() {
     use context_creator::utils::git::get_file_git_context_with_depth;
-    
+
     let repo = setup_git_repo_with_file_history();
     let file_path = repo.path().join("test_file.rs");
-    
+
     // Add more commits to test limiting
     for i in 4..=8 {
         std::fs::write(&file_path, format!("// Version {i}\n")).unwrap();
@@ -311,24 +339,32 @@ fn test_git_context_depth_configuration() {
             .current_dir(repo.path())
             .status()
             .expect("Failed to git add");
-        
+
         Command::new("git")
             .args(["commit", "-m", &format!("chore: update {i}")])
             .current_dir(repo.path())
             .status()
             .expect("Failed to create commit");
     }
-    
+
     // Test with depth of 1
     let context_1 = get_file_git_context_with_depth(repo.path(), &file_path, 1);
     assert!(context_1.is_some());
-    assert_eq!(context_1.unwrap().recent_commits.len(), 1, "Should return exactly 1 commit");
-    
+    assert_eq!(
+        context_1.unwrap().recent_commits.len(),
+        1,
+        "Should return exactly 1 commit"
+    );
+
     // Test with depth of 5
     let context_5 = get_file_git_context_with_depth(repo.path(), &file_path, 5);
     assert!(context_5.is_some());
-    assert_eq!(context_5.unwrap().recent_commits.len(), 5, "Should return exactly 5 commits");
-    
+    assert_eq!(
+        context_5.unwrap().recent_commits.len(),
+        5,
+        "Should return exactly 5 commits"
+    );
+
     // Test with depth larger than available commits
     let context_10 = get_file_git_context_with_depth(repo.path(), &file_path, 10);
     assert!(context_10.is_some());

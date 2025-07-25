@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 use git2::{Repository, Sort};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use tracing::{debug, warn, trace};
+use tracing::{debug, trace, warn};
 
 /// Statistics from a git diff operation
 #[derive(Debug, Clone, PartialEq)]
@@ -190,20 +190,34 @@ pub fn get_file_git_context<P: AsRef<Path>>(repo_path: P, file_path: P) -> Optio
 }
 
 /// Get git context (recent commits) for a specific file with configurable depth
-pub fn get_file_git_context_with_depth<P: AsRef<Path>>(repo_path: P, file_path: P, max_commits: usize) -> Option<GitContext> {
+pub fn get_file_git_context_with_depth<P: AsRef<Path>>(
+    repo_path: P,
+    file_path: P,
+    max_commits: usize,
+) -> Option<GitContext> {
     let repo_path_str = repo_path.as_ref().display();
     let file_path_str = file_path.as_ref().display();
-    
-    trace!("Getting git context for file: {} in repo: {}", file_path_str, repo_path_str);
+
+    trace!(
+        "Getting git context for file: {} in repo: {}",
+        file_path_str,
+        repo_path_str
+    );
 
     // First, try to discover the actual repository root
     let repo = match Repository::discover(repo_path.as_ref()) {
         Ok(r) => {
-            debug!("Successfully discovered git repository at: {}", repo_path_str);
+            debug!(
+                "Successfully discovered git repository at: {}",
+                repo_path_str
+            );
             r
-        },
+        }
         Err(e) => {
-            debug!("Failed to discover git repository at {}: {}", repo_path_str, e);
+            debug!(
+                "Failed to discover git repository at {}: {}",
+                repo_path_str, e
+            );
             return None;
         }
     };
@@ -213,7 +227,7 @@ pub fn get_file_git_context_with_depth<P: AsRef<Path>>(repo_path: P, file_path: 
         Some(root) => {
             trace!("Repository workdir: {}", root.display());
             root
-        },
+        }
         None => {
             warn!("Repository has no working directory (bare repository)");
             return None;
@@ -228,22 +242,31 @@ pub fn get_file_git_context_with_depth<P: AsRef<Path>>(repo_path: P, file_path: 
             return None;
         }
     };
-    
+
     let repo_canonical = match repo_root.canonicalize() {
         Ok(path) => path,
         Err(e) => {
-            warn!("Failed to canonicalize repository path {}: {}", repo_root.display(), e);
+            warn!(
+                "Failed to canonicalize repository path {}: {}",
+                repo_root.display(),
+                e
+            );
             return None;
         }
     };
-    
+
     let relative_path = match file_canonical.strip_prefix(repo_canonical) {
         Ok(path) => {
             trace!("Relative path in repository: {}", path.display());
             path
-        },
+        }
         Err(e) => {
-            debug!("File {} is not within repository {}: {}", file_path_str, repo_root.display(), e);
+            debug!(
+                "File {} is not within repository {}: {}",
+                file_path_str,
+                repo_root.display(),
+                e
+            );
             return None;
         }
     };
@@ -253,7 +276,7 @@ pub fn get_file_git_context_with_depth<P: AsRef<Path>>(repo_path: P, file_path: 
         Ok(walk) => {
             trace!("Created revwalk for repository");
             walk
-        },
+        }
         Err(e) => {
             warn!("Failed to create revwalk: {}", e);
             return None;
@@ -265,16 +288,22 @@ pub fn get_file_git_context_with_depth<P: AsRef<Path>>(repo_path: P, file_path: 
         warn!("Failed to set revwalk sorting: {}", e);
         return None;
     }
-    
+
     if let Err(e) = revwalk.push_head() {
-        debug!("Failed to push HEAD to revwalk (repository may be empty): {}", e);
+        debug!(
+            "Failed to push HEAD to revwalk (repository may be empty): {}",
+            e
+        );
         return None;
     }
 
     let mut commits = Vec::new();
     let mut commits_processed = 0;
 
-    trace!("Walking through commits to find those affecting file: {}", relative_path.display());
+    trace!(
+        "Walking through commits to find those affecting file: {}",
+        relative_path.display()
+    );
 
     // Walk through commits
     for oid_result in revwalk {
@@ -356,8 +385,12 @@ pub fn get_file_git_context_with_depth<P: AsRef<Path>>(repo_path: P, file_path: 
         }
     }
 
-    debug!("Processed {} commits, found {} relevant commits for file {}", 
-           commits_processed, commits.len(), relative_path.display());
+    debug!(
+        "Processed {} commits, found {} relevant commits for file {}",
+        commits_processed,
+        commits.len(),
+        relative_path.display()
+    );
 
     if commits.is_empty() {
         debug!("No git history found for file: {}", file_path_str);
@@ -379,7 +412,7 @@ pub fn format_git_context_to_markdown(git_context: &GitContext) -> String {
     let mut output = String::new();
     output.push('\n');
     output.push_str("Git history:\n");
-    
+
     for (i, commit) in git_context.recent_commits.iter().enumerate().take(3) {
         if i > 0 {
             output.push('\n');
@@ -391,6 +424,6 @@ pub fn format_git_context_to_markdown(git_context: &GitContext) -> String {
         ));
     }
     output.push('\n');
-    
+
     output
 }

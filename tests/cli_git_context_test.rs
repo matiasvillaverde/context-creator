@@ -45,7 +45,13 @@ fn test_git_context_with_enhanced_context() {
 #[test]
 fn test_git_context_depth_flag() {
     // Test that --git-context-depth flag is parsed correctly
-    let args = vec!["context-creator", "--git-context", "--git-context-depth", "5", "."];
+    let args = vec![
+        "context-creator",
+        "--git-context",
+        "--git-context-depth",
+        "5",
+        ".",
+    ];
     let config = Config::parse_from(args);
     assert!(config.git_context, "git_context flag should be true");
     assert_eq!(config.git_context_depth, 5, "git_context_depth should be 5");

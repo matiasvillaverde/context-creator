@@ -5,7 +5,7 @@ use crate::core::cache::FileCache;
 use crate::core::walker::FileInfo;
 use crate::formatters::{create_formatter, DigestData};
 use crate::utils::file_ext::FileType;
-use crate::utils::git::{get_file_git_context_with_depth, format_git_context_to_markdown};
+use crate::utils::git::{format_git_context_to_markdown, get_file_git_context_with_depth};
 use anyhow::Result;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -319,7 +319,9 @@ fn add_file_header(output: &mut String, file: &FileInfo, options: &ContextOption
     if options.git_context {
         // Find the repository root from the file path
         let repo_root = file.path.parent().unwrap_or(Path::new("."));
-        if let Some(git_context) = get_file_git_context_with_depth(repo_root, &file.path, options.git_context_depth) {
+        if let Some(git_context) =
+            get_file_git_context_with_depth(repo_root, &file.path, options.git_context_depth)
+        {
             output.push_str(&format_git_context_to_markdown(&git_context));
         }
     }
