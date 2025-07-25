@@ -88,7 +88,7 @@ impl DigestFormatter for MarkdownFormatter {
             .replace("{path}", &path_with_metadata);
         self.buffer.push_str(&header);
         self.buffer.push('\n');
-        
+
         // Add git context if enabled
         if data.options.git_context {
             // Find the repository root from the file path
@@ -111,7 +111,7 @@ impl DigestFormatter for MarkdownFormatter {
                 }
             }
         }
-        
+
         self.buffer.push('\n');
 
         // Add semantic information

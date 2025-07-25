@@ -310,7 +310,7 @@ fn add_file_header(output: &mut String, file: &FileInfo, options: &ContextOption
         .replace("{path}", &path_with_metadata);
     output.push_str(&header);
     output.push('\n');
-    
+
     // Add git context if enabled
     if options.git_context {
         // Find the repository root from the file path
@@ -333,7 +333,7 @@ fn add_file_header(output: &mut String, file: &FileInfo, options: &ContextOption
             }
         }
     }
-    
+
     output.push('\n');
 }
 
