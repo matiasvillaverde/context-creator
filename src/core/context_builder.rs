@@ -5,6 +5,7 @@ use crate::core::cache::FileCache;
 use crate::core::walker::FileInfo;
 use crate::formatters::{create_formatter, DigestData};
 use crate::utils::file_ext::FileType;
+use crate::utils::git::get_file_git_context;
 use anyhow::Result;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -308,7 +309,32 @@ fn add_file_header(output: &mut String, file: &FileInfo, options: &ContextOption
         .file_header_template
         .replace("{path}", &path_with_metadata);
     output.push_str(&header);
-    output.push_str("\n\n");
+    output.push('\n');
+    
+    // Add git context if enabled
+    if options.git_context {
+        // Find the repository root from the file path
+        let repo_root = file.path.parent().unwrap_or(Path::new("."));
+        if let Some(git_context) = get_file_git_context(repo_root, &file.path) {
+            if !git_context.recent_commits.is_empty() {
+                output.push('\n');
+                output.push_str("Git history:\n");
+                for (i, commit) in git_context.recent_commits.iter().enumerate().take(3) {
+                    if i > 0 {
+                        output.push('\n');
+                    }
+                    output.push_str(&format!(
+                        "  - {} by {}",
+                        commit.message.trim(),
+                        commit.author
+                    ));
+                }
+                output.push('\n');
+            }
+        }
+    }
+    
+    output.push('\n');
 }
 
 pub fn format_path_with_metadata(file: &FileInfo, options: &ContextOptions) -> String {

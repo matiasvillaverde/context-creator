@@ -6,7 +6,9 @@ use crate::core::context_builder::{
     generate_statistics, get_language_hint, path_to_anchor,
 };
 use crate::core::walker::FileInfo;
+use crate::utils::git::get_file_git_context;
 use anyhow::Result;
+use std::path::Path;
 
 /// Formatter that outputs standard Markdown format
 pub struct MarkdownFormatter {
@@ -85,7 +87,32 @@ impl DigestFormatter for MarkdownFormatter {
             .file_header_template
             .replace("{path}", &path_with_metadata);
         self.buffer.push_str(&header);
-        self.buffer.push_str("\n\n");
+        self.buffer.push('\n');
+        
+        // Add git context if enabled
+        if data.options.git_context {
+            // Find the repository root from the file path
+            let repo_root = file.path.parent().unwrap_or(Path::new("."));
+            if let Some(git_context) = get_file_git_context(repo_root, &file.path) {
+                if !git_context.recent_commits.is_empty() {
+                    self.buffer.push('\n');
+                    self.buffer.push_str("Git history:\n");
+                    for (i, commit) in git_context.recent_commits.iter().enumerate().take(3) {
+                        if i > 0 {
+                            self.buffer.push('\n');
+                        }
+                        self.buffer.push_str(&format!(
+                            "  - {} by {}",
+                            commit.message.trim(),
+                            commit.author
+                        ));
+                    }
+                    self.buffer.push('\n');
+                }
+            }
+        }
+        
+        self.buffer.push('\n');
 
         // Add semantic information
         add_markdown_semantic_info(&mut self.buffer, file);
