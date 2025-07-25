@@ -158,6 +158,7 @@ fn bench_file_prioritization(c: &mut Criterion) {
             include_toc: true,
             enhanced_context: false,
             git_context: false,
+            git_context_depth: 3,
         };
 
         group.throughput(Throughput::Elements(file_count as u64));
@@ -199,6 +200,7 @@ fn bench_markdown_generation(c: &mut Criterion) {
             include_toc: true,
             enhanced_context: false,
             git_context: false,
+            git_context_depth: 3,
         };
 
         group.throughput(Throughput::Elements(file_count as u64));

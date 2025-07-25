@@ -98,6 +98,7 @@ fn test_markdown_with_git_context_enabled() {
         include_toc: false,
         enhanced_context: false,
         git_context: true,
+        git_context_depth: 3,
     };
 
     let cache = Arc::new(FileCache::new());
@@ -145,6 +146,7 @@ fn test_markdown_without_git_context() {
         include_toc: false,
         enhanced_context: false,
         git_context: false,
+        git_context_depth: 3,
     };
 
     let cache = Arc::new(FileCache::new());
@@ -191,6 +193,7 @@ fn test_markdown_with_git_context_and_enhanced_context() {
         include_toc: false,
         enhanced_context: true,
         git_context: true,
+        git_context_depth: 3,
     };
 
     let cache = Arc::new(FileCache::new());
@@ -238,6 +241,7 @@ fn test_markdown_git_context_non_git_directory() {
         include_toc: false,
         enhanced_context: false,
         git_context: true,
+        git_context_depth: 3,
     };
 
     let cache = Arc::new(FileCache::new());

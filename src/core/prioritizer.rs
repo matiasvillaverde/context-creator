@@ -438,6 +438,7 @@ mod tests {
             include_toc: true,
             enhanced_context: false,
             git_context: false,
+            git_context_depth: 3,
         };
 
         let overhead = calculate_structure_overhead(&options, &files).unwrap();

@@ -5,7 +5,7 @@ use crate::core::cache::FileCache;
 use crate::core::walker::FileInfo;
 use crate::formatters::{create_formatter, DigestData};
 use crate::utils::file_ext::FileType;
-use crate::utils::git::get_file_git_context;
+use crate::utils::git::{get_file_git_context_with_depth, format_git_context_to_markdown};
 use anyhow::Result;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -35,6 +35,8 @@ pub struct ContextOptions {
     pub enhanced_context: bool,
     /// Include git commit history in file headers
     pub git_context: bool,
+    /// Number of git commits to show per file
+    pub git_context_depth: usize,
 }
 
 impl ContextOptions {
@@ -51,6 +53,7 @@ impl ContextOptions {
             include_toc: true,
             enhanced_context: config.enhanced_context,
             git_context: config.git_context,
+            git_context_depth: config.git_context_depth,
         })
     }
 }
@@ -68,6 +71,7 @@ impl Default for ContextOptions {
             include_toc: true,
             enhanced_context: false,
             git_context: false,
+            git_context_depth: 3,
         }
     }
 }
@@ -315,22 +319,8 @@ fn add_file_header(output: &mut String, file: &FileInfo, options: &ContextOption
     if options.git_context {
         // Find the repository root from the file path
         let repo_root = file.path.parent().unwrap_or(Path::new("."));
-        if let Some(git_context) = get_file_git_context(repo_root, &file.path) {
-            if !git_context.recent_commits.is_empty() {
-                output.push('\n');
-                output.push_str("Git history:\n");
-                for (i, commit) in git_context.recent_commits.iter().enumerate().take(3) {
-                    if i > 0 {
-                        output.push('\n');
-                    }
-                    output.push_str(&format!(
-                        "  - {} by {}",
-                        commit.message.trim(),
-                        commit.author
-                    ));
-                }
-                output.push('\n');
-            }
+        if let Some(git_context) = get_file_git_context_with_depth(repo_root, &file.path, options.git_context_depth) {
+            output.push_str(&format_git_context_to_markdown(&git_context));
         }
     }
 
@@ -988,6 +978,7 @@ mod tests {
             include_toc: true,
             enhanced_context: false,
             git_context: false,
+            git_context_depth: 3,
         };
 
         let cache = create_test_cache();
@@ -1042,6 +1033,7 @@ mod tests {
             include_toc: true,
             enhanced_context: true,
             git_context: false,
+            git_context_depth: 3,
         };
 
         let cache = create_test_cache();
@@ -1082,6 +1074,7 @@ mod tests {
             include_toc: true,
             enhanced_context: true,
             git_context: false,
+            git_context_depth: 3,
         };
 
         let cache = create_test_cache();
@@ -1121,6 +1114,7 @@ mod tests {
             include_toc: true,
             enhanced_context: false,
             git_context: false,
+            git_context_depth: 3,
         };
 
         let cache = create_test_cache();

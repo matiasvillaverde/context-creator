@@ -4,6 +4,7 @@ use anyhow::{anyhow, Result};
 use git2::{Repository, Sort};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use tracing::{debug, warn, trace};
 
 /// Statistics from a git diff operation
 #[derive(Debug, Clone, PartialEq)]
@@ -185,54 +186,144 @@ pub fn get_repository_root<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
 
 /// Get git context (recent commits) for a specific file
 pub fn get_file_git_context<P: AsRef<Path>>(repo_path: P, file_path: P) -> Option<GitContext> {
-    // Try to open the repository
-    let repo = match Repository::open(repo_path.as_ref()) {
-        Ok(r) => r,
-        Err(_) => return None,
+    get_file_git_context_with_depth(repo_path, file_path, 3)
+}
+
+/// Get git context (recent commits) for a specific file with configurable depth
+pub fn get_file_git_context_with_depth<P: AsRef<Path>>(repo_path: P, file_path: P, max_commits: usize) -> Option<GitContext> {
+    let repo_path_str = repo_path.as_ref().display();
+    let file_path_str = file_path.as_ref().display();
+    
+    trace!("Getting git context for file: {} in repo: {}", file_path_str, repo_path_str);
+
+    // First, try to discover the actual repository root
+    let repo = match Repository::discover(repo_path.as_ref()) {
+        Ok(r) => {
+            debug!("Successfully discovered git repository at: {}", repo_path_str);
+            r
+        },
+        Err(e) => {
+            debug!("Failed to discover git repository at {}: {}", repo_path_str, e);
+            return None;
+        }
+    };
+
+    // Get the repository root path
+    let repo_root = match repo.workdir() {
+        Some(root) => {
+            trace!("Repository workdir: {}", root.display());
+            root
+        },
+        None => {
+            warn!("Repository has no working directory (bare repository)");
+            return None;
+        }
     };
 
     // Get the relative path from repo root
-    let relative_path = match file_path.as_ref().strip_prefix(repo_path.as_ref()) {
-        Ok(p) => p,
-        Err(_) => file_path.as_ref(),
+    let file_canonical = match file_path.as_ref().canonicalize() {
+        Ok(path) => path,
+        Err(e) => {
+            debug!("Failed to canonicalize file path {}: {}", file_path_str, e);
+            return None;
+        }
+    };
+    
+    let repo_canonical = match repo_root.canonicalize() {
+        Ok(path) => path,
+        Err(e) => {
+            warn!("Failed to canonicalize repository path {}: {}", repo_root.display(), e);
+            return None;
+        }
+    };
+    
+    let relative_path = match file_canonical.strip_prefix(repo_canonical) {
+        Ok(path) => {
+            trace!("Relative path in repository: {}", path.display());
+            path
+        },
+        Err(e) => {
+            debug!("File {} is not within repository {}: {}", file_path_str, repo_root.display(), e);
+            return None;
+        }
     };
 
     // Create a revwalk starting from HEAD
     let mut revwalk = match repo.revwalk() {
-        Ok(walk) => walk,
-        Err(_) => return None,
+        Ok(walk) => {
+            trace!("Created revwalk for repository");
+            walk
+        },
+        Err(e) => {
+            warn!("Failed to create revwalk: {}", e);
+            return None;
+        }
     };
 
     // Configure sorting
-    revwalk.set_sorting(Sort::TIME).ok()?;
-    revwalk.push_head().ok()?;
+    if let Err(e) = revwalk.set_sorting(Sort::TIME) {
+        warn!("Failed to set revwalk sorting: {}", e);
+        return None;
+    }
+    
+    if let Err(e) = revwalk.push_head() {
+        debug!("Failed to push HEAD to revwalk (repository may be empty): {}", e);
+        return None;
+    }
 
     let mut commits = Vec::new();
-    let max_commits = 3;
+    let mut commits_processed = 0;
+
+    trace!("Walking through commits to find those affecting file: {}", relative_path.display());
 
     // Walk through commits
     for oid_result in revwalk {
         if commits.len() >= max_commits {
+            trace!("Reached maximum commit limit of {}", max_commits);
             break;
         }
 
         let oid = match oid_result {
             Ok(o) => o,
-            Err(_) => continue,
+            Err(e) => {
+                debug!("Failed to get commit OID: {}", e);
+                continue;
+            }
         };
 
         let commit = match repo.find_commit(oid) {
             Ok(c) => c,
-            Err(_) => continue,
+            Err(e) => {
+                debug!("Failed to find commit {}: {}", oid, e);
+                continue;
+            }
         };
+
+        commits_processed += 1;
 
         // Check if this commit touches our file
         let touches_file = if let Ok(parent) = commit.parent(0) {
-            let parent_tree = parent.tree().ok()?;
-            let commit_tree = commit.tree().ok()?;
-            let diff = repo
-                .diff_tree_to_tree(Some(&parent_tree), Some(&commit_tree), None)
-                .ok()?;
+            let parent_tree = match parent.tree() {
+                Ok(tree) => tree,
+                Err(e) => {
+                    debug!("Failed to get parent tree: {}", e);
+                    continue;
+                }
+            };
+            let commit_tree = match commit.tree() {
+                Ok(tree) => tree,
+                Err(e) => {
+                    debug!("Failed to get commit tree: {}", e);
+                    continue;
+                }
+            };
+            let diff = match repo.diff_tree_to_tree(Some(&parent_tree), Some(&commit_tree), None) {
+                Ok(diff) => diff,
+                Err(e) => {
+                    debug!("Failed to create diff: {}", e);
+                    continue;
+                }
+            };
 
             diff.deltas().any(|delta| {
                 delta.old_file().path() == Some(relative_path)
@@ -240,29 +331,66 @@ pub fn get_file_git_context<P: AsRef<Path>>(repo_path: P, file_path: P) -> Optio
             })
         } else {
             // First commit - check if file exists
-            let tree = commit.tree().ok()?;
+            let tree = match commit.tree() {
+                Ok(tree) => tree,
+                Err(e) => {
+                    debug!("Failed to get tree for root commit: {}", e);
+                    continue;
+                }
+            };
             tree.get_path(relative_path).is_ok()
         };
 
         if touches_file {
             let message = commit
                 .message()
-                .unwrap_or("")
+                .unwrap_or("<no message>")
                 .lines()
                 .next()
-                .unwrap_or("")
+                .unwrap_or("<no message>")
                 .to_string();
             let author = commit.author().name().unwrap_or("Unknown").to_string();
 
+            trace!("Found relevant commit: {} by {}", message, author);
             commits.push(CommitInfo { message, author });
         }
     }
 
+    debug!("Processed {} commits, found {} relevant commits for file {}", 
+           commits_processed, commits.len(), relative_path.display());
+
     if commits.is_empty() {
+        debug!("No git history found for file: {}", file_path_str);
         None
     } else {
+        trace!("Returning git context with {} commits", commits.len());
         Some(GitContext {
             recent_commits: commits,
         })
     }
+}
+
+/// Format git context as markdown string
+pub fn format_git_context_to_markdown(git_context: &GitContext) -> String {
+    if git_context.recent_commits.is_empty() {
+        return String::new();
+    }
+
+    let mut output = String::new();
+    output.push('\n');
+    output.push_str("Git history:\n");
+    
+    for (i, commit) in git_context.recent_commits.iter().enumerate().take(3) {
+        if i > 0 {
+            output.push('\n');
+        }
+        output.push_str(&format!(
+            "  - {} by {}",
+            commit.message.trim(),
+            commit.author
+        ));
+    }
+    output.push('\n');
+    
+    output
 }

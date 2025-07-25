@@ -313,6 +313,10 @@ pub struct Config {
     #[arg(long = "git-context")]
     pub git_context: bool,
 
+    /// Number of git commits to show per file
+    #[arg(long = "git-context-depth", default_value = "3")]
+    pub git_context_depth: usize,
+
     /// Output format style
     #[arg(long = "style", value_enum, default_value = "markdown")]
     pub output_format: OutputFormat,
@@ -371,6 +375,7 @@ impl Default for Config {
             copy: false,
             enhanced_context: false,
             git_context: false,
+            git_context_depth: 3,
             output_format: OutputFormat::default(),
             trace_imports: false,
             include_callers: false,
