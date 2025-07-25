@@ -32,6 +32,8 @@ pub struct ContextOptions {
     pub include_toc: bool,
     /// Enable enhanced context with file metadata
     pub enhanced_context: bool,
+    /// Include git commit history in file headers
+    pub git_context: bool,
 }
 
 impl ContextOptions {
@@ -47,6 +49,7 @@ impl ContextOptions {
             doc_header_template: "# Code Context: {directory}".to_string(),
             include_toc: true,
             enhanced_context: config.enhanced_context,
+            git_context: config.git_context,
         })
     }
 }
@@ -63,6 +66,7 @@ impl Default for ContextOptions {
             doc_header_template: "# Code Context: {directory}".to_string(),
             include_toc: true,
             enhanced_context: false,
+            git_context: false,
         }
     }
 }
@@ -957,6 +961,7 @@ mod tests {
             doc_header_template: "# Code Context".to_string(),
             include_toc: true,
             enhanced_context: false,
+            git_context: false,
         };
 
         let cache = create_test_cache();
@@ -1010,6 +1015,7 @@ mod tests {
             doc_header_template: "# Code Context".to_string(),
             include_toc: true,
             enhanced_context: true,
+            git_context: false,
         };
 
         let cache = create_test_cache();
@@ -1049,6 +1055,7 @@ mod tests {
             doc_header_template: "# Code Context".to_string(),
             include_toc: true,
             enhanced_context: true,
+            git_context: false,
         };
 
         let cache = create_test_cache();
@@ -1087,6 +1094,7 @@ mod tests {
             doc_header_template: "# Code Context".to_string(),
             include_toc: true,
             enhanced_context: false,
+            git_context: false,
         };
 
         let cache = create_test_cache();
