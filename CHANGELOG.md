@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `--git-context` flag: Include git commit history in file headers
+  - Shows recent commit messages and authors for each file
+  - Helps understand code evolution and recent changes
+  - Gracefully handles non-git directories
+  - Works with both local repositories and cloned remote repos
+
 ## [1.2.0] - 2025-07-23
 
 ### Added
