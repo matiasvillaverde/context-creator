@@ -309,6 +309,10 @@ pub struct Config {
     #[arg(long = "enhanced-context")]
     pub enhanced_context: bool,
 
+    /// Include git commit history in file headers
+    #[arg(long = "git-context")]
+    pub git_context: bool,
+
     /// Output format style
     #[arg(long = "style", value_enum, default_value = "markdown")]
     pub output_format: OutputFormat,
@@ -366,6 +370,7 @@ impl Default for Config {
             progress: false,
             copy: false,
             enhanced_context: false,
+            git_context: false,
             output_format: OutputFormat::default(),
             trace_imports: false,
             include_callers: false,
