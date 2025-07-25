@@ -280,6 +280,30 @@ npm install -g @google/gemini-cli
 gcloud auth application-default login
 ```
 
+## MCP Server Mode
+
+context-creator includes a built-in MCP (Model Context Protocol) server that provides a JSON-RPC API for AI agents to analyze codebases programmatically.
+
+### Starting the MCP Server
+```bash
+# Start server on default port (8080)
+context-creator --mcp
+
+# Start on custom port
+context-creator --mcp --mcp-port 9090
+```
+
+### Available APIs
+- **Health Check**: Monitor server status
+- **Process Local Codebase**: Analyze directories with smart filtering
+- **Process Remote Repository**: Clone and analyze Git repos
+- **Search Codebase**: Full-text and semantic code search
+- **Get File Metadata**: File information and language detection
+- **Diff Files**: Compare files with unified diff output
+- **Semantic Search**: Find functions, types, imports, and references
+
+See [MCP Server Documentation](docs/mcp-server.md) for complete API reference and examples.
+
 ## Usage Examples
 
 ### Basic Usage
