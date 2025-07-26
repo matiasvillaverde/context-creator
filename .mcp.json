@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "context-creator": {
+      "command": "./target/release/context-creator",
+      "args": ["--rmcp"],
+      "env": {}
+    }
+  }
+}

@@ -280,6 +280,161 @@ npm install -g @google/gemini-cli
 gcloud auth application-default login
 ```
 
+## MCP Server Mode
+
+context-creator includes a built-in MCP (Model Context Protocol) server that allows AI assistants like Claude to analyze your codebases programmatically. The server provides powerful tools for code analysis, search, and understanding.
+
+### Available MCP Tools
+
+When connected to Claude, you'll have access to these tools:
+
+- **`analyze_local`** - Analyze a local codebase directory and answer questions about it
+- **`analyze_remote`** - Analyze a remote Git repository
+- **`search`** - Search for text patterns across the codebase
+- **`semantic_search`** - Find functions, types, imports, and symbols
+- **`file_metadata`** - Get detailed information about specific files
+- **`diff`** - Generate diffs between two files
+
+### Setting up with Claude Desktop
+
+1. **Build or install context-creator**:
+   ```bash
+   # Install from crates.io
+   cargo install context-creator
+   
+   # Or build from source
+   cargo build --release
+   ```
+
+2. **Edit Claude Desktop configuration**:
+   
+   On macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+   On Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+   
+   Add the MCP server configuration:
+   ```json
+   {
+     "mcpServers": {
+       "context-creator": {
+         "command": "/path/to/context-creator",
+         "args": ["--rmcp"],
+         "env": {}
+       }
+     }
+   }
+   ```
+   
+   Replace `/path/to/context-creator` with:
+   - Installed version: `~/.cargo/bin/context-creator`
+   - Built from source: `/path/to/project/target/release/context-creator`
+
+3. **Restart Claude Desktop** to load the new configuration
+
+4. **Verify connection** - Claude should now have access to context-creator tools
+
+### Setting up with Claude Code (CLI)
+
+1. **Project-level configuration** (recommended for team projects):
+   
+   Create `.mcp.json` in your project root:
+   ```json
+   {
+     "mcpServers": {
+       "context-creator": {
+         "command": "./target/release/context-creator",
+         "args": ["--rmcp"],
+         "env": {}
+       }
+     }
+   }
+   ```
+
+2. **Or add to user-level configuration**:
+   ```bash
+   # Add server
+   claude mcp add context-creator /path/to/context-creator --arg="--rmcp"
+   
+   # Verify connection
+   claude mcp list
+   
+   # Should show:
+   # context-creator ✓ Connected
+   ```
+
+3. **Remove old configurations if needed**:
+   ```bash
+   claude mcp remove context-creator
+   ```
+
+### Using MCP Tools in Claude
+
+Once connected, you can ask Claude to analyze your codebase:
+
+```
+"Analyze the authentication system in this codebase"
+→ Claude will use analyze_local tool
+
+"Search for all TODO comments"
+→ Claude will use search tool
+
+"Find all functions that call the login() method"
+→ Claude will use semantic_search tool
+
+"What's the difference between old_auth.py and new_auth.py?"
+→ Claude will use diff tool
+
+"Analyze the React hooks in facebook/react repository"
+→ Claude will use analyze_remote tool
+```
+
+### Advanced MCP Usage
+
+#### Analyzing Local Projects
+```
+"Review the error handling patterns in src/"
+"Find potential SQL injection vulnerabilities"
+"Which files implement rate limiting?"
+"Trace all imports of the database module"
+```
+
+#### Analyzing Remote Repositories
+```
+"Analyze the authentication in https://github.com/example/repo"
+"How does Rust's borrow checker work?" (analyzes rust-lang/rust)
+"Explain React's reconciliation algorithm" (analyzes facebook/react)
+```
+
+#### Code Search and Navigation
+```
+"Find all API endpoints in this codebase"
+"Show me all TypeScript interfaces"
+"Where is the UserService class defined?"
+"Find all calls to deprecated functions"
+```
+
+### Troubleshooting MCP Connection
+
+1. **Check server is running**:
+   ```bash
+   # Test standalone
+   context-creator --rmcp
+   # Should show: "Starting Context Creator MCP server (stdio mode)"
+   ```
+
+2. **Verify Claude configuration**:
+   - Ensure path to context-creator is absolute
+   - Check file has execute permissions
+   - Verify `--rmcp` argument is included
+
+3. **Check logs**:
+   - Claude Desktop: Check developer console
+   - Claude Code: Run with verbose flag `claude -v`
+
+4. **Common issues**:
+   - Path not found: Use full absolute path
+   - Permission denied: `chmod +x /path/to/context-creator`
+   - Already configured: Remove old config first
+
 ## Usage Examples
 
 ### Basic Usage

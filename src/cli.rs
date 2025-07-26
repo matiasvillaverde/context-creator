@@ -341,6 +341,30 @@ pub struct Config {
     )]
     pub semantic_depth: usize,
 
+    /// Start MCP server mode
+    #[arg(long, help = "Start MCP server mode")]
+    pub mcp: bool,
+
+    /// Port for MCP server
+    #[arg(
+        long = "mcp-port",
+        default_value = "9090",
+        help = "Port for MCP server"
+    )]
+    pub mcp_port: u16,
+
+    /// Use RMCP implementation instead of jsonrpsee
+    #[arg(long = "rmcp", help = "Use RMCP implementation for MCP server")]
+    pub rmcp: bool,
+
+    /// Transport mode for RMCP server
+    #[arg(
+        long = "rmcp-transport",
+        default_value = "stdio",
+        help = "Transport mode for RMCP server (stdio, http)"
+    )]
+    pub rmcp_transport: String,
+
     /// Custom priority rules loaded from config file (not a CLI argument)
     #[clap(skip)]
     pub custom_priorities: Vec<crate::config::Priority>,
@@ -381,6 +405,10 @@ impl Default for Config {
             include_callers: false,
             include_types: false,
             semantic_depth: 5,
+            mcp: false,
+            mcp_port: 9090,
+            rmcp: false,
+            rmcp_transport: "stdio".to_string(),
             custom_priorities: vec![],
             config_token_limits: None,
             config_defaults_max_tokens: None,
@@ -392,6 +420,32 @@ impl Config {
     /// Validate the configuration
     pub fn validate(&self) -> Result<(), crate::utils::error::ContextCreatorError> {
         use crate::utils::error::ContextCreatorError;
+
+        // If MCP server mode is enabled, validate conflicts
+        if self.mcp || self.rmcp {
+            if self.paths.is_some() {
+                return Err(ContextCreatorError::InvalidConfiguration(
+                    "Paths cannot be used with MCP server mode".to_string(),
+                ));
+            }
+            if self.prompt.is_some() {
+                return Err(ContextCreatorError::InvalidConfiguration(
+                    "Prompt cannot be used with MCP server mode".to_string(),
+                ));
+            }
+            if self.remote.is_some() {
+                return Err(ContextCreatorError::InvalidConfiguration(
+                    "Remote repository cannot be used with MCP server mode".to_string(),
+                ));
+            }
+            if self.command.is_some() {
+                return Err(ContextCreatorError::InvalidConfiguration(
+                    "Commands cannot be used with MCP server mode".to_string(),
+                ));
+            }
+            // MCP mode is valid on its own
+            return Ok(());
+        }
 
         // If a command is provided, it's a valid input source on its own
         if self.command.is_some() {

@@ -23,6 +23,7 @@ itertools = "0.13"
 lru = "0.12"
 rayon = "1.10"
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 tempfile = "3.10"
 thiserror = "1.0"
 tiktoken-rs = "0.5"
@@ -43,6 +44,14 @@ num_cpus = "1.16"
 petgraph = "0.6"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+rmcp = { version = "0.2.0", features = ["server", "transport-io", "transport-sse-server"] }
+jsonrpsee = { version = "0.22", features = ["server", "http-client", "macros"] }
+schemars = "0.8"
+axum = "0.7"
+hyper = "1.0"
+hyper-util = "0.1"
+tower-service = "0.3"
+tower = { version = "0.4", features = ["full"] }
 
 [dev-dependencies]
 assert_cmd = "2.0"

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "context-creator": {
+      "command": "/Users/mati/Code/context-creator/target/release/context-creator",
+      "args": ["--rmcp"],
+      "env": {}
+    }
+  }
+}
