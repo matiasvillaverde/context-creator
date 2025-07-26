@@ -276,10 +276,10 @@ fn process_codebase_sync(
     use crate::core::cache::FileCache;
     use crate::core::context_builder::{generate_markdown, ContextOptions};
     use crate::core::prioritizer::prioritize_files;
-    use crate::core::walker::{walk_directory, WalkOptions};
     use crate::core::token::TokenCounter;
+    use crate::core::walker::{walk_directory, WalkOptions};
     use std::sync::Arc;
-    
+
     // Determine LLM tool
     let llm_tool = if let Some(tool_str) = &request.llm_tool {
         match tool_str.as_str() {
@@ -290,7 +290,7 @@ fn process_codebase_sync(
     } else {
         LlmTool::Gemini
     };
-    
+
     // Calculate effective token limit considering prompt
     let effective_max_tokens = if let Some(max_tokens) = request.max_tokens {
         max_tokens as usize
@@ -298,14 +298,16 @@ fn process_codebase_sync(
         // Use LLM default if not specified
         llm_tool.default_max_tokens()
     };
-    
+
     // Reserve tokens for prompt and response
     let prompt_tokens = if let Ok(counter) = TokenCounter::new() {
-        counter.count_tokens(&request.prompt).unwrap_or(request.prompt.len() / 4)
+        counter
+            .count_tokens(&request.prompt)
+            .unwrap_or(request.prompt.len() / 4)
     } else {
         request.prompt.len() / 4 // Rough estimate
     };
-    
+
     let safety_buffer = 1000; // For LLM response
     let context_tokens = effective_max_tokens.saturating_sub(prompt_tokens + safety_buffer);
 
@@ -374,7 +376,7 @@ fn process_codebase_sync(
 
     // Execute LLM with prompt and context
     let answer = execute_llm_sync(&request.prompt, &output, request.llm_tool.as_deref())?;
-    
+
     let processing_time_ms = start.elapsed().as_millis() as u64;
 
     Ok(ProcessLocalResponse {
@@ -427,21 +429,23 @@ fn process_remote_sync(
     } else {
         crate::cli::LlmTool::Gemini
     };
-    
+
     // Calculate effective token limit considering prompt
     let effective_max_tokens = if let Some(max_tokens) = request.max_tokens {
         max_tokens as usize
     } else {
         llm_tool.default_max_tokens()
     };
-    
+
     // Reserve tokens for prompt and response
     let prompt_tokens = if let Ok(counter) = crate::core::token::TokenCounter::new() {
-        counter.count_tokens(&request.prompt).unwrap_or(request.prompt.len() / 4)
+        counter
+            .count_tokens(&request.prompt)
+            .unwrap_or(request.prompt.len() / 4)
     } else {
         request.prompt.len() / 4
     };
-    
+
     let safety_buffer = 1000;
     let context_tokens = effective_max_tokens.saturating_sub(prompt_tokens + safety_buffer);
 
@@ -509,7 +513,7 @@ fn process_remote_sync(
 
     // Execute LLM with prompt and context
     let answer = execute_llm_sync(&request.prompt, &output, request.llm_tool.as_deref())?;
-    
+
     let processing_time_ms = start.elapsed().as_millis() as u64;
 
     Ok(ProcessRemoteResponse {
@@ -1224,15 +1228,11 @@ fn is_supported_language_file(ext: &str) -> bool {
 }
 
 /// Execute LLM with prompt and context
-fn execute_llm_sync(
-    prompt: &str,
-    context: &str,
-    llm_tool: Option<&str>,
-) -> Result<String> {
-    use std::io::Write;
-    use std::process::{Command, Stdio};
+fn execute_llm_sync(prompt: &str, context: &str, llm_tool: Option<&str>) -> Result<String> {
     use crate::cli::LlmTool;
     use crate::utils::error::ContextCreatorError;
+    use std::io::Write;
+    use std::process::{Command, Stdio};
 
     // Determine which LLM tool to use
     let tool = if let Some(tool_str) = llm_tool {
@@ -1272,13 +1272,14 @@ fn execute_llm_sync(
 
     // Capture output
     let output = child.wait_with_output()?;
-    
+
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(ContextCreatorError::SubprocessError(format!(
             "{} failed: {}",
             tool_command, stderr
-        )).into());
+        ))
+        .into());
     }
 
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
