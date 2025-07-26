@@ -42,17 +42,17 @@ async fn test_rmcp_server_initialization() -> Result<()> {
     // Read response
     let mut line = String::new();
     reader.read_line(&mut line).await?;
-    
+
     let response: serde_json::Value = serde_json::from_str(&line)?;
-    
+
     // Verify response
     assert_eq!(response["jsonrpc"], "2.0");
     assert_eq!(response["id"], 1);
     assert!(response["result"]["capabilities"].is_object());
-    
+
     // Clean up
     child.kill().await?;
-    
+
     Ok(())
 }
 
@@ -136,15 +136,15 @@ fn add(a: i32, b: i32) -> i32 {
     // Read response
     reader.read_line(&mut line).await?;
     let response: serde_json::Value = serde_json::from_str(&line)?;
-    
+
     // Verify response contains answer
     assert!(response["result"]["answer"].is_string());
     assert!(response["result"]["file_count"].is_number());
     assert!(response["result"]["token_count"].is_number());
-    
+
     // Clean up
     child.kill().await?;
-    
+
     Ok(())
 }
 
@@ -201,26 +201,23 @@ async fn test_list_tools() -> Result<()> {
     // Read response
     reader.read_line(&mut line).await?;
     let response: serde_json::Value = serde_json::from_str(&line)?;
-    
+
     // Verify tools are listed
     let tools = response["result"]["tools"].as_array().unwrap();
     assert!(tools.len() >= 6); // We should have at least 6 tools
-    
+
     // Check that expected tools are present
-    let tool_names: Vec<&str> = tools
-        .iter()
-        .map(|t| t["name"].as_str().unwrap())
-        .collect();
-    
+    let tool_names: Vec<&str> = tools.iter().map(|t| t["name"].as_str().unwrap()).collect();
+
     assert!(tool_names.contains(&"analyze_local"));
     assert!(tool_names.contains(&"analyze_remote"));
     assert!(tool_names.contains(&"file_metadata"));
     assert!(tool_names.contains(&"search"));
     assert!(tool_names.contains(&"diff"));
     assert!(tool_names.contains(&"semantic_search"));
-    
+
     // Clean up
     child.kill().await?;
-    
+
     Ok(())
 }

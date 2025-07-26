@@ -93,9 +93,9 @@ impl McpCache {
             .max_capacity(100) // Cache up to 100 requests
             .time_to_live(Duration::from_secs(300)) // 5 minutes TTL
             .build();
-            
+
         let process_remote_cache = Cache::builder()
-            .max_capacity(50) // Cache up to 50 remote requests  
+            .max_capacity(50) // Cache up to 50 remote requests
             .time_to_live(Duration::from_secs(600)) // 10 minutes TTL
             .build();
 

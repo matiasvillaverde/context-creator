@@ -774,7 +774,9 @@ fn get_match_context(line: &str, query: &str) -> String {
 }
 
 /// Synchronous implementation of file diff
-pub(super) fn diff_files_sync(request: super::DiffFilesRequest) -> Result<super::DiffFilesResponse> {
+pub(super) fn diff_files_sync(
+    request: super::DiffFilesRequest,
+) -> Result<super::DiffFilesResponse> {
     use std::fs;
 
     // Check if files exist

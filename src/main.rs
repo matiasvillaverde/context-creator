@@ -89,7 +89,7 @@ async fn run_mcp_server(config: Config) -> Result<()> {
         // Use original jsonrpsee implementation
         let addr = format!("127.0.0.1:{}", config.mcp_port);
         eprintln!("MCP server listening on {addr}");
-        
+
         let handle = mcp_server::start_server(&addr).await?;
 
         // Wait for shutdown signal
@@ -98,6 +98,6 @@ async fn run_mcp_server(config: Config) -> Result<()> {
 
         handle.stop()?;
     }
-    
+
     Ok(())
 }

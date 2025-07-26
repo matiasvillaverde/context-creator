@@ -9,8 +9,8 @@ use jsonrpsee::{
     proc_macros::rpc,
     server::{Server, ServerHandle as JsonRpcServerHandle},
 };
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 
 pub mod cache;

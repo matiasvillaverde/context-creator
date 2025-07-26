@@ -222,10 +222,10 @@ pub mod transport {
     /// Start server with stdio transport (for MCP CLI usage)
     pub async fn start_stdio() -> Result<()> {
         tracing::info!("Starting Context Creator MCP server (stdio mode)");
-        
+
         let server = ContextCreatorServer::new();
         let service = server.serve(stdio()).await?;
-        
+
         service.waiting().await?;
         Ok(())
     }
@@ -233,17 +233,20 @@ pub mod transport {
     /// Start server with HTTP/SSE transport
     pub async fn start_http(addr: &str) -> Result<()> {
         use rmcp::transport::sse_server::SseServer;
-        
-        tracing::info!("Starting Context Creator MCP server (HTTP/SSE mode) on {}", addr);
-        
+
+        tracing::info!(
+            "Starting Context Creator MCP server (HTTP/SSE mode) on {}",
+            addr
+        );
+
         let ct = SseServer::serve(addr.parse()?)
             .await?
             .with_service_directly(ContextCreatorServer::new);
-        
+
         // Wait for shutdown signal
         tokio::signal::ctrl_c().await?;
         ct.cancel();
-        
+
         Ok(())
     }
 }

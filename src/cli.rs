@@ -354,10 +354,7 @@ pub struct Config {
     pub mcp_port: u16,
 
     /// Use RMCP implementation instead of jsonrpsee
-    #[arg(
-        long = "rmcp",
-        help = "Use RMCP implementation for MCP server"
-    )]
+    #[arg(long = "rmcp", help = "Use RMCP implementation for MCP server")]
     pub rmcp: bool,
 
     /// Transport mode for RMCP server
