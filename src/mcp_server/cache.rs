@@ -9,21 +9,25 @@ use std::time::Duration;
 /// Cache key for process_local_codebase requests
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct ProcessLocalCacheKey {
+    pub prompt: String,
     pub path: PathBuf,
     pub include_patterns: Vec<String>,
     pub ignore_patterns: Vec<String>,
     pub include_imports: bool,
     pub max_tokens: Option<u32>,
+    pub llm_tool: Option<String>,
 }
 
 impl ProcessLocalCacheKey {
     pub fn from_request(request: &super::ProcessLocalRequest) -> Self {
         Self {
+            prompt: request.prompt.clone(),
             path: request.path.clone(),
             include_patterns: request.include_patterns.clone(),
             ignore_patterns: request.ignore_patterns.clone(),
             include_imports: request.include_imports,
             max_tokens: request.max_tokens,
+            llm_tool: request.llm_tool.clone(),
         }
     }
 }
@@ -31,9 +35,11 @@ impl ProcessLocalCacheKey {
 /// Cached response for process_local_codebase
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProcessLocalCacheValue {
+    pub answer: String,
     pub markdown: String,
     pub file_count: usize,
     pub token_count: usize,
+    pub llm_tool: String,
 }
 
 /// MCP server cache

@@ -57,10 +57,16 @@ impl CodebaseRpcServer for CodebaseRpcImpl {
         if let Some(cached) = self.cache.get_process_local(&cache_key).await {
             let processing_time_ms = start.elapsed().as_millis() as u64;
             return Ok(ProcessLocalResponse {
-                markdown: cached.markdown,
+                answer: cached.answer,
+                context: if request.include_context.unwrap_or(false) {
+                    Some(cached.markdown)
+                } else {
+                    None
+                },
                 file_count: cached.file_count,
                 token_count: cached.token_count,
                 processing_time_ms,
+                llm_tool: cached.llm_tool,
             });
         }
 
@@ -81,9 +87,11 @@ impl CodebaseRpcServer for CodebaseRpcImpl {
 
         // Cache the response
         let cache_value = crate::mcp_server::cache::ProcessLocalCacheValue {
-            markdown: response.markdown.clone(),
+            answer: response.answer.clone(),
+            markdown: response.context.clone().unwrap_or_default(),
             file_count: response.file_count,
             token_count: response.token_count,
+            llm_tool: response.llm_tool.clone(),
         };
         cache.set_process_local(cache_key, cache_value).await;
 
@@ -264,12 +272,42 @@ fn process_codebase_sync(
     request: ProcessLocalRequest,
     start: Instant,
 ) -> Result<ProcessLocalResponse> {
-    use crate::cli::Config;
+    use crate::cli::{Config, LlmTool};
     use crate::core::cache::FileCache;
     use crate::core::context_builder::{generate_markdown, ContextOptions};
     use crate::core::prioritizer::prioritize_files;
     use crate::core::walker::{walk_directory, WalkOptions};
+    use crate::core::token::TokenCounter;
     use std::sync::Arc;
+    
+    // Determine LLM tool
+    let llm_tool = if let Some(tool_str) = &request.llm_tool {
+        match tool_str.as_str() {
+            "gemini" => LlmTool::Gemini,
+            "codex" => LlmTool::Codex,
+            _ => LlmTool::Gemini,
+        }
+    } else {
+        LlmTool::Gemini
+    };
+    
+    // Calculate effective token limit considering prompt
+    let effective_max_tokens = if let Some(max_tokens) = request.max_tokens {
+        max_tokens as usize
+    } else {
+        // Use LLM default if not specified
+        llm_tool.default_max_tokens()
+    };
+    
+    // Reserve tokens for prompt and response
+    let prompt_tokens = if let Ok(counter) = TokenCounter::new() {
+        counter.count_tokens(&request.prompt).unwrap_or(request.prompt.len() / 4)
+    } else {
+        request.prompt.len() / 4 // Rough estimate
+    };
+    
+    let safety_buffer = 1000; // For LLM response
+    let context_tokens = effective_max_tokens.saturating_sub(prompt_tokens + safety_buffer);
 
     // Create a Config from the request
     let config = Config {
@@ -277,18 +315,20 @@ fn process_codebase_sync(
         include: if request.include_patterns.is_empty() {
             None
         } else {
-            Some(request.include_patterns)
+            Some(request.include_patterns.clone())
         },
         ignore: if request.ignore_patterns.is_empty() {
             None
         } else {
-            Some(request.ignore_patterns)
+            Some(request.ignore_patterns.clone())
         },
         trace_imports: request.include_imports,
-        max_tokens: request.max_tokens.map(|t| t as usize),
+        max_tokens: Some(context_tokens),
+        llm_tool,
+        // Enable prompt for proper context calculation
+        prompt: Some(request.prompt.clone()),
         // Disable other options
         output_file: None,
-        prompt: None,
         copy: false,
         verbose: 0,
         quiet: true,
@@ -332,13 +372,22 @@ fn process_codebase_sync(
         })
         .count();
 
+    // Execute LLM with prompt and context
+    let answer = execute_llm_sync(&request.prompt, &output, request.llm_tool.as_deref())?;
+    
     let processing_time_ms = start.elapsed().as_millis() as u64;
 
     Ok(ProcessLocalResponse {
-        markdown: output,
+        answer,
+        context: if request.include_context.unwrap_or(false) {
+            Some(output)
+        } else {
+            None
+        },
         file_count,
         token_count,
         processing_time_ms,
+        llm_tool: request.llm_tool.unwrap_or_else(|| "gemini".to_string()),
     })
 }
 
@@ -368,24 +417,53 @@ fn process_remote_sync(
         .trim_end_matches(".git")
         .to_string();
 
+    // Determine LLM tool
+    let llm_tool = if let Some(tool_str) = &request.llm_tool {
+        match tool_str.as_str() {
+            "gemini" => crate::cli::LlmTool::Gemini,
+            "codex" => crate::cli::LlmTool::Codex,
+            _ => crate::cli::LlmTool::Gemini,
+        }
+    } else {
+        crate::cli::LlmTool::Gemini
+    };
+    
+    // Calculate effective token limit considering prompt
+    let effective_max_tokens = if let Some(max_tokens) = request.max_tokens {
+        max_tokens as usize
+    } else {
+        llm_tool.default_max_tokens()
+    };
+    
+    // Reserve tokens for prompt and response
+    let prompt_tokens = if let Ok(counter) = crate::core::token::TokenCounter::new() {
+        counter.count_tokens(&request.prompt).unwrap_or(request.prompt.len() / 4)
+    } else {
+        request.prompt.len() / 4
+    };
+    
+    let safety_buffer = 1000;
+    let context_tokens = effective_max_tokens.saturating_sub(prompt_tokens + safety_buffer);
+
     // Create a Config from the request
     let config = Config {
         paths: Some(vec![repo_path.clone()]),
         include: if request.include_patterns.is_empty() {
             None
         } else {
-            Some(request.include_patterns)
+            Some(request.include_patterns.clone())
         },
         ignore: if request.ignore_patterns.is_empty() {
             None
         } else {
-            Some(request.ignore_patterns)
+            Some(request.ignore_patterns.clone())
         },
         trace_imports: request.include_imports,
-        max_tokens: request.max_tokens.map(|t| t as usize),
+        max_tokens: Some(context_tokens),
+        llm_tool,
+        prompt: Some(request.prompt.clone()),
         // Disable other options
         output_file: None,
-        prompt: None,
         copy: false,
         verbose: 0,
         quiet: true,
@@ -429,14 +507,23 @@ fn process_remote_sync(
         })
         .count();
 
+    // Execute LLM with prompt and context
+    let answer = execute_llm_sync(&request.prompt, &output, request.llm_tool.as_deref())?;
+    
     let processing_time_ms = start.elapsed().as_millis() as u64;
 
     Ok(ProcessRemoteResponse {
-        markdown: output,
+        answer,
+        context: if request.include_context.unwrap_or(false) {
+            Some(output)
+        } else {
+            None
+        },
         file_count,
         token_count,
         processing_time_ms,
         repo_name,
+        llm_tool: request.llm_tool.unwrap_or_else(|| "gemini".to_string()),
     })
 }
 
@@ -1134,4 +1221,65 @@ fn is_supported_language_file(ext: &str) -> bool {
             | "nim"
             | "zig"
     )
+}
+
+/// Execute LLM with prompt and context
+fn execute_llm_sync(
+    prompt: &str,
+    context: &str,
+    llm_tool: Option<&str>,
+) -> Result<String> {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+    use crate::cli::LlmTool;
+    use crate::utils::error::ContextCreatorError;
+
+    // Determine which LLM tool to use
+    let tool = if let Some(tool_str) = llm_tool {
+        match tool_str {
+            "gemini" => LlmTool::Gemini,
+            "codex" => LlmTool::Codex,
+            _ => LlmTool::Gemini, // Default to gemini for unknown tools
+        }
+    } else {
+        LlmTool::Gemini // Default
+    };
+
+    let full_input = format!("{}\n\n{}", prompt, context);
+    let tool_command = tool.command();
+
+    let mut child = Command::new(tool_command)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                ContextCreatorError::LlmToolNotFound {
+                    tool: tool_command.to_string(),
+                    install_instructions: tool.install_instructions().to_string(),
+                }
+            } else {
+                ContextCreatorError::SubprocessError(e.to_string())
+            }
+        })?;
+
+    // Write input to stdin
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin.write_all(full_input.as_bytes())?;
+        stdin.flush()?;
+    }
+
+    // Capture output
+    let output = child.wait_with_output()?;
+    
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(ContextCreatorError::SubprocessError(format!(
+            "{} failed: {}",
+            tool_command, stderr
+        )).into());
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }

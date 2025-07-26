@@ -34,40 +34,79 @@ pub trait HealthRpc {
 /// Request structure for process_local_codebase
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProcessLocalRequest {
+    /// The question/prompt to ask about the codebase (primary feature)
+    pub prompt: String,
+    /// Path to the codebase to analyze
     pub path: std::path::PathBuf,
+    /// Optional: specific file patterns to include
     pub include_patterns: Vec<String>,
+    /// Optional: patterns to ignore
     pub ignore_patterns: Vec<String>,
+    /// Optional: whether to trace imports
     pub include_imports: bool,
+    /// Optional: max tokens for context (auto-calculated based on LLM if not specified)
     pub max_tokens: Option<u32>,
+    /// Optional: LLM tool to use (default: gemini)
+    pub llm_tool: Option<String>,
+    /// Optional: return markdown context along with answer
+    pub include_context: Option<bool>,
 }
 
 /// Response structure for process_local_codebase
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProcessLocalResponse {
-    pub markdown: String,
+    /// The LLM's answer to the prompt
+    pub answer: String,
+    /// Optional: the markdown context used (if include_context is true)
+    pub context: Option<String>,
+    /// Number of files analyzed
     pub file_count: usize,
+    /// Token count of the context
     pub token_count: usize,
+    /// Processing time in milliseconds
     pub processing_time_ms: u64,
+    /// LLM tool used
+    pub llm_tool: String,
 }
 
 /// Request structure for process_remote_repo
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProcessRemoteRequest {
+    /// The question/prompt to ask about the repository (primary feature)
+    pub prompt: String,
+    /// Git repository URL to analyze
     pub repo_url: String,
+    /// Optional: specific file patterns to include
     pub include_patterns: Vec<String>,
+    /// Optional: patterns to ignore
     pub ignore_patterns: Vec<String>,
+    /// Optional: whether to trace imports
     pub include_imports: bool,
+    /// Optional: max tokens for context (auto-calculated based on LLM if not specified)
     pub max_tokens: Option<u32>,
+    /// Optional: LLM tool to use (default: gemini)
+    pub llm_tool: Option<String>,
+    /// Optional: return markdown context along with answer
+    pub include_context: Option<bool>,
 }
 
 /// Response structure for process_remote_repo
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProcessRemoteResponse {
-    pub markdown: String,
+    /// The LLM's answer to the prompt
+    pub answer: String,
+    /// Optional: the markdown context used (if include_context is true)
+    pub context: Option<String>,
+    /// Number of files analyzed
     pub file_count: usize,
+    /// Token count of the context
     pub token_count: usize,
+    /// Processing time in milliseconds
     pub processing_time_ms: u64,
+    /// Repository name
     pub repo_name: String,
+    /// LLM tool used
+    pub llm_tool: String,
 }
 
 /// Request structure for get_file_metadata
