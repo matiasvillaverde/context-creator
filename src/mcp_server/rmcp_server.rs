@@ -34,7 +34,15 @@ impl ContextCreatorServer {
             tool_router: Self::tool_router(),
         }
     }
+}
 
+impl Default for ContextCreatorServer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ContextCreatorServer {
     #[tool(description = "Analyze a local codebase directory and answer questions about it")]
     pub async fn analyze_local(
         &self,
@@ -46,7 +54,7 @@ impl ContextCreatorServer {
         super::rmcp_handlers::validate_path(&request.path).map_err(|e| {
             ErrorData::new(
                 ErrorCode::INVALID_PARAMS,
-                format!("Invalid path: {}", e),
+                format!("Invalid path: {e}"),
                 None,
             )
         })?;

@@ -35,7 +35,7 @@ async fn test_rmcp_server_initialization() -> Result<()> {
     });
 
     writer
-        .write_all(format!("{}\n", init_request).as_bytes())
+        .write_all(format!("{init_request}\n").as_bytes())
         .await?;
     writer.flush().await?;
 
@@ -99,7 +99,7 @@ fn add(a: i32, b: i32) -> i32 {
     });
 
     writer
-        .write_all(format!("{}\n", init_request).as_bytes())
+        .write_all(format!("{init_request}\n").as_bytes())
         .await?;
     writer.flush().await?;
 
@@ -129,7 +129,7 @@ fn add(a: i32, b: i32) -> i32 {
     });
 
     writer
-        .write_all(format!("{}\n", tool_request).as_bytes())
+        .write_all(format!("{tool_request}\n").as_bytes())
         .await?;
     writer.flush().await?;
 
@@ -176,7 +176,7 @@ async fn test_list_tools() -> Result<()> {
     });
 
     writer
-        .write_all(format!("{}\n", init_request).as_bytes())
+        .write_all(format!("{init_request}\n").as_bytes())
         .await?;
     writer.flush().await?;
 
@@ -194,7 +194,7 @@ async fn test_list_tools() -> Result<()> {
     });
 
     writer
-        .write_all(format!("{}\n", list_tools_request).as_bytes())
+        .write_all(format!("{list_tools_request}\n").as_bytes())
         .await?;
     writer.flush().await?;
 
