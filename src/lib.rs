@@ -10,6 +10,7 @@ pub mod config;
 pub mod core;
 pub mod formatters;
 pub mod logging;
+pub mod mcp_server;
 pub mod remote;
 pub mod utils;
 

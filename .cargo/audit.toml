@@ -1,0 +1,7 @@
+[advisories]
+# Ignore RUSTSEC-2025-0009 - ring vulnerability in jsonrpsee's transitive dependencies
+# This is a known issue with rustls 0.23.x depending on ring 0.17.9
+# We cannot update further as jsonrpsee 0.25 still depends on rustls 0.23
+# The vulnerability only affects AES functions when overflow checking is enabled
+# which is not a concern for our TLS usage in the MCP server
+ignore = ["RUSTSEC-2025-0009"]
