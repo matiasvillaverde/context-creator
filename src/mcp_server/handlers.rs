@@ -1245,7 +1245,7 @@ fn execute_llm_sync(prompt: &str, context: &str, llm_tool: Option<&str>) -> Resu
         LlmTool::Gemini // Default
     };
 
-    let full_input = format!("{}\n\n{}", prompt, context);
+    let full_input = format!("{prompt}\n\n{context}");
     let tool_command = tool.command();
 
     let mut child = Command::new(tool_command)
@@ -1276,8 +1276,7 @@ fn execute_llm_sync(prompt: &str, context: &str, llm_tool: Option<&str>) -> Resu
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(ContextCreatorError::SubprocessError(format!(
-            "{} failed: {}",
-            tool_command, stderr
+            "{tool_command} failed: {stderr}"
         ))
         .into());
     }

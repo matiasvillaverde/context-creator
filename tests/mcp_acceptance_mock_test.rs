@@ -14,6 +14,7 @@ use tokio::time::sleep;
 /// Test server configuration
 struct TestServer {
     process: Child,
+    #[allow(dead_code)]
     port: u16,
     client: HttpClient,
 }
@@ -25,7 +26,7 @@ impl TestServer {
 
         // Build the binary in release mode for realistic performance testing
         let output = Command::new("cargo")
-            .args(&["build", "--release"])
+            .args(["build", "--release"])
             .output()?;
 
         if !output.status.success() {
@@ -46,7 +47,7 @@ impl TestServer {
         sleep(Duration::from_millis(500)).await;
 
         // Create client
-        let client = HttpClientBuilder::default().build(format!("http://127.0.0.1:{}", port))?;
+        let client = HttpClientBuilder::default().build(format!("http://127.0.0.1:{port}"))?;
 
         Ok(Self {
             process,
@@ -89,9 +90,9 @@ async fn test_get_file_metadata_basic() -> Result<()> {
         .client
         .request(
             "get_file_metadata",
-            json!({
+            rpc_params![json!({
                 "file_path": rust_file
-            }),
+            })],
         )
         .await?;
 
@@ -133,11 +134,11 @@ fn test_calculate() {
         .client
         .request(
             "search_codebase",
-            json!({
+            rpc_params![json!({
                 "path": temp_dir.path(),
                 "query": "calculate",
                 "max_results": 10
-            }),
+            })],
         )
         .await?;
 
@@ -163,11 +164,11 @@ async fn test_diff_files_basic() -> Result<()> {
         .client
         .request(
             "diff_files",
-            json!({
+            rpc_params![json!({
                 "file1_path": file1,
                 "file2_path": file2,
                 "context_lines": 1
-            }),
+            })],
         )
         .await?;
 
@@ -211,12 +212,12 @@ impl DataProcessor {
         .client
         .request(
             "semantic_search",
-            json!({
+            rpc_params![json!({
                 "path": temp_dir.path(),
                 "query": "process",
                 "search_type": "functions",
                 "max_results": 10
-            }),
+            })],
         )
         .await?;
 
@@ -232,13 +233,13 @@ async fn test_security_path_validation() -> Result<()> {
     let server = TestServer::start().await?;
 
     // Test path traversal protection
-    let result = server
+    let result: Result<serde_json::Value, _> = server
         .client
-        .request::<_, serde_json::Value>(
+        .request(
             "get_file_metadata",
-            json!({
+            rpc_params![json!({
                 "file_path": "../../../etc/passwd"
-            }),
+            })],
         )
         .await;
 
@@ -256,8 +257,8 @@ async fn test_concurrent_metadata_requests() -> Result<()> {
     // Create multiple files
     for i in 0..5 {
         std::fs::write(
-            temp_dir.path().join(format!("file{}.txt", i)),
-            format!("Content {}", i),
+            temp_dir.path().join(format!("file{i}.txt")),
+            format!("Content {i}"),
         )?;
     }
 
@@ -266,15 +267,15 @@ async fn test_concurrent_metadata_requests() -> Result<()> {
 
     for i in 0..5 {
         let client = server.client.clone();
-        let file_path = temp_dir.path().join(format!("file{}.txt", i));
+        let file_path = temp_dir.path().join(format!("file{i}.txt"));
 
         let handle = tokio::spawn(async move {
             let response: serde_json::Value = client
                 .request(
                     "get_file_metadata",
-                    json!({
+                    rpc_params![json!({
                         "file_path": file_path
-                    }),
+                    })],
                 )
                 .await?;
             Ok::<_, anyhow::Error>(response)

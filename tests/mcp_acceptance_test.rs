@@ -6,7 +6,6 @@ use jsonrpsee::core::client::ClientT;
 use jsonrpsee::http_client::{HttpClient, HttpClientBuilder};
 use jsonrpsee::rpc_params;
 use serde_json::json;
-use std::path::PathBuf;
 use std::process::{Child, Command};
 use std::time::Duration;
 use tempfile::TempDir;
@@ -15,6 +14,7 @@ use tokio::time::sleep;
 /// Test server configuration
 struct TestServer {
     process: Child,
+    #[allow(dead_code)]
     port: u16,
     client: HttpClient,
 }
@@ -26,7 +26,7 @@ impl TestServer {
 
         // Build the binary in release mode for realistic performance testing
         let output = Command::new("cargo")
-            .args(&["build", "--release"])
+            .args(["build", "--release"])
             .output()?;
 
         if !output.status.success() {
@@ -47,7 +47,7 @@ impl TestServer {
         sleep(Duration::from_millis(500)).await;
 
         // Create client
-        let client = HttpClientBuilder::default().build(format!("http://127.0.0.1:{}", port))?;
+        let client = HttpClientBuilder::default().build(format!("http://127.0.0.1:{port}"))?;
 
         Ok(Self {
             process,
@@ -329,7 +329,7 @@ async fn test_get_file_metadata() -> Result<()> {
     std::fs::write(&python_file, "def main():\n    pass")?;
 
     let binary_file = temp_dir.path().join("test.bin");
-    std::fs::write(&binary_file, &[0u8, 1, 2, 3, 255])?;
+    std::fs::write(&binary_file, [0u8, 1, 2, 3, 255])?;
 
     // Test Rust file
     let response: serde_json::Value = server
@@ -446,7 +446,7 @@ impl User {
         .await?;
 
     assert!(response["total_matches"].as_u64().unwrap() >= 4);
-    assert!(response["results"].as_array().unwrap().len() > 0);
+    assert!(!response["results"].as_array().unwrap().is_empty());
 
     let first_result = &response["results"][0];
     assert!(first_result["line_content"]
@@ -764,27 +764,26 @@ async fn test_performance_and_caching() -> Result<()> {
     // Create a moderately complex project
     for i in 0..10 {
         std::fs::write(
-            temp_dir.path().join(format!("module{}.rs", i)),
+            temp_dir.path().join(format!("module{i}.rs")),
             format!(
                 r#"
-pub mod module{} {{
-    pub fn process_{}_data(input: &[u8]) -> Vec<u8> {{
-        input.iter().map(|&b| b.wrapping_add({} as u8)).collect()
+pub mod module{i} {{
+    pub fn process_{i}_data(input: &[u8]) -> Vec<u8> {{
+        input.iter().map(|&b| b.wrapping_add({i} as u8)).collect()
     }}
     
-    pub struct Processor{} {{
+    pub struct Processor{i} {{
         id: u64,
         name: String,
     }}
     
-    impl Processor{} {{
+    impl Processor{i} {{
         pub fn new(name: String) -> Self {{
-            Self {{ id: {}, name }}
+            Self {{ id: {i}, name }}
         }}
     }}
 }}
-"#,
-                i, i, i, i, i, i
+"#
             ),
         )?;
     }
@@ -826,9 +825,7 @@ pub mod module{} {{
     // Cache should make second request much faster
     assert!(
         duration2 < duration1 / 2,
-        "Cache didn't improve performance: {:?} vs {:?}",
-        duration1,
-        duration2
+        "Cache didn't improve performance: {duration1:?} vs {duration2:?}"
     );
 
     // Responses should be identical
@@ -836,8 +833,7 @@ pub mod module{} {{
     assert_eq!(response1["file_count"], response2["file_count"]);
 
     println!(
-        "Performance test - First request: {:?}, Cached request: {:?}",
-        duration1, duration2
+        "Performance test - First request: {duration1:?}, Cached request: {duration2:?}"
     );
 
     server.stop()?;
@@ -852,8 +848,8 @@ async fn test_concurrent_requests() -> Result<()> {
     // Create test files
     for i in 0..5 {
         std::fs::write(
-            temp_dir.path().join(format!("file{}.rs", i)),
-            format!("fn function_{}() {{ println!(\"{}\"); }}", i, i),
+            temp_dir.path().join(format!("file{i}.rs")),
+            format!("fn function_{i}() {{ println!(\"{i}\"); }}"),
         )?;
     }
 
@@ -895,7 +891,7 @@ async fn test_concurrent_requests() -> Result<()> {
         assert!(response["answer"]
             .as_str()
             .unwrap()
-            .contains(&format!("{}", i)));
+            .contains(&format!("{i}")));
     }
 
     server.stop()?;
@@ -907,9 +903,9 @@ async fn test_security_validation() -> Result<()> {
     let server = TestServer::start().await?;
 
     // Test 1: Path traversal attempt
-    let result = server
+    let result: Result<serde_json::Value, _> = server
         .client
-        .request::<_, serde_json::Value>(
+        .request(
             "process_local_codebase",
             rpc_params![json!({
                 "prompt": "What's in this directory?",
@@ -926,9 +922,9 @@ async fn test_security_validation() -> Result<()> {
     assert!(error.to_string().contains("Invalid path") || error.to_string().contains("traversal"));
 
     // Test 2: Invalid repository URL
-    let result = server
+    let result: Result<serde_json::Value, _> = server
         .client
-        .request::<_, serde_json::Value>(
+        .request(
             "process_remote_repo",
             rpc_params![json!({
                 "prompt": "Analyze this repo",
@@ -943,9 +939,9 @@ async fn test_security_validation() -> Result<()> {
     assert!(result.is_err());
 
     // Test 3: Non-existent path
-    let result = server
+    let result: Result<serde_json::Value, _> = server
         .client
-        .request::<_, serde_json::Value>(
+        .request(
             "get_file_metadata",
             rpc_params![json!({
                 "file_path": "/definitely/does/not/exist/file.rs"
@@ -986,7 +982,7 @@ async fn test_edge_cases() -> Result<()> {
 
     // Test 2: Binary files
     let binary_file = temp_dir.path().join("binary.dat");
-    std::fs::write(&binary_file, &[0u8, 1, 2, 3, 255, 254, 253])?;
+    std::fs::write(&binary_file, [0u8, 1, 2, 3, 255, 254, 253])?;
 
     let response: serde_json::Value = server
         .client
