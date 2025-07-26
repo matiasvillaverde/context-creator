@@ -832,9 +832,7 @@ pub mod module{i} {{
     assert_eq!(response1["answer"], response2["answer"]);
     assert_eq!(response1["file_count"], response2["file_count"]);
 
-    println!(
-        "Performance test - First request: {duration1:?}, Cached request: {duration2:?}"
-    );
+    println!("Performance test - First request: {duration1:?}, Cached request: {duration2:?}");
 
     server.stop()?;
     Ok(())
