@@ -24,7 +24,7 @@ fn run_main() -> Result<()> {
     config.validate()?;
 
     // Check if MCP server mode is requested
-    if config.mcp {
+    if config.mcp || config.rmcp {
         // Initialize logging for MCP server
         context_creator::logging::init_logging(&config)?;
 
@@ -67,16 +67,37 @@ async fn run_mcp_server(config: Config) -> Result<()> {
         .build_global()
         .ok(); // Ignore error if already initialized
 
-    let addr = format!("127.0.0.1:{}", config.mcp_port);
-    eprintln!("MCP server listening on {addr}");
     eprintln!("Configured Rayon thread pool with {rayon_threads} threads");
 
-    let handle = mcp_server::start_server(&addr).await?;
+    // Use RMCP implementation if requested
+    if config.rmcp {
+        match config.rmcp_transport.as_str() {
+            "stdio" => {
+                eprintln!("Starting RMCP MCP server (stdio transport)");
+                mcp_server::rmcp_server::transport::start_stdio().await?;
+            }
+            "http" => {
+                let addr = format!("127.0.0.1:{}", config.mcp_port);
+                eprintln!("Starting RMCP MCP server (HTTP/SSE transport) on {addr}");
+                mcp_server::rmcp_server::transport::start_http(&addr).await?;
+            }
+            _ => {
+                anyhow::bail!("Invalid RMCP transport mode: {}", config.rmcp_transport);
+            }
+        }
+    } else {
+        // Use original jsonrpsee implementation
+        let addr = format!("127.0.0.1:{}", config.mcp_port);
+        eprintln!("MCP server listening on {addr}");
+        
+        let handle = mcp_server::start_server(&addr).await?;
 
-    // Wait for shutdown signal
-    tokio::signal::ctrl_c().await?;
-    eprintln!("Shutting down MCP server...");
+        // Wait for shutdown signal
+        tokio::signal::ctrl_c().await?;
+        eprintln!("Shutting down MCP server...");
 
-    handle.stop()?;
+        handle.stop()?;
+    }
+    
     Ok(())
 }

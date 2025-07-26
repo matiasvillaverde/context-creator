@@ -44,7 +44,13 @@ num_cpus = "1.16"
 petgraph = "0.6"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-jsonrpsee = { version = "0.25", features = ["server", "http-client", "macros"] }
+rmcp = { version = "0.2.0", features = ["server", "transport-io", "transport-sse-server"] }
+jsonrpsee = { version = "0.22", features = ["server", "http-client", "macros"] }
+schemars = "0.8"
+axum = "0.7"
+hyper = "1.0"
+hyper-util = "0.1"
+tower-service = "0.3"
 tower = { version = "0.4", features = ["full"] }
 
 [dev-dependencies]

@@ -353,6 +353,21 @@ pub struct Config {
     )]
     pub mcp_port: u16,
 
+    /// Use RMCP implementation instead of jsonrpsee
+    #[arg(
+        long = "rmcp",
+        help = "Use RMCP implementation for MCP server"
+    )]
+    pub rmcp: bool,
+
+    /// Transport mode for RMCP server
+    #[arg(
+        long = "rmcp-transport",
+        default_value = "stdio",
+        help = "Transport mode for RMCP server (stdio, http)"
+    )]
+    pub rmcp_transport: String,
+
     /// Custom priority rules loaded from config file (not a CLI argument)
     #[clap(skip)]
     pub custom_priorities: Vec<crate::config::Priority>,
@@ -395,6 +410,8 @@ impl Default for Config {
             semantic_depth: 5,
             mcp: false,
             mcp_port: 9090,
+            rmcp: false,
+            rmcp_transport: "stdio".to_string(),
             custom_priorities: vec![],
             config_token_limits: None,
             config_defaults_max_tokens: None,
@@ -408,7 +425,7 @@ impl Config {
         use crate::utils::error::ContextCreatorError;
 
         // If MCP server mode is enabled, validate conflicts
-        if self.mcp {
+        if self.mcp || self.rmcp {
             if self.paths.is_some() {
                 return Err(ContextCreatorError::InvalidConfiguration(
                     "Paths cannot be used with MCP server mode".to_string(),

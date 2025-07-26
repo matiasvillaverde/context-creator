@@ -221,7 +221,7 @@ impl CodebaseRpcServer for CodebaseRpcImpl {
 }
 
 /// Validate path for security issues
-fn validate_path(path: &Path) -> RpcResult<()> {
+pub(super) fn validate_path(path: &Path) -> RpcResult<()> {
     // Check for path traversal attempts
     let path_str = path.to_string_lossy();
     if path_str.contains("..") || path_str.contains('~') {
@@ -268,7 +268,7 @@ fn validate_url(url: &str) -> RpcResult<()> {
 }
 
 /// Synchronous implementation of codebase processing
-fn process_codebase_sync(
+pub(super) fn process_codebase_sync(
     request: ProcessLocalRequest,
     start: Instant,
 ) -> Result<ProcessLocalResponse> {
@@ -394,7 +394,7 @@ fn process_codebase_sync(
 }
 
 /// Synchronous implementation of remote repository processing
-fn process_remote_sync(
+pub(super) fn process_remote_sync(
     request: ProcessRemoteRequest,
     start: Instant,
 ) -> Result<ProcessRemoteResponse> {
@@ -532,7 +532,7 @@ fn process_remote_sync(
 }
 
 /// Synchronous implementation of file metadata retrieval
-fn get_file_metadata_sync(
+pub(super) fn get_file_metadata_sync(
     request: super::GetFileMetadataRequest,
 ) -> Result<super::GetFileMetadataResponse> {
     use std::fs;
@@ -605,7 +605,7 @@ fn get_file_metadata_sync(
 }
 
 /// Synchronous implementation of codebase search
-fn search_codebase_sync(
+pub(super) fn search_codebase_sync(
     request: super::SearchCodebaseRequest,
     start: std::time::Instant,
 ) -> Result<super::SearchCodebaseResponse> {
@@ -774,7 +774,7 @@ fn get_match_context(line: &str, query: &str) -> String {
 }
 
 /// Synchronous implementation of file diff
-fn diff_files_sync(request: super::DiffFilesRequest) -> Result<super::DiffFilesResponse> {
+pub(super) fn diff_files_sync(request: super::DiffFilesRequest) -> Result<super::DiffFilesResponse> {
     use std::fs;
 
     // Check if files exist
@@ -956,7 +956,7 @@ fn compute_diff(lines1: &[&str], lines2: &[&str], context_lines: u32) -> Vec<sup
 }
 
 /// Synchronous implementation of semantic search
-fn semantic_search_sync(
+pub(super) fn semantic_search_sync(
     request: super::SemanticSearchRequest,
     start: std::time::Instant,
 ) -> Result<super::SemanticSearchResponse> {

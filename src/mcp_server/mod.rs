@@ -10,13 +10,16 @@ use jsonrpsee::{
     server::{Server, ServerHandle as JsonRpcServerHandle},
 };
 use serde::{Deserialize, Serialize};
+use schemars::JsonSchema;
 use std::net::SocketAddr;
 
 pub mod cache;
 pub mod handlers;
+pub mod rmcp_handlers;
+pub mod rmcp_server;
 
 /// Health check response structure
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct HealthResponse {
     pub status: String,
     pub timestamp: u64,
@@ -32,7 +35,7 @@ pub trait HealthRpc {
 }
 
 /// Request structure for process_local_codebase
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct ProcessLocalRequest {
     /// The question/prompt to ask about the codebase (primary feature)
     pub prompt: String,
@@ -53,7 +56,7 @@ pub struct ProcessLocalRequest {
 }
 
 /// Response structure for process_local_codebase
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct ProcessLocalResponse {
     /// The LLM's answer to the prompt
     pub answer: String,
@@ -70,7 +73,7 @@ pub struct ProcessLocalResponse {
 }
 
 /// Request structure for process_remote_repo
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct ProcessRemoteRequest {
     /// The question/prompt to ask about the repository (primary feature)
     pub prompt: String,
@@ -91,7 +94,7 @@ pub struct ProcessRemoteRequest {
 }
 
 /// Response structure for process_remote_repo
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct ProcessRemoteResponse {
     /// The LLM's answer to the prompt
     pub answer: String,
@@ -110,13 +113,13 @@ pub struct ProcessRemoteResponse {
 }
 
 /// Request structure for get_file_metadata
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct GetFileMetadataRequest {
     pub file_path: std::path::PathBuf,
 }
 
 /// Response structure for get_file_metadata
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct GetFileMetadataResponse {
     pub path: std::path::PathBuf,
     pub size: u64,
@@ -126,7 +129,7 @@ pub struct GetFileMetadataResponse {
 }
 
 /// Request structure for search_codebase
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct SearchCodebaseRequest {
     pub path: std::path::PathBuf,
     pub query: String,
@@ -135,7 +138,7 @@ pub struct SearchCodebaseRequest {
 }
 
 /// Search result entry
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct SearchResult {
     pub file_path: std::path::PathBuf,
     pub line_number: usize,
@@ -144,7 +147,7 @@ pub struct SearchResult {
 }
 
 /// Response structure for search_codebase
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct SearchCodebaseResponse {
     pub results: Vec<SearchResult>,
     pub total_matches: usize,
@@ -153,7 +156,7 @@ pub struct SearchCodebaseResponse {
 }
 
 /// Request structure for diff_files
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct DiffFilesRequest {
     pub file1_path: std::path::PathBuf,
     pub file2_path: std::path::PathBuf,
@@ -161,7 +164,7 @@ pub struct DiffFilesRequest {
 }
 
 /// Diff hunk structure
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct DiffHunk {
     pub old_start: usize,
     pub old_lines: usize,
@@ -171,7 +174,7 @@ pub struct DiffHunk {
 }
 
 /// Response structure for diff_files
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct DiffFilesResponse {
     pub file1_path: std::path::PathBuf,
     pub file2_path: std::path::PathBuf,
@@ -182,7 +185,7 @@ pub struct DiffFilesResponse {
 }
 
 /// Request structure for semantic_search
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct SemanticSearchRequest {
     pub path: std::path::PathBuf,
     pub query: String,
@@ -191,7 +194,7 @@ pub struct SemanticSearchRequest {
 }
 
 /// Type of semantic search
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum SemanticSearchType {
     /// Find functions/methods by name
@@ -205,7 +208,7 @@ pub enum SemanticSearchType {
 }
 
 /// Semantic search result
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct SemanticSearchResult {
     pub file_path: std::path::PathBuf,
     pub symbol_name: String,
@@ -215,7 +218,7 @@ pub struct SemanticSearchResult {
 }
 
 /// Response structure for semantic_search
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct SemanticSearchResponse {
     pub results: Vec<SemanticSearchResult>,
     pub total_matches: usize,
