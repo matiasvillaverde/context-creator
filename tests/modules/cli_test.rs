@@ -741,7 +741,6 @@ fn test_cli_security_control_character_patterns() {
 
 #[test]
 fn test_prepare_command_gemini() {
-
     let config = Config::parse_from(["context-creator", "--tool", "gemini", "."]);
     let (cmd, combined_input) = LlmTool::Gemini.prepare_command(&config).unwrap();
 
