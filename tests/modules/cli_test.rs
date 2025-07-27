@@ -741,13 +741,12 @@ fn test_cli_security_control_character_patterns() {
 
 #[test]
 fn test_prepare_command_gemini() {
-    use std::process::Stdio;
 
     let config = Config::parse_from(["context-creator", "--tool", "gemini", "."]);
-    let (mut cmd, combined_input) = LlmTool::Gemini.prepare_command(&config).unwrap();
+    let (cmd, combined_input) = LlmTool::Gemini.prepare_command(&config).unwrap();
 
     // Gemini should use stdin for combined prompt+context
-    assert_eq!(combined_input, true);
+    assert!(combined_input);
 
     // Verify command setup
     assert_eq!(cmd.get_program(), "gemini");
@@ -760,10 +759,10 @@ fn test_prepare_command_gemini() {
 #[test]
 fn test_prepare_command_codex() {
     let config = Config::parse_from(["context-creator", "--tool", "codex", "."]);
-    let (mut cmd, combined_input) = LlmTool::Codex.prepare_command(&config).unwrap();
+    let (cmd, combined_input) = LlmTool::Codex.prepare_command(&config).unwrap();
 
     // Codex should use stdin for combined prompt+context
-    assert_eq!(combined_input, true);
+    assert!(combined_input);
 
     // Verify command setup
     assert_eq!(cmd.get_program(), "codex");
@@ -778,10 +777,10 @@ fn test_prepare_command_claude() {
     let mut config = Config::parse_from(["context-creator", "--tool", "claude", "."]);
     config.prompt = Some("Test prompt".to_string());
 
-    let (mut cmd, combined_input) = LlmTool::Claude.prepare_command(&config).unwrap();
+    let (cmd, combined_input) = LlmTool::Claude.prepare_command(&config).unwrap();
 
     // Claude should use command args for prompt, stdin for context only
-    assert_eq!(combined_input, false);
+    assert!(!combined_input);
 
     // Verify command setup
     assert_eq!(cmd.get_program(), "claude");
@@ -804,10 +803,10 @@ fn test_prepare_command_ollama_with_model() {
         ".",
     ]);
 
-    let (mut cmd, combined_input) = LlmTool::Ollama.prepare_command(&config).unwrap();
+    let (cmd, combined_input) = LlmTool::Ollama.prepare_command(&config).unwrap();
 
     // Ollama should use stdin for combined prompt+context
-    assert_eq!(combined_input, true);
+    assert!(combined_input);
 
     // Verify command setup
     assert_eq!(cmd.get_program(), "ollama");

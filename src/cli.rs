@@ -228,7 +228,7 @@ impl LlmTool {
         match self {
             LlmTool::Gemini | LlmTool::Codex => {
                 // Simple tools that just need the command name
-                let mut cmd = Command::new(self.command());
+                let cmd = Command::new(self.command());
                 Ok((cmd, true)) // true = combined prompt+context to stdin
             }
             LlmTool::Claude => {
@@ -937,6 +937,8 @@ mod tests {
             config_token_limits: Some(TokenLimits {
                 gemini: Some(2_500_000),
                 codex: Some(1_800_000),
+                claude: None,
+                ollama: None,
             }),
             ..Config::new_for_test(None)
         };
@@ -954,6 +956,8 @@ mod tests {
             config_token_limits: Some(TokenLimits {
                 gemini: Some(2_500_000),
                 codex: Some(1_800_000),
+                claude: None,
+                ollama: None,
             }),
             ..Config::new_for_test(None)
         };
@@ -971,6 +975,8 @@ mod tests {
             config_token_limits: Some(TokenLimits {
                 gemini: Some(2_500_000),
                 codex: Some(1_800_000),
+                claude: None,
+                ollama: None,
             }),
             ..Config::new_for_test(None)
         };
@@ -988,6 +994,8 @@ mod tests {
             config_token_limits: Some(TokenLimits {
                 gemini: Some(3_000_000),
                 codex: None, // Codex not configured
+                claude: None,
+                ollama: None,
             }),
             ..Config::new_for_test(None)
         };
@@ -1005,6 +1013,8 @@ mod tests {
             config_token_limits: Some(TokenLimits {
                 gemini: None, // Gemini not configured
                 codex: Some(1_200_000),
+                claude: None,
+                ollama: None,
             }),
             ..Config::new_for_test(None)
         };
@@ -1022,6 +1032,8 @@ mod tests {
             config_token_limits: Some(TokenLimits {
                 gemini: None, // No limit configured for Gemini
                 codex: Some(1_800_000),
+                claude: None,
+                ollama: None,
             }),
             ..Config::new_for_test(None)
         };
@@ -1036,6 +1048,8 @@ mod tests {
         let token_limits = TokenLimits {
             gemini: Some(2_500_000),
             codex: Some(1_800_000),
+            claude: None,
+            ollama: None,
         };
 
         assert_eq!(
@@ -1055,6 +1069,8 @@ mod tests {
         let token_limits = TokenLimits {
             gemini: Some(3_000_000),
             codex: None, // Codex not configured
+            claude: None,
+            ollama: None,
         };
 
         assert_eq!(
@@ -1133,6 +1149,8 @@ mod tests {
             config_token_limits: Some(TokenLimits {
                 gemini: Some(50000),
                 codex: Some(40000),
+                claude: None,
+                ollama: None,
             }),
             ..Config::new_for_test(None)
         };

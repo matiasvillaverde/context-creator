@@ -436,6 +436,8 @@ max_tokens = 200000
             tokens: TokenLimits {
                 gemini: Some(2_500_000),
                 codex: Some(1_800_000),
+                claude: None,
+                ollama: None,
             },
             priorities: vec![],
             ignore: vec![],
