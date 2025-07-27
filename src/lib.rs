@@ -329,12 +329,21 @@ fn process_directory(
 /// Execute LLM CLI with the generated context
 fn execute_with_llm(prompt: &str, context: &str, config: &Config) -> Result<()> {
     use std::io::Write;
-    use std::process::{Command, Stdio};
+    use std::process::Stdio;
 
-    let full_input = format!("{prompt}\n\n{context}");
+    // Use the new prepare_command method
+    let (mut command, combined_input) = config.llm_tool.prepare_command(config)?;
+
+    // Determine what to send to stdin based on tool requirements
+    let stdin_data = if combined_input {
+        format!("{prompt}\n\n{context}") // Gemini, Codex, Ollama
+    } else {
+        context.to_string() // Claude (prompt passed via -p flag)
+    };
+
     let tool_command = config.llm_tool.command();
 
-    let mut child = Command::new(tool_command)
+    let mut child = command
         .stdin(Stdio::piped())
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
@@ -351,7 +360,7 @@ fn execute_with_llm(prompt: &str, context: &str, config: &Config) -> Result<()> 
         })?;
 
     if let Some(mut stdin) = child.stdin.take() {
-        stdin.write_all(full_input.as_bytes())?;
+        stdin.write_all(stdin_data.as_bytes())?;
         stdin.flush()?;
     }
 

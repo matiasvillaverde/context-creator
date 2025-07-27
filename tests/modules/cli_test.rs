@@ -43,6 +43,95 @@ fn test_llm_tool_install_instructions() {
 }
 
 #[test]
+fn test_llm_tool_claude() {
+    let config = Config::parse_from(["context-creator", "--tool", "claude", "."]);
+    assert_eq!(config.llm_tool, LlmTool::Claude);
+}
+
+#[test]
+fn test_llm_tool_ollama() {
+    let config = Config::parse_from(["context-creator", "--tool", "ollama", "."]);
+    assert_eq!(config.llm_tool, LlmTool::Ollama);
+}
+
+#[test]
+fn test_llm_tool_claude_command_name() {
+    assert_eq!(LlmTool::Claude.command(), "claude");
+}
+
+#[test]
+fn test_llm_tool_ollama_command_name() {
+    assert_eq!(LlmTool::Ollama.command(), "ollama");
+}
+
+#[test]
+fn test_llm_tool_claude_install_instructions() {
+    assert!(LlmTool::Claude
+        .install_instructions()
+        .contains("npm install -g @anthropic-ai/claude-code"));
+}
+
+#[test]
+fn test_llm_tool_ollama_install_instructions() {
+    assert!(LlmTool::Ollama
+        .install_instructions()
+        .contains("brew install ollama"));
+}
+
+#[test]
+fn test_ollama_model_argument() {
+    let config = Config::parse_from([
+        "context-creator",
+        "--tool",
+        "ollama",
+        "--ollama-model",
+        "llama3",
+        ".",
+    ]);
+    assert_eq!(config.llm_tool, LlmTool::Ollama);
+    assert_eq!(config.ollama_model, Some("llama3".to_string()));
+}
+
+#[test]
+fn test_ollama_without_model_validation_error() {
+    let config = Config::parse_from([
+        "context-creator",
+        "--tool",
+        "ollama",
+        "--prompt",
+        "Test prompt",
+        ".",
+    ]);
+    assert_eq!(config.llm_tool, LlmTool::Ollama);
+    assert_eq!(config.ollama_model, None);
+
+    // Should fail validation when using Ollama without model
+    let result = config.validate();
+    assert!(result.is_err());
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("--ollama-model is required when using --tool ollama"));
+}
+
+#[test]
+fn test_ollama_model_with_other_tools_ignored() {
+    let config = Config::parse_from([
+        "context-creator",
+        "--tool",
+        "gemini",
+        "--ollama-model",
+        "llama3", // Should be ignored for non-ollama tools
+        ".",
+    ]);
+    assert_eq!(config.llm_tool, LlmTool::Gemini);
+    assert_eq!(config.ollama_model, Some("llama3".to_string()));
+
+    // Should pass validation - ollama_model is ignored for other tools
+    assert!(config.validate().is_ok());
+}
+
+#[test]
 fn test_repo_argument() {
     let config = Config::parse_from([
         "context-creator",
@@ -653,4 +742,98 @@ fn test_cli_security_control_character_patterns() {
         let parsed_patterns = config.get_include_patterns();
         assert_eq!(parsed_patterns, vec![pattern]);
     }
+}
+
+// === Tests for prepare_command() method ===
+
+#[test]
+fn test_prepare_command_gemini() {
+    let config = Config::parse_from(["context-creator", "--tool", "gemini", "."]);
+    let (cmd, combined_input) = LlmTool::Gemini.prepare_command(&config).unwrap();
+
+    // Gemini should use stdin for combined prompt+context
+    assert!(combined_input);
+
+    // Verify command setup
+    assert_eq!(cmd.get_program(), "gemini");
+
+    // Check that no args are passed
+    let args: Vec<_> = cmd.get_args().collect();
+    assert_eq!(args.len(), 0);
+}
+
+#[test]
+fn test_prepare_command_codex() {
+    let config = Config::parse_from(["context-creator", "--tool", "codex", "."]);
+    let (cmd, combined_input) = LlmTool::Codex.prepare_command(&config).unwrap();
+
+    // Codex should use stdin for combined prompt+context
+    assert!(combined_input);
+
+    // Verify command setup
+    assert_eq!(cmd.get_program(), "codex");
+
+    // Check that no args are passed
+    let args: Vec<_> = cmd.get_args().collect();
+    assert_eq!(args.len(), 0);
+}
+
+#[test]
+fn test_prepare_command_claude() {
+    let mut config = Config::parse_from(["context-creator", "--tool", "claude", "."]);
+    config.prompt = Some("Test prompt".to_string());
+
+    let (cmd, combined_input) = LlmTool::Claude.prepare_command(&config).unwrap();
+
+    // Claude should use command args for prompt, stdin for context only
+    assert!(!combined_input);
+
+    // Verify command setup
+    assert_eq!(cmd.get_program(), "claude");
+
+    // Check that -p flag and prompt are passed
+    let args: Vec<_> = cmd.get_args().collect();
+    assert_eq!(args.len(), 2);
+    assert_eq!(args[0], "-p");
+    assert_eq!(args[1], "Test prompt");
+}
+
+#[test]
+fn test_prepare_command_ollama_with_model() {
+    let config = Config::parse_from([
+        "context-creator",
+        "--tool",
+        "ollama",
+        "--ollama-model",
+        "llama3",
+        ".",
+    ]);
+
+    let (cmd, combined_input) = LlmTool::Ollama.prepare_command(&config).unwrap();
+
+    // Ollama should use stdin for combined prompt+context
+    assert!(combined_input);
+
+    // Verify command setup
+    assert_eq!(cmd.get_program(), "ollama");
+
+    // Check that "run" and model are passed
+    let args: Vec<_> = cmd.get_args().collect();
+    assert_eq!(args.len(), 2);
+    assert_eq!(args[0], "run");
+    assert_eq!(args[1], "llama3");
+}
+
+#[test]
+fn test_prepare_command_ollama_without_model() {
+    let config = Config::parse_from(["context-creator", "--tool", "ollama", "."]);
+
+    let result = LlmTool::Ollama.prepare_command(&config);
+
+    // Should return error when model is not specified
+    assert!(result.is_err());
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("--ollama-model is required when using --tool ollama"));
 }

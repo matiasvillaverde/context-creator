@@ -125,6 +125,12 @@ pub enum LlmTool {
     /// Use codex CLI
     #[value(name = "codex")]
     Codex,
+    /// Use Claude Code CLI
+    #[value(name = "claude")]
+    Claude,
+    /// Use Ollama local LLM
+    #[value(name = "ollama")]
+    Ollama,
 }
 
 /// Log output format options
@@ -163,6 +169,8 @@ impl LlmTool {
         match self {
             LlmTool::Gemini => "gemini",
             LlmTool::Codex => "codex",
+            LlmTool::Claude => "claude",
+            LlmTool::Ollama => "ollama",
         }
     }
 
@@ -173,6 +181,12 @@ impl LlmTool {
             LlmTool::Codex => {
                 "Please install codex CLI from: https://github.com/microsoft/codex-cli"
             }
+            LlmTool::Claude => {
+                "Please install Claude Code with: npm install -g @anthropic-ai/claude-code"
+            }
+            LlmTool::Ollama => {
+                "Please install Ollama from: https://ollama.ai or with: brew install ollama"
+            }
         }
     }
 
@@ -181,6 +195,8 @@ impl LlmTool {
         match self {
             LlmTool::Gemini => 1_000_000,
             LlmTool::Codex => 1_000_000,
+            LlmTool::Claude => 200_000, // Claude has smaller context window
+            LlmTool::Ollama => 4_096,   // Default for most local models
         }
     }
 
@@ -193,9 +209,47 @@ impl LlmTool {
             match self {
                 LlmTool::Gemini => token_limits.gemini.unwrap_or(1_000_000),
                 LlmTool::Codex => token_limits.codex.unwrap_or(1_000_000),
+                LlmTool::Claude => token_limits.claude.unwrap_or(200_000),
+                LlmTool::Ollama => token_limits.ollama.unwrap_or(4_096),
             }
         } else {
             self.default_max_tokens()
+        }
+    }
+
+    /// Prepare command for execution with appropriate arguments
+    /// Returns (Command, bool) where bool indicates if prompt+context should be combined
+    pub fn prepare_command(
+        &self,
+        config: &Config,
+    ) -> Result<(std::process::Command, bool), crate::utils::error::ContextCreatorError> {
+        use std::process::Command;
+
+        match self {
+            LlmTool::Gemini | LlmTool::Codex => {
+                // Simple tools that just need the command name
+                let cmd = Command::new(self.command());
+                Ok((cmd, true)) // true = combined prompt+context to stdin
+            }
+            LlmTool::Claude => {
+                // Claude uses -p flag for prompt
+                let mut cmd = Command::new(self.command());
+                if let Some(prompt) = config.get_prompt() {
+                    cmd.arg("-p").arg(prompt);
+                }
+                Ok((cmd, false)) // false = context only to stdin
+            }
+            LlmTool::Ollama => {
+                // Ollama requires model specification
+                let model = config.ollama_model.as_ref().ok_or_else(|| {
+                    crate::utils::error::ContextCreatorError::InvalidConfiguration(
+                        "--ollama-model is required when using --tool ollama".to_string(),
+                    )
+                })?;
+                let mut cmd = Command::new(self.command());
+                cmd.arg("run").arg(model);
+                Ok((cmd, true)) // true = combined prompt+context to stdin
+            }
         }
     }
 }
@@ -280,6 +334,13 @@ pub struct Config {
     /// LLM CLI tool to use for processing
     #[arg(short = 't', long = "tool", default_value = "gemini")]
     pub llm_tool: LlmTool,
+
+    /// Model to use with Ollama (required when using --tool ollama)
+    #[arg(
+        long = "ollama-model",
+        help = "Ollama model to use (e.g., llama3, codellama)"
+    )]
+    pub ollama_model: Option<String>,
 
     /// Suppress all output except for errors and the final LLM response
     #[arg(short = 'q', long)]
@@ -391,6 +452,7 @@ impl Default for Config {
             output_file: None,
             max_tokens: None,
             llm_tool: LlmTool::default(),
+            ollama_model: None,
             quiet: false,
             verbose: 0,
             log_format: LogFormat::default(),
@@ -554,6 +616,16 @@ impl Config {
             ));
         }
 
+        // Validate Ollama model requirement
+        if self.llm_tool == LlmTool::Ollama
+            && self.ollama_model.is_none()
+            && self.get_prompt().is_some()
+        {
+            return Err(ContextCreatorError::InvalidConfiguration(
+                "--ollama-model is required when using --tool ollama".to_string(),
+            ));
+        }
+
         Ok(())
     }
 
@@ -638,6 +710,8 @@ impl Config {
                 let config_limit = match self.llm_tool {
                     LlmTool::Gemini => token_limits.gemini,
                     LlmTool::Codex => token_limits.codex,
+                    LlmTool::Claude => token_limits.claude,
+                    LlmTool::Ollama => token_limits.ollama,
                 };
 
                 if let Some(limit) = config_limit {
@@ -863,6 +937,8 @@ mod tests {
             config_token_limits: Some(TokenLimits {
                 gemini: Some(2_500_000),
                 codex: Some(1_800_000),
+                claude: None,
+                ollama: None,
             }),
             ..Config::new_for_test(None)
         };
@@ -880,6 +956,8 @@ mod tests {
             config_token_limits: Some(TokenLimits {
                 gemini: Some(2_500_000),
                 codex: Some(1_800_000),
+                claude: None,
+                ollama: None,
             }),
             ..Config::new_for_test(None)
         };
@@ -897,6 +975,8 @@ mod tests {
             config_token_limits: Some(TokenLimits {
                 gemini: Some(2_500_000),
                 codex: Some(1_800_000),
+                claude: None,
+                ollama: None,
             }),
             ..Config::new_for_test(None)
         };
@@ -914,6 +994,8 @@ mod tests {
             config_token_limits: Some(TokenLimits {
                 gemini: Some(3_000_000),
                 codex: None, // Codex not configured
+                claude: None,
+                ollama: None,
             }),
             ..Config::new_for_test(None)
         };
@@ -931,6 +1013,8 @@ mod tests {
             config_token_limits: Some(TokenLimits {
                 gemini: None, // Gemini not configured
                 codex: Some(1_200_000),
+                claude: None,
+                ollama: None,
             }),
             ..Config::new_for_test(None)
         };
@@ -948,6 +1032,8 @@ mod tests {
             config_token_limits: Some(TokenLimits {
                 gemini: None, // No limit configured for Gemini
                 codex: Some(1_800_000),
+                claude: None,
+                ollama: None,
             }),
             ..Config::new_for_test(None)
         };
@@ -962,6 +1048,8 @@ mod tests {
         let token_limits = TokenLimits {
             gemini: Some(2_500_000),
             codex: Some(1_800_000),
+            claude: None,
+            ollama: None,
         };
 
         assert_eq!(
@@ -981,6 +1069,8 @@ mod tests {
         let token_limits = TokenLimits {
             gemini: Some(3_000_000),
             codex: None, // Codex not configured
+            claude: None,
+            ollama: None,
         };
 
         assert_eq!(
@@ -1059,6 +1149,8 @@ mod tests {
             config_token_limits: Some(TokenLimits {
                 gemini: Some(50000),
                 codex: Some(40000),
+                claude: None,
+                ollama: None,
             }),
             ..Config::new_for_test(None)
         };

@@ -39,6 +39,12 @@ context-creator --prompt "I need to add WebAuthn support. Which files need chang
 # Architecture review
 context-creator --prompt "Generate a dependency graph of the payment processing module"
 
+# Using Claude Code for analysis
+context-creator --tool claude --prompt "Review the authentication system for security vulnerabilities"
+
+# Using Ollama for local processing
+context-creator --tool ollama --ollama-model codellama --prompt "Suggest performance optimizations"
+
 # Analyze git changes
 context-creator diff HEAD~1 HEAD
 ```
@@ -274,10 +280,46 @@ weight = -10  # Negative weight = lower priority
 ```bash
 # Using Cargo
 cargo install context-creator
+```
 
-# Prerequisites: Gemini CLI (for --prompt)
-npm install -g @google/gemini-cli
+### LLM Tool Setup
+
+context-creator supports multiple LLM tools for processing prompts:
+
+#### Gemini (default)
+```bash
+# Install Gemini CLI
+pip install gemini
+
+# Authenticate with Google Cloud
 gcloud auth application-default login
+```
+
+#### Claude Code
+```bash
+# Install Claude Code CLI
+npm install -g @anthropic-ai/claude-code
+
+# Set API key
+export ANTHROPIC_API_KEY="your-api-key"
+```
+
+#### Ollama (local models)
+```bash
+# Install Ollama
+brew install ollama  # macOS
+# Or visit: https://ollama.ai
+
+# Pull models
+ollama pull llama3        # General purpose
+ollama pull codellama     # Code-specific
+ollama pull mistral       # Alternative option
+```
+
+#### Codex
+```bash
+# Install from GitHub
+# Visit: https://github.com/microsoft/codex-cli
 ```
 
 ## MCP Server Mode
@@ -447,6 +489,22 @@ context-creator -o context.md
 
 # Process specific directories
 context-creator src/ tests/ docs/
+```
+
+### LLM Tool Selection
+```bash
+# Use Gemini (default)
+context-creator --prompt "Analyze the codebase"
+
+# Use Claude Code 
+context-creator --tool claude --prompt "Find security vulnerabilities"
+
+# Use Ollama with specific model
+context-creator --tool ollama --ollama-model llama3 --prompt "Explain this code"
+context-creator --tool ollama --ollama-model codellama --prompt "Optimize performance"
+
+# Use Codex
+context-creator --tool codex --prompt "Generate documentation"
 ```
 
 ### Pattern Matching
