@@ -94,7 +94,14 @@ fn test_ollama_model_argument() {
 
 #[test]
 fn test_ollama_without_model_validation_error() {
-    let config = Config::parse_from(["context-creator", "--tool", "ollama", "."]);
+    let config = Config::parse_from([
+        "context-creator",
+        "--tool",
+        "ollama",
+        "--prompt",
+        "Test prompt",
+        ".",
+    ]);
     assert_eq!(config.llm_tool, LlmTool::Ollama);
     assert_eq!(config.ollama_model, None);
 
