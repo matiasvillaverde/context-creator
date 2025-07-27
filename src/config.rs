@@ -78,6 +78,10 @@ pub struct TokenLimits {
     pub gemini: Option<usize>,
     /// Maximum tokens for Codex
     pub codex: Option<usize>,
+    /// Maximum tokens for Claude
+    pub claude: Option<usize>,
+    /// Maximum tokens for Ollama
+    pub ollama: Option<usize>,
 }
 
 impl ConfigFile {
@@ -153,6 +157,8 @@ impl ConfigFile {
                 match tool_str.as_str() {
                     "gemini" => cli_config.llm_tool = LlmTool::Gemini,
                     "codex" => cli_config.llm_tool = LlmTool::Codex,
+                    "claude" => cli_config.llm_tool = LlmTool::Claude,
+                    "ollama" => cli_config.llm_tool = LlmTool::Ollama,
                     _ => {} // Ignore invalid tool names
                 }
             }
@@ -216,6 +222,8 @@ pub fn create_example_config() -> String {
         tokens: TokenLimits {
             gemini: Some(2_000_000),
             codex: Some(1_500_000),
+            claude: Some(200_000),
+            ollama: Some(8_192),
         },
         priorities: vec![
             Priority {
