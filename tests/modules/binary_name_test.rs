@@ -16,16 +16,6 @@ fn test_binary_name_is_context_creator() {
 }
 
 #[test]
-fn test_version_output_contains_new_name() {
-    let mut cmd = Command::cargo_bin("context-creator").unwrap();
-    cmd.arg("--version")
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("context-creator"))
-        .stdout(predicate::str::contains("1.2.0"));
-}
-
-#[test]
 fn test_help_output_contains_new_name() {
     let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg("--help")

@@ -298,10 +298,11 @@ fn test_performance_no_regression() {
     perform_semantic_analysis_graph(&mut files_modular, &config, &cache).unwrap();
     let duration_modular = start_modular.elapsed();
 
-    // Modular should not be significantly slower (allow 2x overhead for safety)
+    // Allow 3x overhead for CI systems under load
+    // Note: This test compares the same implementation twice, so variations are due to system load
     assert!(
-        duration_modular.as_millis() <= duration_original.as_millis() * 2,
-        "Modular implementation is too slow: {duration_modular:?} vs {duration_original:?}"
+        duration_modular.as_millis() <= duration_original.as_millis() * 3,
+        "Second run is too slow: {duration_modular:?} vs {duration_original:?} (may indicate system load)"
     );
 }
 
