@@ -1,267 +1,518 @@
 # context-creator
-> Intelligent context engineering for LLM-powered development
 
 [![CI](https://github.com/matiasvillaverde/context-creator/actions/workflows/ci.yml/badge.svg)](https://github.com/matiasvillaverde/context-creator/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-%23000000.svg?style=flat&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 
-`context-creator` transforms your codebase into intelligently curated LLM context. Unlike simple concatenation tools, it builds a dependency graph to create relevant, focused contexts that make your AI-powered development actually work.
+> Transform your codebase into intelligent LLM context with MCP (Model Context Protocol) integration
 
-## Why context-creator?
+`context-creator` is a high-performance MCP server that analyzes codebases and answers questions about them. Built in Rust, it creates dependency graphs and semantic analysis to provide relevant, focused contexts for AI assistants.
 
-**🎯 Smart Context Engineering**  
-Creates a dependency graph of your codebase. When you ask about authentication, it includes auth files, their dependencies, and related tests—nothing more, nothing less.
+## 🚀 Key Benefits
 
-**⚡ Blazing Fast**  
-Built in Rust with parallel processing. Handles massive codebases in seconds, not minutes.
+- **MCP Server Integration** - Works seamlessly with Claude Desktop, Cursor, and other MCP clients
+- **Intelligent Analysis** - Builds dependency graphs and traces imports across your codebase
+- **Blazing Fast** - Rust-powered parallel processing handles massive codebases in seconds
+- **Multi-Language Support** - Semantic analysis for Python, TypeScript, JavaScript, and Rust
 
-**🧠 Intelligent Prioritization**  
-When hitting token limits, it keeps the most important files based on Git history, dependencies, and your `.contextkeep` rules.
+## 🛠️ Installation
 
-**🚀 Direct LLM Integration**  
-Pipe directly to Gemini (or any LLM) for instant answers about your codebase.
+### Requirements
+- Node.js >= v18.0.0
+- Cursor, Windsurf, Claude Desktop or another MCP Client
 
-## Quick Start
+### Installing via Smithery
 
-```bash
-# Install
-cargo install context-creator
-
-# Ask Gemini about your codebase
-context-creator --prompt "How can I add 2FA to the authentication system?"
-
-# Analyze a specific feature area
-context-creator --prompt "Find all performance bottlenecks in the API layer"
-
-# Plan implementation work
-context-creator --prompt "I need to add WebAuthn support. Which files need changes?"
-
-# Architecture review
-context-creator --prompt "Generate a dependency graph of the payment processing module"
-
-# Using Claude Code for analysis
-context-creator --tool claude --prompt "Review the authentication system for security vulnerabilities"
-
-# Using Ollama for local processing
-context-creator --tool ollama --ollama-model codellama --prompt "Suggest performance optimizations"
-
-# Analyze git changes
-context-creator diff HEAD~1 HEAD
-```
-
-## Real-World Examples
-
-### 🔍 Feature Planning
-```bash
-context-creator --prompt "I want to implement rate limiting. Show me:
-1. Current middleware architecture
-2. Files I'll need to modify
-3. Suggested implementation approach"
-```
-
-### 🐛 Performance Analysis
-```bash
-context-creator --prompt "Analyze database queries across the codebase. 
-Find N+1 queries and suggest optimizations."
-```
-
-### 🏗️ Architecture Understanding
-```bash
-context-creator --prompt "Explain how user authentication flows through the system.
-Include relevant files and create a sequence diagram."
-```
-
-### 🔒 Security Audit
-```bash
-context-creator --prompt "Review authentication and authorization code for vulnerabilities.
-Focus on JWT handling and session management."
-```
-
-### 📋 Change Analysis
-```bash
-context-creator diff HEAD~10 HEAD --prompt "Summarize all changes in the last 10 commits.
-What are the main features added and potential risks introduced?"
-```
-
-## How It Works
-
-Unlike tools that simply concatenate files, `context-creator`:
-
-1. **Builds a dependency graph** of your entire codebase
-2. **Extracts relevant subgraphs** based on your query
-3. **Prioritizes files** by importance (Git history, dependencies, explicit rules)
-4. **Optimizes for token limits** by intelligently pruning less relevant files
-5. **Streams to LLMs** with context-aware ordering (important files last)
-
-## Advanced Context Building
-
-### 🔗 Dependency Graph Features
-
-**Note:** Dependency graph analysis currently supports **Python**, **TypeScript/JavaScript**, and **Rust**. For other languages, `context-creator` works as a fast, intelligent concatenation tool.
-
-#### `--trace-imports` - Follow Import Chains
-```bash
-# Find all files that depend on your authentication module
-context-creator --prompt "Show me everything that uses the auth module" --trace-imports
-
-# Trace specific module dependencies
-context-creator --trace-imports --include "**/auth.py"
-```
-
-#### `--include-callers` - Find Function Usage
-```bash
-# Find all places where login() is called
-context-creator --prompt "Where is the login function used?" --include-callers
-
-# Analyze payment processing call chain
-context-creator --include-callers --include "**/payment.ts"
-```
-
-#### `--include-types` - Include Type Definitions
-```bash
-# Include all type definitions and interfaces
-context-creator --prompt "Review the type system" --include-types
-
-# Analyze data models
-context-creator --include-types --include "**/models/**"
-```
-
-#### `--semantic-depth` - Control Traversal Depth
-```bash
-# Shallow analysis (direct dependencies only)
-context-creator --prompt "Quick auth overview" --include-types --semantic-depth 1
-
-# Deep analysis (up to 10 levels)
-context-creator --prompt "Full dependency analysis" --include-types --semantic-depth 10
-```
-
-#### `--git-context` - Include Git History in File Headers
-```bash
-# Include recent commit messages for each file
-context-creator --prompt "Review recent changes" --git-context
-
-# Combine with enhanced context for full metadata
-context-creator --enhanced-context --git-context
-
-# Useful for understanding code evolution
-context-creator --include "src/auth/**" --git-context --prompt "How has authentication evolved?"
-```
-
-When enabled, adds git commit history to each file header:
-```markdown
-## src/auth/login.rs
-Git history:
-  - feat: add OAuth2 support by John Doe
-  - fix: handle rate limiting in login flow by Jane Smith
-  - refactor: extract validation logic by John Doe
-```
-
-### 📊 Real-World Dependency Graph Example
-
-When you run:
-```bash
-context-creator --prompt "How does the payment system work?" --include "src/PaymentService.rs" --trace-imports --include-callers --include-types
-```
-
-The tool:
-1. Finds `PaymentService.rs` and related files
-2. Traces all imports (Stripe SDK, database models, utility functions)
-3. Finds all callers (checkout flow, refund handlers, admin tools)
-4. Builds a complete context of how payments flow through your system
-
-### 🔍 Search Command
-
-Search for specific terms across your codebase and automatically build comprehensive context:
+To install context-creator for Claude Desktop automatically via [Smithery](https://smithery.ai/protocol/context-creator):
 
 ```bash
-# Search with automatic semantic analysis
-context-creator search "AuthenticationService"
-
-# Search without semantic analysis (faster, but less comprehensive)
-context-creator search "TODO" --no-semantic
-
-# Search in specific directories
-context-creator search "database" src/ tests/
+npx -y @smithery/cli install context-creator --client claude
 ```
 
-The search command:
-- Uses parallel processing across all CPU cores
-- Streams files line-by-line (memory efficient)
-- Respects `.gitignore` and `.contextignore` patterns
-- Automatically enables `--trace-imports`, `--include-callers`, and `--include-types` for comprehensive context
+<details>
+<summary>▶️ Install in Cursor</summary>
 
-### 📈 Git Diff Command
+1. Open the **Cursor IDE**
+2. Click **Settings** → **Extensions** → **MCP**
+3. Add the following configuration:
 
-Analyze changes between git references with intelligent context building:
+```json
+{
+  "mcpServers": {
+    "context-creator": {
+      "command": "npx",
+      "args": ["-y", "context-creator-mcp@latest"]
+    }
+  }
+}
+```
+</details>
+
+<details>
+<summary>▶️ Install in Windsurf</summary>
+
+1. Open **Windsurf Settings** (⌘/Ctrl + ,)
+2. Navigate to **MCP Servers**
+3. Click **+ Add Server** and enter:
+
+```json
+{
+  "id": "context-creator",
+  "name": "Context Creator",
+  "command": "npx",
+  "args": ["-y", "context-creator-mcp@latest"]
+}
+```
+</details>
+
+<details>
+<summary>▶️ Install in Trae</summary>
+
+1. Open Trae's MCP configuration panel
+2. Add new server with:
+
+```json
+{
+  "servers": {
+    "context-creator": {
+      "command": "npx",
+      "args": ["-y", "context-creator-mcp@latest"]
+    }
+  }
+}
+```
+</details>
+
+<details>
+<summary>▶️ Install in VS Code</summary>
+
+1. Install the MCP extension for VS Code
+2. Open Command Palette (⌘/Ctrl + Shift + P)
+3. Run "MCP: Add Server" and configure:
+
+```json
+{
+  "context-creator": {
+    "command": "npx",
+    "args": ["-y", "context-creator-mcp@latest"]
+  }
+}
+```
+</details>
+
+<details>
+<summary>▶️ Install in Visual Studio 2022</summary>
+
+1. Open Visual Studio 2022
+2. Navigate to Tools → Options → MCP Settings
+3. Add server configuration:
+
+```json
+{
+  "servers": [
+    {
+      "name": "context-creator",
+      "command": "npx",
+      "args": ["-y", "context-creator-mcp@latest"]
+    }
+  ]
+}
+```
+</details>
+
+<details>
+<summary>▶️ Install in Zed</summary>
+
+1. Open Zed settings (`~/.config/zed/settings.json`)
+2. Add to the MCP section:
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "context-creator": {
+        "command": "npx",
+        "args": ["-y", "context-creator-mcp@latest"]
+      }
+    }
+  }
+}
+```
+</details>
+
+<details>
+<summary>▶️ Install in Gemini CLI</summary>
 
 ```bash
-# Compare current working directory with last commit
-context-creator diff HEAD~1 HEAD
+# Add to your Gemini CLI configuration
+gemini mcp add context-creator -- npx -y context-creator-mcp@latest
 
-# Compare two branches
-context-creator diff main feature-branch
+# Verify installation
+gemini mcp list
+```
+</details>
 
-# Compare with specific commit hash
-context-creator diff a1b2c3d HEAD
+<details>
+<summary>▶️ Install in Claude Code</summary>
 
-# Save diff analysis to file
-context-creator --output-file diff-analysis.md diff HEAD~1 HEAD
+1. Create `.mcp.json` in your project root:
 
-# Apply token limits to focus on most important changes
-context-creator --max-tokens 50000 diff HEAD~5 HEAD
-
-# Include semantic analysis of changed files
-context-creator --trace-imports --include-callers --include-types diff main HEAD
+```json
+{
+  "mcpServers": {
+    "context-creator": {
+      "command": "npx",
+      "args": ["-y", "context-creator-mcp@latest"]
+    }
+  }
+}
 ```
 
-The diff command:
-- **Security hardened** - Validates git references to prevent command injection attacks
-- **Markdown formatted** - Generates structured analysis with file contents and statistics
-- **Token aware** - Respects token limits and prioritizes most important changed files
-- **Semantic integration** - Optionally includes dependency analysis of changed files
-- **Change statistics** - Shows files changed, lines added/removed, and estimated token usage
+2. Or add globally:
 
-#### Git Diff Output Format
+```bash
+claude mcp add context-creator -- npx -y context-creator-mcp@latest
+```
+</details>
 
-The generated analysis includes:
-1. **Diff Statistics** - Summary of files changed, lines added/removed
-2. **Changed Files List** - All modified files with relative paths
-3. **File Contents** - Full content of changed files with syntax highlighting
-4. **Context Statistics** - Token count and processing summary
-5. **Semantic Analysis** - Optional dependency and caller information
+<details>
+<summary>▶️ Install in Claude Desktop</summary>
 
-Perfect for:
-- **Code reviews** - Generate comprehensive change summaries
-- **Feature documentation** - Document what changed in a feature branch
-- **Impact analysis** - Understand scope of changes across git references
-- **LLM analysis** - Feed git diffs to AI for automated review and suggestions
+1. Open Claude Desktop settings
+2. Navigate to MCP Servers
+3. Add configuration:
 
-## Configuration
+```json
+{
+  "mcpServers": {
+    "context-creator": {
+      "command": "npx",
+      "args": ["-y", "context-creator-mcp@latest"]
+    }
+  }
+}
+```
+</details>
 
-### `.contextkeep` - Prioritize Critical Files
+<details>
+<summary>▶️ Install in Cline</summary>
+
+1. Open Cline configuration
+2. Add to MCP servers:
+
+```json
+{
+  "mcp_servers": [
+    {
+      "name": "context-creator",
+      "command": "npx",
+      "args": ["-y", "context-creator-mcp@latest"]
+    }
+  ]
+}
+```
+</details>
+
+<details>
+<summary>▶️ Install in BoltAI</summary>
+
+1. Open BoltAI preferences
+2. Go to MCP Servers tab
+3. Click "Add Server" and configure:
+
+```json
+{
+  "name": "context-creator",
+  "command": "npx",
+  "args": ["-y", "context-creator-mcp@latest"]
+}
+```
+</details>
+
+<details>
+<summary>▶️ Using Docker</summary>
+
+```bash
+# Run with Docker
+docker run -v $(pwd):/workspace matiasvillaverde/context-creator-mcp
+
+# Or add to docker-compose.yml
+services:
+  context-creator:
+    image: matiasvillaverde/context-creator-mcp
+    volumes:
+      - .:/workspace
+```
+</details>
+
+<details>
+<summary>▶️ Install in Windows</summary>
+
+1. Open PowerShell as Administrator
+2. Install globally:
+
+```powershell
+npm install -g context-creator-mcp@latest
+
+# Add to your MCP client configuration:
+{
+  "command": "context-creator-mcp"
+}
+```
+</details>
+
+<details>
+<summary>▶️ Install in Augment Code</summary>
+
+1. Open Augment Code settings
+2. Navigate to Extensions → MCP
+3. Add server:
+
+```json
+{
+  "context-creator": {
+    "command": "npx",
+    "args": ["-y", "context-creator-mcp@latest"]
+  }
+}
+```
+</details>
+
+<details>
+<summary>▶️ Install in Roo Code</summary>
+
+1. Access Roo Code MCP settings
+2. Add new server configuration:
+
+```json
+{
+  "servers": {
+    "context-creator": {
+      "command": "npx",
+      "args": ["-y", "context-creator-mcp@latest"]
+    }
+  }
+}
+```
+</details>
+
+<details>
+<summary>▶️ Install in Zencoder</summary>
+
+1. Open Zencoder preferences
+2. Go to MCP Configuration
+3. Add:
+
+```json
+{
+  "mcp_servers": [
+    {
+      "id": "context-creator",
+      "command": "npx",
+      "args": ["-y", "context-creator-mcp@latest"]
+    }
+  ]
+}
+```
+</details>
+
+<details>
+<summary>▶️ Install in Amazon Q Developer CLI</summary>
+
+```bash
+# Configure Q Developer CLI
+q configure mcp add --name context-creator --command "npx -y context-creator-mcp@latest"
+
+# Verify
+q configure mcp list
+```
+</details>
+
+<details>
+<summary>▶️ Install in Qodo Gen</summary>
+
+1. Open Qodo Gen settings
+2. Navigate to AI Providers → MCP
+3. Add configuration:
+
+```json
+{
+  "providers": {
+    "context-creator": {
+      "type": "mcp",
+      "command": "npx",
+      "args": ["-y", "context-creator-mcp@latest"]
+    }
+  }
+}
+```
+</details>
+
+<details>
+<summary>▶️ Install in JetBrains AI Assistant</summary>
+
+1. Open IntelliJ IDEA / WebStorm / PyCharm
+2. Go to Settings → Tools → AI Assistant → MCP
+3. Click "+" to add server:
+
+```json
+{
+  "name": "context-creator",
+  "command": "npx",
+  "args": ["-y", "context-creator-mcp@latest"]
+}
+```
+</details>
+
+<details>
+<summary>▶️ Install in Warp</summary>
+
+1. Open Warp settings
+2. Navigate to AI → MCP Servers
+3. Add configuration:
+
+```json
+{
+  "servers": [
+    {
+      "id": "context-creator",
+      "command": "npx",
+      "args": ["-y", "context-creator-mcp@latest"]
+    }
+  ]
+}
+```
+</details>
+
+<details>
+<summary>▶️ Install in Opencode</summary>
+
+1. Access Opencode MCP settings
+2. Add new server:
+
+```json
+{
+  "mcp": {
+    "context-creator": {
+      "command": "npx",
+      "args": ["-y", "context-creator-mcp@latest"]
+    }
+  }
+}
+```
+</details>
+
+<details>
+<summary>▶️ Install in Copilot Coding Agent</summary>
+
+1. Open Copilot settings
+2. Navigate to Extensions → MCP Servers
+3. Configure:
+
+```json
+{
+  "mcpServers": [
+    {
+      "name": "context-creator",
+      "command": "npx",
+      "args": ["-y", "context-creator-mcp@latest"]
+    }
+  ]
+}
+```
+</details>
+
+<details>
+<summary>▶️ Install in Kiro</summary>
+
+See [Kiro Model Context Protocol Documentation](https://docs.kiro.ai/mcp) for details.
+
+1. Navigate `Kiro > MCP Servers`
+2. Add a new MCP server by clicking the `+ Add` button
+3. Paste the configuration given below:
+
+```json
+{
+  "mcpServers": {
+    "context-creator": {
+      "command": "npx",
+      "args": ["-y", "context-creator-mcp@latest"]
+    }
+  }
+}
+```
+</details>
+
+## 🎯 MCP Server Capabilities
+
+Once connected, context-creator provides these powerful tools:
+
+- **`analyze_local`** - Analyze a local codebase directory and answer questions about it
+- **`analyze_remote`** - Analyze a remote Git repository (GitHub, GitLab, etc.)
+- **`search`** - Search for text patterns across the codebase
+- **`semantic_search`** - Find functions, types, imports, and symbols using AST analysis
+- **`file_metadata`** - Get detailed information about specific files
+- **`diff`** - Generate diffs between two files
+
+### Usage Examples
+
+```
+"Analyze the authentication system in this codebase"
+"Search for all TODO comments"
+"Find all functions that call the login() method"
+"What's the difference between old_auth.py and new_auth.py?"
+"Analyze the React hooks in facebook/react repository"
+```
+
+## ⚙️ Configuration
+
+### `.contextignore` - Exclude Files
+
+Create a `.contextignore` file in your project root to exclude files and directories:
+
 ```gitignore
-# Always include these when relevant
-src/auth/**
-src/core/**
-Cargo.toml
-package.json
-```
-
-### `.contextignore` - Exclude Noise
-```gitignore
-# Never include
-target/
+# Dependencies
 node_modules/
-*.log
+target/
+venv/
+
+# Build outputs
+dist/
+build/
+*.pyc
+
+# Sensitive files
 .env
+*.key
+secrets/
 ```
 
-### `.context-creator.toml` - Advanced Config
+### `.contextkeep` - Prioritize Important Files
+
+Create a `.contextkeep` file to ensure critical files are always included:
+
+```gitignore
+# Core application files
+src/auth/**
+src/api/routes.ts
+src/models/**
+
+# Configuration
+package.json
+tsconfig.json
+.env.example
+```
+
+### `.context-creator.toml` - Advanced Settings
+
+For fine-grained control, create `.context-creator.toml`:
+
 ```toml
 [defaults]
 max_tokens = 200000
+include_git_context = true
 
-# First-match-wins priority rules
+# File priority rules (first match wins)
 [[priorities]]
 pattern = "src/core/**"
 weight = 100
@@ -272,309 +523,22 @@ weight = 50
 
 [[priorities]]
 pattern = "docs/**"
-weight = -10  # Negative weight = lower priority
+weight = -10  # Lower priority
 ```
 
-## Installation
+## 📚 Documentation
 
-```bash
-# Using Cargo
-cargo install context-creator
-```
+For detailed documentation, see:
+- [Installation Guide](docs/installation.md) - Detailed installation instructions
+- [Configuration Guide](docs/configuration.md) - Configuration files and options
+- [Usage Examples](docs/usage.md) - CLI usage and examples
+- [MCP Server Guide](docs/mcp-server.md) - Advanced MCP server setup
+- [Architecture](docs/architecture.md) - Technical architecture details
 
-### LLM Tool Setup
+## 🤝 Contributing
 
-context-creator supports multiple LLM tools for processing prompts:
+Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting PRs.
 
-#### Gemini (default)
-```bash
-# Install Gemini CLI
-pip install gemini
+## 📄 License
 
-# Authenticate with Google Cloud
-gcloud auth application-default login
-```
-
-#### Claude Code
-```bash
-# Install Claude Code CLI
-npm install -g @anthropic-ai/claude-code
-
-# Set API key
-export ANTHROPIC_API_KEY="your-api-key"
-```
-
-#### Ollama (local models)
-```bash
-# Install Ollama
-brew install ollama  # macOS
-# Or visit: https://ollama.ai
-
-# Pull models
-ollama pull llama3        # General purpose
-ollama pull codellama     # Code-specific
-ollama pull mistral       # Alternative option
-```
-
-#### Codex
-```bash
-# Install from GitHub
-# Visit: https://github.com/microsoft/codex-cli
-```
-
-## MCP Server Mode
-
-context-creator includes a built-in MCP (Model Context Protocol) server that allows AI assistants like Claude to analyze your codebases programmatically. The server provides powerful tools for code analysis, search, and understanding.
-
-### Available MCP Tools
-
-When connected to Claude, you'll have access to these tools:
-
-- **`analyze_local`** - Analyze a local codebase directory and answer questions about it
-- **`analyze_remote`** - Analyze a remote Git repository
-- **`search`** - Search for text patterns across the codebase
-- **`semantic_search`** - Find functions, types, imports, and symbols
-- **`file_metadata`** - Get detailed information about specific files
-- **`diff`** - Generate diffs between two files
-
-### Setting up with Claude Desktop
-
-1. **Build or install context-creator**:
-   ```bash
-   # Install from crates.io
-   cargo install context-creator
-   
-   # Or build from source
-   cargo build --release
-   ```
-
-2. **Edit Claude Desktop configuration**:
-   
-   On macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-   On Windows: `%APPDATA%\Claude\claude_desktop_config.json`
-   
-   Add the MCP server configuration:
-   ```json
-   {
-     "mcpServers": {
-       "context-creator": {
-         "command": "/path/to/context-creator",
-         "args": ["--rmcp"],
-         "env": {}
-       }
-     }
-   }
-   ```
-   
-   Replace `/path/to/context-creator` with:
-   - Installed version: `~/.cargo/bin/context-creator`
-   - Built from source: `/path/to/project/target/release/context-creator`
-
-3. **Restart Claude Desktop** to load the new configuration
-
-4. **Verify connection** - Claude should now have access to context-creator tools
-
-### Setting up with Claude Code (CLI)
-
-1. **Project-level configuration** (recommended for team projects):
-   
-   Create `.mcp.json` in your project root:
-   ```json
-   {
-     "mcpServers": {
-       "context-creator": {
-         "command": "./target/release/context-creator",
-         "args": ["--rmcp"],
-         "env": {}
-       }
-     }
-   }
-   ```
-
-2. **Or add to user-level configuration**:
-   ```bash
-   # Add server
-   claude mcp add context-creator /path/to/context-creator --arg="--rmcp"
-   
-   # Verify connection
-   claude mcp list
-   
-   # Should show:
-   # context-creator ✓ Connected
-   ```
-
-3. **Remove old configurations if needed**:
-   ```bash
-   claude mcp remove context-creator
-   ```
-
-### Using MCP Tools in Claude
-
-Once connected, you can ask Claude to analyze your codebase:
-
-```
-"Analyze the authentication system in this codebase"
-→ Claude will use analyze_local tool
-
-"Search for all TODO comments"
-→ Claude will use search tool
-
-"Find all functions that call the login() method"
-→ Claude will use semantic_search tool
-
-"What's the difference between old_auth.py and new_auth.py?"
-→ Claude will use diff tool
-
-"Analyze the React hooks in facebook/react repository"
-→ Claude will use analyze_remote tool
-```
-
-### Advanced MCP Usage
-
-#### Analyzing Local Projects
-```
-"Review the error handling patterns in src/"
-"Find potential SQL injection vulnerabilities"
-"Which files implement rate limiting?"
-"Trace all imports of the database module"
-```
-
-#### Analyzing Remote Repositories
-```
-"Analyze the authentication in https://github.com/example/repo"
-"How does Rust's borrow checker work?" (analyzes rust-lang/rust)
-"Explain React's reconciliation algorithm" (analyzes facebook/react)
-```
-
-#### Code Search and Navigation
-```
-"Find all API endpoints in this codebase"
-"Show me all TypeScript interfaces"
-"Where is the UserService class defined?"
-"Find all calls to deprecated functions"
-```
-
-### Troubleshooting MCP Connection
-
-1. **Check server is running**:
-   ```bash
-   # Test standalone
-   context-creator --rmcp
-   # Should show: "Starting Context Creator MCP server (stdio mode)"
-   ```
-
-2. **Verify Claude configuration**:
-   - Ensure path to context-creator is absolute
-   - Check file has execute permissions
-   - Verify `--rmcp` argument is included
-
-3. **Check logs**:
-   - Claude Desktop: Check developer console
-   - Claude Code: Run with verbose flag `claude -v`
-
-4. **Common issues**:
-   - Path not found: Use full absolute path
-   - Permission denied: `chmod +x /path/to/context-creator`
-   - Already configured: Remove old config first
-
-## Usage Examples
-
-### Basic Usage
-```bash
-# Process current directory
-context-creator
-
-# Save to file instead of piping to LLM
-context-creator -o context.md
-
-# Process specific directories
-context-creator src/ tests/ docs/
-```
-
-### LLM Tool Selection
-```bash
-# Use Gemini (default)
-context-creator --prompt "Analyze the codebase"
-
-# Use Claude Code 
-context-creator --tool claude --prompt "Find security vulnerabilities"
-
-# Use Ollama with specific model
-context-creator --tool ollama --ollama-model llama3 --prompt "Explain this code"
-context-creator --tool ollama --ollama-model codellama --prompt "Optimize performance"
-
-# Use Codex
-context-creator --tool codex --prompt "Generate documentation"
-```
-
-### Pattern Matching
-```bash
-# Include specific file types (quote to prevent shell expansion)
-context-creator --include "**/*.py" --include "src/**/*.{rs,toml}"
-
-# Exclude patterns
-context-creator --ignore "**/*_test.py" --ignore "**/migrations/**"
-
-# Combine includes and excludes
-context-creator --include "**/*.ts" --ignore "node_modules/**" --ignore "**/*.test.ts"
-```
-
-### Remote Repositories
-```bash
-# Analyze any GitHub repository
-context-creator --repo https://github.com/rust-lang/rust --prompt "How does the borrow checker work?"
-
-# With specific patterns
-context-creator --repo https://github.com/facebook/react --include "**/*.js" --prompt "Explain the reconciliation algorithm"
-```
-
-### Advanced Combinations
-```bash
-# Read prompt from stdin
-echo "Find security vulnerabilities" | context-creator --stdin src/
-
-# Copy output to clipboard (macOS)
-context-creator --include "**/*.py" --copy
-
-# Cap output to specific token limit
-context-creator --max-tokens 100000 --prompt "Analyze the API endpoints"
-
-# Enable verbose logging for debugging
-context-creator -vv --prompt "Why is this slow?"
-```
-
-## Performance
-
-Benchmarked on large codebases:
-
-| Codebase | Files | context-creator | Alternative Tools |
-|----------|-------|-----------------|-------------------|
-| Next.js  | 5,000 | 3.2s           | 45s+             |
-| Rust std | 8,000 | 5.1s           | 2min+            |
-| Linux    | 70,000| 28s            | 10min+           |
-
-## Token Management
-
-When using `--prompt`, context-creator automatically:
-- Measures prompt tokens
-- Reserves space for LLM response
-- Prioritizes files to fit within limits
-- Removes least important files first
-
-```bash
-# With 2M token limit and 50-token prompt:
-# Available for code: 2,000,000 - 50 - 1,000 = 1,998,950 tokens
-context-creator --prompt "Analyze auth flow" --max-tokens 2000000
-```
-
-## Language Support
-
-| Feature | Python | TypeScript/JavaScript | Rust | Other Languages |
-|---------|--------|--------------------|------|-----------------|
-| Basic concatenation | ✅ | ✅ | ✅ | ✅ |
-| Import tracing | ✅ | ✅ | ✅ | ❌ |
-| Caller detection | ✅ | ✅ | ✅ | ❌ |
-| Type extraction | ✅ | ✅ | ✅ | ❌ |
-| Dependency graph | ✅ | ✅ | ✅ | ❌ |
-
-For unsupported languages, `context-creator` still provides intelligent file prioritization, Git-based importance scoring, and fast concatenation.
+MIT License - see [LICENSE](LICENSE) for details.
