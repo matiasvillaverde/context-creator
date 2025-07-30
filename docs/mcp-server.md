@@ -1,351 +1,304 @@
-# MCP Server Documentation
+# MCP Server Guide
 
 ## Overview
 
-The context-creator MCP (Model Context Protocol) server provides a JSON-RPC API for AI agents to analyze codebases programmatically. It enables remote codebase analysis, file searching, semantic code understanding, and more.
+context-creator includes a built-in MCP (Model Context Protocol) server that allows AI assistants like Claude to analyze your codebases programmatically. The server provides powerful tools for code analysis, search, and understanding.
 
-## Starting the Server
+## Available MCP Tools
+
+When connected to an MCP client, you'll have access to these tools:
+
+- **`analyze_local`** - Analyze a local codebase directory and answer questions about it
+- **`analyze_remote`** - Analyze a remote Git repository
+- **`search`** - Search for text patterns across the codebase
+- **`semantic_search`** - Find functions, types, imports, and symbols
+- **`file_metadata`** - Get detailed information about specific files
+- **`diff`** - Generate diffs between two files
+
+## Installation and Setup
+
+### Quick Install via NPM
+
+The easiest way to use context-creator as an MCP server is through npm:
 
 ```bash
-# Start MCP server on default port (8080)
-cargo run -- --mcp
+# Using npx (no installation required)
+npx -y context-creator-mcp@latest
 
-# Start on custom port
-cargo run -- --mcp --mcp-port 9090
+# Or install globally
+npm install -g context-creator-mcp@latest
 ```
 
-## API Endpoints
+### Setting up with Claude Desktop
 
-### 1. Health Check
+1. **Edit Claude Desktop configuration**:
+   
+   On macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+   On Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+   
+   Add the MCP server configuration:
+   ```json
+   {
+     "mcpServers": {
+       "context-creator": {
+         "command": "npx",
+         "args": ["-y", "context-creator-mcp@latest"]
+       }
+     }
+   }
+   ```
 
-Check if the server is running and healthy.
+2. **Restart Claude Desktop** to load the new configuration
 
-**Method:** `health_check`
+3. **Verify connection** - Claude should now have access to context-creator tools
 
-**Request:**
-```json
-{
-  "jsonrpc": "2.0",
-  "method": "health_check",
-  "params": [],
-  "id": 1
-}
-```
+### Setting up with Claude Code (CLI)
 
-**Response:**
-```json
-{
-  "status": "healthy",
-  "timestamp": 1234567890,
-  "version": "1.2.0"
-}
-```
+1. **Project-level configuration** (recommended for team projects):
+   
+   Create `.mcp.json` in your project root:
+   ```json
+   {
+     "mcpServers": {
+       "context-creator": {
+         "command": "npx",
+         "args": ["-y", "context-creator-mcp@latest"]
+       }
+     }
+   }
+   ```
 
-### 2. Process Local Codebase
+2. **Or add to global configuration**:
+   ```bash
+   # Add server
+   claude mcp add context-creator -- npx -y context-creator-mcp@latest
+   
+   # Verify connection
+   claude mcp list
+   
+   # Should show:
+   # context-creator ✓ Connected
+   ```
 
-Analyze a local directory and convert it to LLM-optimized Markdown.
+3. **Remove old configurations if needed**:
+   ```bash
+   claude mcp remove context-creator
+   ```
 
-**Method:** `process_local_codebase`
+### Building from Source (Advanced)
 
-**Request:**
-```json
-{
-  "jsonrpc": "2.0",
-  "method": "process_local_codebase",
-  "params": [{
-    "path": "/path/to/project",
-    "include_patterns": ["*.rs", "*.py"],
-    "ignore_patterns": ["target/*", "*.pyc"],
-    "include_imports": true,
-    "max_tokens": 10000
-  }],
-  "id": 2
-}
-```
+If you need to build from source:
 
-**Response:**
-```json
-{
-  "markdown": "# Project Context\n\n## File: main.rs\n...",
-  "file_count": 25,
-  "token_count": 8500,
-  "processing_time_ms": 150
-}
-```
-
-### 3. Process Remote Repository
-
-Clone and analyze a remote Git repository.
-
-**Method:** `process_remote_repo`
-
-**Request:**
-```json
-{
-  "jsonrpc": "2.0",
-  "method": "process_remote_repo",
-  "params": [{
-    "repo_url": "https://github.com/user/repo",
-    "include_patterns": ["*.js"],
-    "ignore_patterns": ["node_modules/*"],
-    "include_imports": false,
-    "max_tokens": 20000
-  }],
-  "id": 3
-}
-```
-
-**Response:**
-```json
-{
-  "markdown": "# Repository: repo\n\n## File: index.js\n...",
-  "file_count": 15,
-  "token_count": 12000,
-  "processing_time_ms": 2500,
-  "repo_name": "repo"
-}
-```
-
-### 4. Get File Metadata
-
-Retrieve metadata about a specific file.
-
-**Method:** `get_file_metadata`
-
-**Request:**
-```json
-{
-  "jsonrpc": "2.0",
-  "method": "get_file_metadata",
-  "params": [{
-    "file_path": "/path/to/file.rs"
-  }],
-  "id": 4
-}
-```
-
-**Response:**
-```json
-{
-  "path": "/path/to/file.rs",
-  "size": 2048,
-  "modified": 1234567890,
-  "is_symlink": false,
-  "language": "rust"
-}
-```
-
-### 5. Search Codebase
-
-Search for text patterns across files.
-
-**Method:** `search_codebase`
-
-**Request:**
-```json
-{
-  "jsonrpc": "2.0",
-  "method": "search_codebase",
-  "params": [{
-    "path": "/path/to/project",
-    "query": "TODO",
-    "max_results": 10,
-    "file_pattern": "*.rs"
-  }],
-  "id": 5
-}
-```
-
-**Response:**
-```json
-{
-  "results": [
-    {
-      "file_path": "/path/to/main.rs",
-      "line_number": 42,
-      "line_content": "    // TODO: Implement error handling",
-      "match_context": "...Implement error handling..."
-    }
-  ],
-  "total_matches": 25,
-  "files_searched": 100,
-  "search_time_ms": 50
-}
-```
-
-### 6. Semantic Search
-
-Search for code elements using semantic understanding.
-
-**Method:** `semantic_search`
-
-**Request:**
-```json
-{
-  "jsonrpc": "2.0",
-  "method": "semantic_search",
-  "params": [{
-    "path": "/path/to/project",
-    "query": "parse",
-    "search_type": "functions",
-    "max_results": 20
-  }],
-  "id": 6
-}
-```
-
-**Search Types:**
-- `functions` - Search function/method definitions
-- `types` - Search type definitions and usage
-- `imports` - Search import statements
-- `references` - Search for references to symbols
-
-**Response:**
-```json
-{
-  "results": [
-    {
-      "file_path": "/path/to/parser.rs",
-      "symbol_name": "parse_config",
-      "symbol_type": "function",
-      "line_number": 15,
-      "context": "pub function parse_config"
-    }
-  ],
-  "total_matches": 8,
-  "files_analyzed": 50,
-  "search_time_ms": 120
-}
-```
-
-### 7. Diff Files
-
-Compare two files and get a unified diff.
-
-**Method:** `diff_files`
-
-**Request:**
-```json
-{
-  "jsonrpc": "2.0",
-  "method": "diff_files",
-  "params": [{
-    "file1_path": "/path/to/old.rs",
-    "file2_path": "/path/to/new.rs",
-    "context_lines": 3
-  }],
-  "id": 7
-}
-```
-
-**Response:**
-```json
-{
-  "file1_path": "/path/to/old.rs",
-  "file2_path": "/path/to/new.rs",
-  "hunks": [
-    {
-      "old_start": 10,
-      "old_lines": 5,
-      "new_start": 10,
-      "new_lines": 7,
-      "content": "@@ -10,5 +10,7 @@\n fn main() {\n-    println!(\"Hello\");\n+    println!(\"Hello, world!\");\n+    // New comment\n }"
-    }
-  ],
-  "added_lines": 2,
-  "removed_lines": 1,
-  "is_binary": false
-}
-```
-
-## Error Handling
-
-The server uses standard JSON-RPC error codes:
-
-- `-32700`: Parse error
-- `-32600`: Invalid request
-- `-32601`: Method not found
-- `-32602`: Invalid params
-- `-32603`: Internal error
-
-Example error response:
-```json
-{
-  "jsonrpc": "2.0",
-  "error": {
-    "code": -32602,
-    "message": "Invalid path: potential security risk",
-    "data": null
-  },
-  "id": 1
-}
-```
-
-## Security Considerations
-
-1. **Path Validation**: The server validates all file paths to prevent directory traversal attacks.
-2. **URL Validation**: Remote repository URLs are validated before cloning.
-3. **Resource Limits**: Token limits prevent excessive memory usage.
-4. **Timeout Protection**: Long-running operations have timeouts.
-
-## Performance Features
-
-1. **Caching**: Results are cached for 5 minutes to improve response times.
-2. **Parallel Processing**: File analysis uses parallel processing.
-3. **Thread Pool Optimization**: Rayon thread pool is configured to avoid competing with Tokio.
-4. **Async I/O**: All I/O operations are non-blocking.
-
-## Example Client
-
-See `examples/mcp_client.rs` for a complete example of using all API endpoints.
-
-```rust
-use jsonrpsee::{core::client::ClientT, http_client::HttpClientBuilder, rpc_params};
-use serde_json::json;
-
-#[tokio::main]
-async fn main() -> Result<()> {
-    let client = HttpClientBuilder::default()
-        .build("http://127.0.0.1:8080")?;
-
-    // Health check
-    let health: serde_json::Value = client
-        .request("health_check", rpc_params![])
-        .await?;
-    
-    println!("Server status: {}", health["status"]);
-    Ok(())
-}
-```
-
-## Integration with AI Agents
-
-The MCP server is designed to be used by AI agents for codebase understanding tasks:
-
-1. **Code Review**: Use semantic search to find relevant functions and analyze their implementation.
-2. **Debugging**: Search for error messages or specific patterns across the codebase.
-3. **Documentation**: Process entire codebases to generate comprehensive documentation.
-4. **Refactoring**: Use diff functionality to preview changes before applying them.
-5. **Learning**: Analyze code structure and dependencies to understand project architecture.
-
-## Monitoring
-
-The server logs important events to stderr:
-- Server startup and shutdown
-- Request processing times
-- Error conditions
-- Cache hits/misses
-
-Use standard logging environment variables to control log levels:
 ```bash
-RUST_LOG=debug cargo run -- --mcp
+# Clone and build
+git clone https://github.com/matiasvillaverde/context-creator
+cd context-creator
+cargo build --release
+
+# The binary will be at ./target/release/context-creator
+# You can then configure your MCP client to use this path with --rmcp flag
 ```
+
+## Using MCP Tools in Claude
+
+Once connected, you can ask Claude to analyze your codebase:
+
+```
+"Analyze the authentication system in this codebase"
+→ Claude will use analyze_local tool
+
+"Search for all TODO comments"
+→ Claude will use search tool
+
+"Find all functions that call the login() method"
+→ Claude will use semantic_search tool
+
+"What's the difference between old_auth.py and new_auth.py?"
+→ Claude will use diff tool
+
+"Analyze the React hooks in facebook/react repository"
+→ Claude will use analyze_remote tool
+```
+
+## Tool Descriptions
+
+### analyze_local
+
+Analyzes a local codebase directory and answers questions about it.
+
+**Parameters:**
+- `path` - The directory path to analyze
+- `question` - The question to answer about the codebase
+
+**Example usage:**
+```
+"Review the error handling patterns in src/"
+"Find potential SQL injection vulnerabilities"
+"Which files implement rate limiting?"
+"Trace all imports of the database module"
+```
+
+### analyze_remote
+
+Analyzes a remote Git repository without cloning it locally.
+
+**Parameters:**
+- `repo_url` - The repository URL (GitHub, GitLab, etc.)
+- `question` - The question to answer about the repository
+
+**Example usage:**
+```
+"Analyze the authentication in https://github.com/example/repo"
+"How does Rust's borrow checker work?" (analyzes rust-lang/rust)
+"Explain React's reconciliation algorithm" (analyzes facebook/react)
+```
+
+### search
+
+Searches for text patterns across the codebase.
+
+**Parameters:**
+- `path` - The directory to search in
+- `query` - The search term or pattern
+- `case_sensitive` - Whether the search is case-sensitive (optional)
+- `file_pattern` - File pattern to limit search (optional)
+
+**Example usage:**
+```
+"Find all API endpoints in this codebase"
+"Search for hardcoded credentials"
+"Find all references to deprecated functions"
+```
+
+### semantic_search
+
+Performs semantic code search using AST analysis.
+
+**Parameters:**
+- `path` - The directory to search in
+- `query` - The symbol or pattern to search for
+- `search_type` - Type of search: "functions", "types", "imports", or "all"
+
+**Example usage:**
+```
+"Show me all TypeScript interfaces"
+"Where is the UserService class defined?"
+"Find all async functions"
+"List all imported external libraries"
+```
+
+### file_metadata
+
+Gets detailed information about a specific file.
+
+**Parameters:**
+- `file_path` - The path to the file
+
+**Returns:**
+- File size, modification time, language, and other metadata
+
+### diff
+
+Generates a diff between two files.
+
+**Parameters:**
+- `file1_path` - Path to the first file
+- `file2_path` - Path to the second file
+
+**Returns:**
+- Unified diff showing changes between files
+
+## Advanced MCP Usage
+
+### Complex Analysis Tasks
+
+```
+"Create a dependency graph of the authentication module"
+"Find all code that needs updating for the new API version"
+"Identify potential performance bottlenecks in the data processing pipeline"
+"Generate a security audit report for the application"
+```
+
+### Cross-Repository Analysis
+
+```
+"Compare the error handling approaches in repo A vs repo B"
+"Find similar implementations across multiple repositories"
+"Analyze how different projects structure their authentication"
+```
+
+### Refactoring Support
+
+```
+"Find all places where we could use the new async/await syntax"
+"Identify duplicate code that could be extracted into utilities"
+"Show me all the places affected if I rename this function"
+```
+
+## Troubleshooting MCP Connection
+
+### Check if context-creator is available
+
+```bash
+# Test with npx
+npx -y context-creator-mcp@latest --version
+
+# Or if installed globally
+context-creator-mcp --version
+```
+
+### Verify Claude configuration
+
+- Ensure you're using `npx` with the correct package name
+- Check that Node.js v18+ is installed
+- Verify the configuration is saved correctly
+
+### Check logs
+
+- Claude Desktop: Check developer console
+- Claude Code: Run with verbose flag `claude -v`
+
+### Common issues
+
+- **Command not found**: Install Node.js v18 or later
+- **Package not found**: Check internet connection and npm registry access
+- **Permission denied**: May need to run with elevated permissions on Windows
+- **Already configured**: Remove old config first with `claude mcp remove context-creator`
+
+## Performance Considerations
+
+1. **Caching**: The MCP server caches analysis results for better performance
+2. **Parallel Processing**: File analysis uses all available CPU cores
+3. **Memory Management**: Large repositories are processed incrementally
+4. **Token Limits**: Responses are automatically truncated to fit context windows
+
+## Security Features
+
+1. **Path Validation**: All file paths are validated to prevent directory traversal
+2. **Repository Validation**: Only valid Git URLs are accepted
+3. **Sandboxing**: Remote repositories are analyzed in isolated environments
+4. **Resource Limits**: CPU and memory usage are bounded
+
+## Integration Tips
+
+### For Development Teams
+
+1. Add `.mcp.json` to your repository for consistent setup
+2. Configure `.contextignore` to exclude sensitive files
+3. Use `.contextkeep` to prioritize important files
+4. Document MCP usage in your team's README
+
+### For AI-Assisted Development
+
+1. Use specific, targeted questions for better results
+2. Combine multiple tools for comprehensive analysis
+3. Iterate on queries based on initial results
+4. Save useful queries as documentation
 
 ## Future Enhancements
 
-- WebSocket support for streaming responses
-- Authentication and authorization
-- Rate limiting per client
-- Metrics endpoint for Prometheus
-- GraphQL API alternative
-- Plugin system for custom analyzers
+- WebSocket support for real-time updates
+- Integration with more AI platforms
+- Custom analysis plugins
+- Team collaboration features
+- Performance profiling tools
