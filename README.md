@@ -4,7 +4,41 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-%23000000.svg?style=flat&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 
-CLI tool and MCP server for analyzing codebases and providing context to LLMs.
+High-performance CLI for building quality context windows that make AI assistants actually understand your codebase.
+
+## The Problem
+
+AI coding assistants are only as good as the context you provide. Most tools simply concatenate files, leading to:
+
+- **Irrelevant files** cluttering the context window
+- **Missing dependencies** that are crucial for understanding
+- **Token limits** wasted on unimportant code
+- **No understanding** of how your code actually connects
+
+## The Solution
+
+context-creator uses tree-sitter to build a dependency graph of your codebase, selecting only the files relevant to your task. It's like repomix, but faster and smarter.
+
+### Without context-creator
+```bash
+# Generic context that includes everything
+cat src/**/*.ts > context.txt  # 500K tokens of mostly noise
+```
+
+### With context-creator
+```bash
+# Intelligent context that follows your code's actual dependencies
+context-creator --prompt "How does the authentication work?"
+# Returns: auth files + their actual dependencies + related tests = 50K relevant tokens
+```
+
+## Key Advantages
+
+- **Dependency-aware**: Uses tree-sitter AST parsing to understand imports, not just file names
+- **Fast**: Rust-powered parallel processing handles massive codebases in seconds
+- **Smart selection**: Includes only files connected to your query through the dependency graph
+- **Multi-language**: Semantic analysis for Python, TypeScript, JavaScript, and Rust
+- **MCP integration**: Works as a server for AI assistants to query your codebase programmatically
 
 ## Installation
 
@@ -22,13 +56,13 @@ For platform-specific MCP client setup, see [Installation Guide](docs/installati
 # Analyze current directory
 context-creator
 
-# Analyze with prompt
-context-creator --prompt "Find security vulnerabilities"
+# Build focused context for specific task
+context-creator --prompt "Find security vulnerabilities in the auth system"
 
-# Search codebase
-context-creator search "TODO" --no-semantic
+# Trace dependencies of specific files
+context-creator --trace-imports --include "**/auth.py"
 
-# Compare git changes
+# Compare changes with dependency context
 context-creator diff HEAD~1 HEAD
 ```
 
@@ -47,18 +81,24 @@ Add to your MCP client configuration:
 }
 ```
 
+Then in your AI assistant:
+```
+"Explain how the payment system works" # AI will use analyze_local to build relevant context
+"Find all SQL injection vulnerabilities" # Searches with full dependency understanding
+```
+
 ## Features
 
-- Multi-language semantic analysis (Python, TypeScript, JavaScript, Rust)
-- AST-based import tracing and dependency resolution
+- Tree-sitter AST parsing for true code understanding
+- Import tracing and dependency resolution
 - Parallel processing with Rayon
-- Token budget management for LLM context windows
+- Token budget management
 - Git history integration
 - MCP server with programmatic access
 
 ## MCP Tools
 
-- `analyze_local` - Analyze local codebases
+- `analyze_local` - Analyze local codebases with dependency awareness
 - `analyze_remote` - Analyze Git repositories
 - `search` - Text pattern search
 - `semantic_search` - AST-based code search
