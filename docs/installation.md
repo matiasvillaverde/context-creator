@@ -185,6 +185,117 @@ cargo build --release --features "custom-tokenizer,extended-formats"
 cargo build --release --no-default-features
 ```
 
+## MCP Client Setup
+
+context-creator can be used as an MCP server with various AI assistants. Here are platform-specific installation instructions:
+
+### Smithery (Automated Installation)
+
+For Claude Desktop via [Smithery](https://smithery.ai/protocol/context-creator):
+
+```bash
+npx -y @smithery/cli install context-creator --client claude
+```
+
+### Manual MCP Client Configuration
+
+<details>
+<summary>Cursor</summary>
+
+1. Open Cursor IDE
+2. Click Settings → Extensions → MCP
+3. Add configuration:
+
+```json
+{
+  "mcpServers": {
+    "context-creator": {
+      "command": "npx",
+      "args": ["-y", "context-creator-mcp@latest"]
+    }
+  }
+}
+```
+</details>
+
+<details>
+<summary>Claude Desktop</summary>
+
+1. Edit configuration file:
+   - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+   - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+2. Add:
+
+```json
+{
+  "mcpServers": {
+    "context-creator": {
+      "command": "npx",
+      "args": ["-y", "context-creator-mcp@latest"]
+    }
+  }
+}
+```
+
+3. Restart Claude Desktop
+</details>
+
+<details>
+<summary>Claude Code</summary>
+
+Option 1 - Project configuration:
+```json
+// .mcp.json in project root
+{
+  "mcpServers": {
+    "context-creator": {
+      "command": "npx",
+      "args": ["-y", "context-creator-mcp@latest"]
+    }
+  }
+}
+```
+
+Option 2 - Global configuration:
+```bash
+claude mcp add context-creator -- npx -y context-creator-mcp@latest
+```
+</details>
+
+<details>
+<summary>VS Code</summary>
+
+1. Install MCP extension
+2. Open Command Palette (⌘/Ctrl + Shift + P)
+3. Run "MCP: Add Server"
+4. Configure:
+
+```json
+{
+  "context-creator": {
+    "command": "npx",
+    "args": ["-y", "context-creator-mcp@latest"]
+  }
+}
+```
+</details>
+
+<details>
+<summary>Other MCP Clients</summary>
+
+For additional MCP clients (Windsurf, Zed, Cline, BoltAI, etc.), the configuration pattern is similar:
+
+```json
+{
+  "command": "npx",
+  "args": ["-y", "context-creator-mcp@latest"]
+}
+```
+
+Refer to your specific client's MCP documentation for exact configuration location.
+</details>
+
 ## LLM CLI Tools (Optional)
 
 For direct LLM integration, install one or more LLM CLI tools:
