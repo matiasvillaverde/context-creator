@@ -46,7 +46,10 @@ jobs:
           echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
 
       - name: Build binary
-        run: cargo build --release --target ${{ matrix.target }} --all-features
+        run: |
+          # Use vendored OpenSSL to avoid build issues on macOS
+          export OPENSSL_STATIC=1
+          cargo build --release --target ${{ matrix.target }} --all-features
 
       - name: Prepare binary (Unix)
         if: runner.os != 'Windows'
