@@ -189,40 +189,63 @@ cargo build --release --no-default-features
 
 For direct LLM integration, install one or more LLM CLI tools:
 
-### Gemini CLI
+### Gemini CLI (Default)
 
 ```bash
-# Python/pip installation
+# Install Gemini CLI
 pip install gemini
+
+# Authenticate with Google Cloud
+gcloud auth application-default login
 
 # Verify
 gemini --version
 ```
 
-### OpenAI Codex CLI
+### Claude Code CLI
 
 ```bash
-# Install from GitHub
-npm install -g @openai/codex-cli
+# Install Claude Code CLI
+npm install -g @anthropic-ai/claude-code
 
-# Configure API key
-export OPENAI_API_KEY="your-api-key"
-
-# Verify
-codex --version
-```
-
-### Anthropic Claude CLI
-
-```bash
-# Install from pip
-pip install anthropic-cli
-
-# Configure
+# Set API key
 export ANTHROPIC_API_KEY="your-api-key"
 
 # Verify
 claude --version
+```
+
+### Ollama (Local Models)
+
+```bash
+# Install Ollama
+# macOS
+brew install ollama
+
+# Linux
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# Windows
+# Download from https://ollama.ai
+
+# Pull models
+ollama pull llama3        # General purpose
+ollama pull codellama     # Code-specific
+ollama pull mistral       # Alternative option
+
+# Verify
+ollama list
+```
+
+### Codex CLI
+
+```bash
+# Install from GitHub
+# Visit: https://github.com/microsoft/codex-cli
+# Follow platform-specific instructions
+
+# Verify
+codex --version
 ```
 
 ## Verification
