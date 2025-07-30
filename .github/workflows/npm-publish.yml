@@ -106,9 +106,14 @@ jobs:
 
       - name: Create package.json
         run: |
-          # Extract version without 'v' prefix
-          VERSION="${{ github.ref_name }}"
-          VERSION="${VERSION#v}"
+          # Extract version from Cargo.toml or use ref_name if it's a tag
+          if [[ "${{ github.ref_name }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            VERSION="${{ github.ref_name }}"
+            VERSION="${VERSION#v}"
+          else
+            VERSION=$(grep '^version' Cargo.toml | cut -d'"' -f2)
+            VERSION="${VERSION}-dev.${{ github.run_number }}"
+          fi
           
           cat > npm-package/package.json << EOF
           {
