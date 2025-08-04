@@ -1,0 +1,278 @@
+{
+  "resourceSpans": [{
+    "resource": {
+      "attributes": [
+        {
+          "key": "service.name",
+          "value": { "stringValue": "frontend-service" }
+        },
+        {
+          "key": "service.version",
+          "value": { "stringValue": "1.0.0" }
+        },
+        {
+          "key": "telemetry.sdk.language",
+          "value": { "stringValue": "javascript" }
+        }
+      ]
+    },
+    "scopeSpans": [{
+      "scope": {
+        "name": "frontend-service"
+      },
+      "spans": [
+        {
+          "traceId": "8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c",
+          "spanId": "4f5a6b7c8d9e0f1a",
+          "name": "getProducts",
+          "kind": 3,
+          "startTimeUnixNano": "1704067200000000000",
+          "endTimeUnixNano": "1704067200045000000",
+          "attributes": [
+            {
+              "key": "code.function.name",
+              "value": { "stringValue": "getProducts" }
+            },
+            {
+              "key": "code.file.path",
+              "value": { "stringValue": "frontend.ts" }
+            },
+            {
+              "key": "code.line.number",
+              "value": { "intValue": "36" }
+            },
+            {
+              "key": "currency",
+              "value": { "stringValue": "USD" }
+            },
+            {
+              "key": "http.method",
+              "value": { "stringValue": "GET" }
+            },
+            {
+              "key": "http.url",
+              "value": { "stringValue": "http://localhost:8080/api/products" }
+            },
+            {
+              "key": "product.count",
+              "value": { "intValue": "12" }
+            }
+          ],
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d",
+          "spanId": "5a6b7c8d9e0f1a2b",
+          "name": "getProduct",
+          "kind": 3,
+          "startTimeUnixNano": "1704067201000000000",
+          "endTimeUnixNano": "1704067201025000000",
+          "attributes": [
+            {
+              "key": "code.function.name",
+              "value": { "stringValue": "getProduct" }
+            },
+            {
+              "key": "code.file.path",
+              "value": { "stringValue": "frontend.ts" }
+            },
+            {
+              "key": "code.line.number",
+              "value": { "intValue": "65" }
+            },
+            {
+              "key": "product.id",
+              "value": { "stringValue": "OLJCESPC7Z" }
+            },
+            {
+              "key": "http.method",
+              "value": { "stringValue": "GET" }
+            },
+            {
+              "key": "product.name",
+              "value": { "stringValue": "Sunglasses" }
+            },
+            {
+              "key": "product.price",
+              "value": { "doubleValue": 19.99 }
+            },
+            {
+              "key": "product.found",
+              "value": { "boolValue": true }
+            }
+          ],
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e",
+          "spanId": "6b7c8d9e0f1a2b3c",
+          "name": "addToCart",
+          "kind": 3,
+          "startTimeUnixNano": "1704067202000000000",
+          "endTimeUnixNano": "1704067202035000000",
+          "attributes": [
+            {
+              "key": "code.function.name",
+              "value": { "stringValue": "addToCart" }
+            },
+            {
+              "key": "code.file.path",
+              "value": { "stringValue": "frontend.ts" }
+            },
+            {
+              "key": "code.line.number",
+              "value": { "intValue": "103" }
+            },
+            {
+              "key": "user.id",
+              "value": { "stringValue": "user-789" }
+            },
+            {
+              "key": "product.id",
+              "value": { "stringValue": "OLJCESPC7Z" }
+            },
+            {
+              "key": "cart.quantity",
+              "value": { "intValue": "2" }
+            },
+            {
+              "key": "http.method",
+              "value": { "stringValue": "POST" }
+            },
+            {
+              "key": "cart.operation.success",
+              "value": { "boolValue": true }
+            }
+          ],
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f",
+          "spanId": "7c8d9e0f1a2b3c4d",
+          "name": "getCart",
+          "kind": 3,
+          "startTimeUnixNano": "1704067203000000000",
+          "endTimeUnixNano": "1704067203020000000",
+          "attributes": [
+            {
+              "key": "code.function.name",
+              "value": { "stringValue": "getCart" }
+            },
+            {
+              "key": "code.file.path",
+              "value": { "stringValue": "frontend.ts" }
+            },
+            {
+              "key": "code.line.number",
+              "value": { "intValue": "144" }
+            },
+            {
+              "key": "user.id",
+              "value": { "stringValue": "user-789" }
+            },
+            {
+              "key": "http.method",
+              "value": { "stringValue": "GET" }
+            },
+            {
+              "key": "cart.items.count",
+              "value": { "intValue": "3" }
+            },
+            {
+              "key": "cart.empty",
+              "value": { "boolValue": false }
+            }
+          ],
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a",
+          "spanId": "8d9e0f1a2b3c4d5e",
+          "name": "checkout",
+          "kind": 3,
+          "startTimeUnixNano": "1704067204000000000",
+          "endTimeUnixNano": "1704067204120000000",
+          "attributes": [
+            {
+              "key": "code.function.name",
+              "value": { "stringValue": "checkout" }
+            },
+            {
+              "key": "code.file.path",
+              "value": { "stringValue": "frontend.ts" }
+            },
+            {
+              "key": "code.line.number",
+              "value": { "intValue": "183" }
+            },
+            {
+              "key": "user.id",
+              "value": { "stringValue": "user-789" }
+            },
+            {
+              "key": "http.method",
+              "value": { "stringValue": "POST" }
+            },
+            {
+              "key": "checkout.items.count",
+              "value": { "intValue": "3" }
+            },
+            {
+              "key": "order.id",
+              "value": { "stringValue": "order-8d9e0f1a2b3c" }
+            },
+            {
+              "key": "checkout.success",
+              "value": { "boolValue": true }
+            }
+          ],
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a",
+          "spanId": "9e0f1a2b3c4d5e6f",
+          "parentSpanId": "8d9e0f1a2b3c4d5e",
+          "name": "getCart",
+          "kind": 3,
+          "startTimeUnixNano": "1704067204005000000",
+          "endTimeUnixNano": "1704067204015000000",
+          "attributes": [
+            {
+              "key": "code.function.name",
+              "value": { "stringValue": "getCart" }
+            },
+            {
+              "key": "code.file.path",
+              "value": { "stringValue": "frontend.ts" }
+            },
+            {
+              "key": "code.line.number",
+              "value": { "intValue": "144" }
+            },
+            {
+              "key": "user.id",
+              "value": { "stringValue": "user-789" }
+            },
+            {
+              "key": "cart.items.count",
+              "value": { "intValue": "3" }
+            }
+          ],
+          "status": {
+            "code": 1
+          }
+        }
+      ]
+    }]
+  }]
+}

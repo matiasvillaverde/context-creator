@@ -23,8 +23,8 @@ fn test_llm_tool_codex() {
 }
 
 #[test]
-fn test_llm_tool_short_flag() {
-    let config = Config::parse_from(["context-creator", "-t", "codex", "."]);
+fn test_llm_tool_long_flag() {
+    let config = Config::parse_from(["context-creator", "--tool", "codex", "."]);
     assert_eq!(config.llm_tool, LlmTool::Codex);
 }
 
