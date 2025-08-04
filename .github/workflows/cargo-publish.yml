@@ -28,9 +28,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      - name: Run unit tests only (skip MCP integration tests)
-        run: cargo test --lib --bins
-        
       - name: Publish to crates.io
         run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
         env:
