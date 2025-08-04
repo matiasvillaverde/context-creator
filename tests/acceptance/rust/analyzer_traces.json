@@ -1,0 +1,224 @@
+{
+  "resourceSpans": [{
+    "resource": {
+      "attributes": [
+        {
+          "key": "service.name",
+          "value": { "stringValue": "analyzer-service" }
+        },
+        {
+          "key": "service.version",
+          "value": { "stringValue": "0.1.0" }
+        },
+        {
+          "key": "telemetry.sdk.language",
+          "value": { "stringValue": "rust" }
+        }
+      ]
+    },
+    "scopeSpans": [{
+      "scope": {
+        "name": "analyzer-service"
+      },
+      "spans": [
+        {
+          "traceId": "3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c",
+          "spanId": "7b8c9d0e1f2a3b4c",
+          "name": "analyze_repository",
+          "kind": 1,
+          "startTimeUnixNano": "1704067200000000000",
+          "endTimeUnixNano": "1704067200027000000",
+          "attributes": [
+            {
+              "key": "code.function.name",
+              "value": { "stringValue": "analyze_repository" }
+            },
+            {
+              "key": "code.file.path",
+              "value": { "stringValue": "analyzer_service.rs" }
+            },
+            {
+              "key": "code.line.number",
+              "value": { "intValue": "29" }
+            },
+            {
+              "key": "repo.path",
+              "value": { "stringValue": "/projects/myapp" }
+            },
+            {
+              "key": "cache.hit",
+              "value": { "boolValue": false }
+            },
+            {
+              "key": "files.count",
+              "value": { "intValue": "3" }
+            },
+            {
+              "key": "analysis.total_lines",
+              "value": { "intValue": "300" }
+            },
+            {
+              "key": "analysis.languages",
+              "value": { "intValue": "2" }
+            }
+          ],
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c",
+          "spanId": "8c9d0e1f2a3b4c5d",
+          "parentSpanId": "7b8c9d0e1f2a3b4c",
+          "name": "check_cache",
+          "kind": 1,
+          "startTimeUnixNano": "1704067200001000000",
+          "endTimeUnixNano": "1704067200003000000",
+          "attributes": [
+            {
+              "key": "code.function.name",
+              "value": { "stringValue": "check_cache" }
+            },
+            {
+              "key": "code.file.path",
+              "value": { "stringValue": "analyzer_service.rs" }
+            },
+            {
+              "key": "code.line.number",
+              "value": { "intValue": "78" }
+            }
+          ],
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c",
+          "spanId": "9d0e1f2a3b4c5d6e",
+          "parentSpanId": "7b8c9d0e1f2a3b4c",
+          "name": "scan_directory",
+          "kind": 1,
+          "startTimeUnixNano": "1704067200003000000",
+          "endTimeUnixNano": "1704067200018000000",
+          "attributes": [
+            {
+              "key": "code.function.name",
+              "value": { "stringValue": "scan_directory" }
+            },
+            {
+              "key": "code.file.path",
+              "value": { "stringValue": "analyzer_service.rs" }
+            },
+            {
+              "key": "code.line.number",
+              "value": { "intValue": "88" }
+            },
+            {
+              "key": "path",
+              "value": { "stringValue": "/projects/myapp" }
+            }
+          ],
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c",
+          "spanId": "0e1f2a3b4c5d6e7f",
+          "parentSpanId": "7b8c9d0e1f2a3b4c",
+          "name": "analyze_file",
+          "kind": 1,
+          "startTimeUnixNano": "1704067200018000000",
+          "endTimeUnixNano": "1704067200023000000",
+          "attributes": [
+            {
+              "key": "code.function.name",
+              "value": { "stringValue": "analyze_file" }
+            },
+            {
+              "key": "code.file.path",
+              "value": { "stringValue": "analyzer_service.rs" }
+            },
+            {
+              "key": "code.line.number",
+              "value": { "intValue": "104" }
+            },
+            {
+              "key": "file.path",
+              "value": { "stringValue": "/projects/myapp/main.rs" }
+            },
+            {
+              "key": "file.language",
+              "value": { "stringValue": "rust" }
+            },
+            {
+              "key": "file.lines",
+              "value": { "intValue": "100" }
+            }
+          ],
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d",
+          "spanId": "1f2a3b4c5d6e7f8a",
+          "name": "analyze_repository",
+          "kind": 1,
+          "startTimeUnixNano": "1704067201000000000",
+          "endTimeUnixNano": "1704067201005000000",
+          "attributes": [
+            {
+              "key": "code.function.name",
+              "value": { "stringValue": "analyze_repository" }
+            },
+            {
+              "key": "code.file.path",
+              "value": { "stringValue": "analyzer_service.rs" }
+            },
+            {
+              "key": "code.line.number",
+              "value": { "intValue": "29" }
+            },
+            {
+              "key": "repo.path",
+              "value": { "stringValue": "/projects/myapp" }
+            },
+            {
+              "key": "cache.hit",
+              "value": { "boolValue": true }
+            }
+          ],
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e",
+          "spanId": "2a3b4c5d6e7f8a9b",
+          "name": "generate_report",
+          "kind": 1,
+          "startTimeUnixNano": "1704067202000000000",
+          "endTimeUnixNano": "1704067202010000000",
+          "attributes": [
+            {
+              "key": "code.function.name",
+              "value": { "stringValue": "generate_report" }
+            },
+            {
+              "key": "code.file.path",
+              "value": { "stringValue": "analyzer_service.rs" }
+            },
+            {
+              "key": "code.line.number",
+              "value": { "intValue": "128" }
+            }
+          ],
+          "status": {
+            "code": 1
+          }
+        }
+      ]
+    }]
+  }]
+}

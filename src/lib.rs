@@ -36,6 +36,7 @@ pub fn run(mut config: Config) -> Result<()> {
     match &config.command {
         Some(cli::Commands::Search { .. }) => return commands::run_search(config),
         Some(cli::Commands::Diff { .. }) => return commands::run_diff(config),
+        Some(cli::Commands::Telemetry { .. }) => return commands::run_telemetry(config),
         Some(cli::Commands::Examples) => {
             println!("{}", cli::USAGE_EXAMPLES);
             return Ok(());

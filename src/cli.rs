@@ -282,6 +282,25 @@ pub enum Commands {
 
     /// Show usage examples
     Examples,
+
+    /// Enrich source code with OpenTelemetry runtime data
+    Telemetry {
+        /// Path to OpenTelemetry export file (JSON/protobuf)
+        #[arg(short = 't', long = "telemetry-file", required = true)]
+        telemetry_file: PathBuf,
+
+        /// Filter by time range (RFC3339 format)
+        #[arg(long = "time-range")]
+        time_range: Option<String>,
+
+        /// Filter by service name
+        #[arg(long = "service")]
+        service: Option<String>,
+
+        /// Paths to analyze (defaults to current directory)
+        #[arg(value_name = "PATHS")]
+        paths: Option<Vec<PathBuf>>,
+    },
 }
 
 /// High-performance CLI tool to convert codebases to Markdown for LLM context
@@ -332,7 +351,7 @@ pub struct Config {
     pub max_tokens: Option<usize>,
 
     /// LLM CLI tool to use for processing
-    #[arg(short = 't', long = "tool", default_value = "gemini")]
+    #[arg(long = "tool", default_value = "gemini")]
     pub llm_tool: LlmTool,
 
     /// Model to use with Ollama (required when using --tool ollama)

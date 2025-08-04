@@ -52,6 +52,9 @@ hyper = "1.0"
 hyper-util = "0.1"
 tower-service = "0.3"
 tower = { version = "0.4", features = ["full"] }
+# OTLP parsing dependencies
+prost = "0.12"
+prost-types = "0.12"
 
 [dev-dependencies]
 assert_cmd = "2.0"

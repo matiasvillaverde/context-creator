@@ -151,9 +151,19 @@ mod remote_parsing_test;
 #[path = "modules/security_vulnerability_test.rs"]
 mod security_vulnerability_test;
 
+// Telemetry tests
+#[path = "modules/telemetry_cli_test.rs"]
+mod telemetry_cli_test;
+#[path = "modules/telemetry_test.rs"]
+mod telemetry_test;
+
 // Acceptance tests
 #[path = "modules/acceptance/mod.rs"]
 mod acceptance;
+
+// Telemetry acceptance tests with real OpenTelemetry data
+#[path = "acceptance/mod.rs"]
+mod telemetry_acceptance;
 
 // Edge case tests
 #[path = "modules/edge_cases/mod.rs"]

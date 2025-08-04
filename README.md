@@ -64,6 +64,9 @@ context-creator --trace-imports --include "**/auth.py"
 
 # Compare changes with dependency context
 context-creator diff HEAD~1 HEAD
+
+# Enrich code with OpenTelemetry runtime metrics
+context-creator telemetry -t traces.json
 ```
 
 ### MCP Server
@@ -95,6 +98,7 @@ Then in your AI assistant:
 - Token budget management
 - Git history integration
 - MCP server with programmatic access
+- OpenTelemetry integration for runtime metrics
 
 ## MCP Tools
 

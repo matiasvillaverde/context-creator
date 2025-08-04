@@ -9,5 +9,6 @@ pub mod search;
 pub mod semantic;
 pub mod semantic_cache;
 pub mod semantic_graph;
+pub mod telemetry;
 pub mod token;
 pub mod walker;
