@@ -562,7 +562,6 @@ pub fn handle_request() -> anyhow::Result<()> {
 }
 
 #[test]
-#[ignore] // TODO: Implement re-export detection for Rust
 fn test_re_exports() {
     let temp_dir = TempDir::new().unwrap();
     let root = temp_dir.path();
