@@ -118,6 +118,8 @@ pub fn get_resolver_for_file(
         "py" => Some(Box::new(languages::python::PythonModuleResolver)),
         "js" | "jsx" => Some(Box::new(languages::javascript::JavaScriptModuleResolver)),
         "ts" | "tsx" => Some(Box::new(languages::typescript::TypeScriptModuleResolver)),
+        "go" => Some(Box::new(languages::go::GoModuleResolver)),
+        "swift" => Some(Box::new(languages::swift::SwiftModuleResolver)),
         _ => None,
     };
 

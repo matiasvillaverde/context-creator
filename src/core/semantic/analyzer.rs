@@ -133,6 +133,40 @@ pub trait LanguageAnalyzer: Send + Sync {
         context: &SemanticContext,
     ) -> SemanticResult<AnalysisResult>;
 
+    /// Analyze only the semantic data needed by the active feature set.
+    ///
+    /// Most analyzers can use the full analysis and filter the result. Languages
+    /// with expensive secondary resolution can override this to avoid work that
+    /// the caller did not request.
+    #[allow(clippy::too_many_arguments)]
+    fn analyze_requested(
+        &self,
+        path: &Path,
+        content: &str,
+        context: &SemanticContext,
+        include_imports: bool,
+        include_function_calls: bool,
+        include_type_references: bool,
+        include_function_definitions: bool,
+    ) -> SemanticResult<AnalysisResult> {
+        let mut result = self.analyze_file(path, content, context)?;
+
+        if !include_imports {
+            result.imports.clear();
+        }
+        if !include_function_calls {
+            result.function_calls.clear();
+        }
+        if !include_type_references {
+            result.type_references.clear();
+        }
+        if !include_function_definitions {
+            result.exported_functions.clear();
+        }
+
+        Ok(result)
+    }
+
     /// Parse and analyze imports from the file
     fn analyze_imports(
         &self,

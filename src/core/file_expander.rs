@@ -8,7 +8,7 @@ use crate::core::cache::FileCache;
 use crate::core::semantic::function_call_index::FunctionCallIndex;
 use crate::core::semantic::path_validator::validate_import_path;
 use crate::core::semantic::type_resolver::{ResolutionLimits, TypeResolver};
-use crate::core::walker::{perform_semantic_analysis, walk_directory, FileInfo};
+use crate::core::walker::{walk_directory, FileInfo};
 use crate::utils::error::ContextCreatorError;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -48,7 +48,7 @@ pub fn detect_project_root(start_path: &Path) -> PathBuf {
     let mut current = start_dir;
     loop {
         if current.join(".git").exists() {
-            return current.to_path_buf();
+            return absolute_project_root(current);
         }
         if let Some(parent) = current.parent() {
             current = parent;
@@ -62,19 +62,27 @@ pub fn detect_project_root(start_path: &Path) -> PathBuf {
     loop {
         // Check for Rust project markers
         if current.join("Cargo.toml").exists() {
-            return current.to_path_buf();
+            return absolute_project_root(current);
         }
         // Check for Node.js project markers
         if current.join("package.json").exists() {
-            return current.to_path_buf();
+            return absolute_project_root(current);
         }
         // Check for Python project markers
         if current.join("pyproject.toml").exists() || current.join("setup.py").exists() {
-            return current.to_path_buf();
+            return absolute_project_root(current);
+        }
+        // Check for Go project markers
+        if current.join("go.mod").exists() {
+            return absolute_project_root(current);
+        }
+        // Check for Swift Package Manager project markers
+        if current.join("Package.swift").exists() {
+            return absolute_project_root(current);
         }
         // Check for generic project markers
         if current.join("README.md").exists() || current.join("readme.md").exists() {
-            return current.to_path_buf();
+            return absolute_project_root(current);
         }
 
         if let Some(parent) = current.parent() {
@@ -85,7 +93,94 @@ pub fn detect_project_root(start_path: &Path) -> PathBuf {
     }
 
     // Ultimate fallback: use the start directory
-    start_dir.to_path_buf()
+    absolute_project_root(start_dir)
+}
+
+fn configured_input_root(config: &Config) -> Option<&Path> {
+    config
+        .directories
+        .as_ref()
+        .and_then(|paths| paths.first())
+        .or_else(|| config.paths.as_ref().and_then(|paths| paths.first()))
+        .map(PathBuf::as_path)
+}
+
+fn current_dir_project_root_for_files(files_map: &HashMap<PathBuf, FileInfo>) -> Option<PathBuf> {
+    let current_dir = std::env::current_dir().ok()?;
+    let project_root = detect_project_root(&current_dir);
+
+    let all_files_under_current_project = files_map.values().all(|file_info| {
+        let path = file_info
+            .path
+            .canonicalize()
+            .unwrap_or_else(|_| file_info.path.clone());
+        path.starts_with(&project_root)
+    });
+
+    all_files_under_current_project.then_some(project_root)
+}
+
+fn absolute_project_root(path: &Path) -> PathBuf {
+    path.canonicalize().unwrap_or_else(|_| {
+        if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            std::env::current_dir()
+                .map(|current_dir| current_dir.join(path))
+                .unwrap_or_else(|_| path.to_path_buf())
+        }
+    })
+}
+
+fn find_importers_of_files(
+    project_files: &[FileInfo],
+    target_files: &[PathBuf],
+) -> HashSet<PathBuf> {
+    let mut importers = HashSet::new();
+
+    for file in project_files {
+        let imports_target = file
+            .imports
+            .iter()
+            .any(|import| path_matches_any_target(import, target_files));
+        let is_target = path_matches_any_target(&file.path, target_files);
+
+        if imports_target && !is_target {
+            importers.insert(file.path.clone());
+        }
+    }
+
+    for target in target_files {
+        if let Some(target_file) = project_files
+            .iter()
+            .find(|file| paths_equivalent(&file.path, target))
+        {
+            for importer in &target_file.imported_by {
+                if !path_matches_any_target(importer, target_files) {
+                    importers.insert(importer.clone());
+                }
+            }
+        }
+    }
+
+    importers
+}
+
+fn path_matches_any_target(path: &Path, target_files: &[PathBuf]) -> bool {
+    target_files
+        .iter()
+        .any(|target| paths_equivalent(path, target))
+}
+
+fn paths_equivalent(left: &Path, right: &Path) -> bool {
+    if left == right {
+        return true;
+    }
+
+    match (left.canonicalize(), right.canonicalize()) {
+        (Ok(left), Ok(right)) => left == right,
+        _ => false,
+    }
 }
 
 /// Expand file list based on semantic relationships with full project context
@@ -135,14 +230,22 @@ fn expand_file_list_internal(
         return Ok(files_map);
     }
 
-    let mut files_map = files_map;
-
     // Detect the project root for secure path validation
-    let project_root = if let Some((first_path, _)) = files_map.iter().next() {
+    let project_root = if let Some(config_path) = configured_input_root(config) {
+        detect_project_root(config_path)
+    } else if let Some(project_root) = current_dir_project_root_for_files(&files_map) {
+        project_root
+    } else if let Some((first_path, _)) = files_map.iter().next() {
         detect_project_root(first_path)
     } else {
         // If no files, use current directory
         std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+    };
+    let mut files_map = normalize_initial_file_paths(files_map, &project_root);
+    let rust_declaration_context = RustModuleDeclarationContext {
+        project_root: &project_root,
+        cache,
+        all_files_context,
     };
 
     // First, perform semantic analysis on the initial files if needed
@@ -167,7 +270,15 @@ fn expand_file_list_internal(
                         visited_files: HashSet::new(),
                     };
 
-                    if let Ok(analysis) = analyzer.analyze_file(path, &content, &context) {
+                    if let Ok(analysis) = analyzer.analyze_requested(
+                        path,
+                        &content,
+                        &context,
+                        config.trace_imports,
+                        config.include_callers,
+                        config.include_types,
+                        config.include_callers,
+                    ) {
                         // Convert imports to resolved file paths
                         file_info.imports = analysis
                             .imports
@@ -231,8 +342,13 @@ fn expand_file_list_internal(
                 .map_err(|e| ContextCreatorError::ContextGenerationError(e.to_string()))?;
 
             // Perform semantic analysis on project files
-            perform_semantic_analysis(&mut all_project_files, config, cache)
-                .map_err(|e| ContextCreatorError::ContextGenerationError(e.to_string()))?;
+            crate::core::semantic_graph::perform_semantic_analysis_graph_with_root(
+                &mut all_project_files,
+                config,
+                cache,
+                &project_root,
+            )
+            .map_err(|e| ContextCreatorError::ContextGenerationError(e.to_string()))?;
 
             all_project_files
         };
@@ -242,7 +358,8 @@ fn expand_file_list_internal(
 
         // Find all callers of functions exported by our initial files
         let initial_files: Vec<PathBuf> = files_map.keys().cloned().collect();
-        let caller_paths = function_call_index.find_callers_of_files(&initial_files);
+        let mut caller_paths = function_call_index.find_callers_of_files(&initial_files);
+        caller_paths.extend(find_importers_of_files(&project_files, &initial_files));
 
         // Add caller files while respecting security boundaries
         for caller_path in caller_paths {
@@ -366,8 +483,20 @@ fn expand_file_list_internal(
                                     visited_paths.insert(validated_path.clone());
 
                                     // Create FileInfo for the definition file
-                                    let mut file_info =
-                                        create_file_info_for_path(&validated_path, &source_path)?;
+                                    let mut file_info = file_info_for_expanded_path(
+                                        &validated_path,
+                                        &source_path,
+                                        all_files_context,
+                                        &project_root,
+                                    )?;
+
+                                    add_rust_module_declaration_files(
+                                        &validated_path,
+                                        &source_path,
+                                        &rust_declaration_context,
+                                        &mut visited_paths,
+                                        &mut files_to_add,
+                                    )?;
 
                                     // Perform semantic analysis on the newly found file to get its type references
                                     if depth + 1 < config.semantic_depth {
@@ -384,10 +513,14 @@ fn expand_file_list_internal(
                                                     config.semantic_depth,
                                                 );
 
-                                                if let Ok(analysis) = analyzer.analyze_file(
+                                                if let Ok(analysis) = analyzer.analyze_requested(
                                                     &validated_path,
                                                     &content,
                                                     &context,
+                                                    config.trace_imports,
+                                                    config.include_callers,
+                                                    config.include_types,
+                                                    config.include_callers,
                                                 ) {
                                                     // Update file info with semantic data
                                                     file_info.type_references =
@@ -452,9 +585,19 @@ fn expand_file_list_internal(
                                         visited_paths.insert(validated_path.clone());
 
                                         // Create FileInfo for the definition file
-                                        let mut file_info = create_file_info_for_path(
+                                        let mut file_info = file_info_for_expanded_path(
                                             &validated_path,
                                             &source_path,
+                                            all_files_context,
+                                            &project_root,
+                                        )?;
+
+                                        add_rust_module_declaration_files(
+                                            &validated_path,
+                                            &source_path,
+                                            &rust_declaration_context,
+                                            &mut visited_paths,
+                                            &mut files_to_add,
                                         )?;
 
                                         // Perform semantic analysis on the newly found file to get its type references
@@ -473,11 +616,17 @@ fn expand_file_list_internal(
                                                         config.semantic_depth,
                                                     );
 
-                                                    if let Ok(analysis) = analyzer.analyze_file(
-                                                        &validated_path,
-                                                        &content,
-                                                        &context,
-                                                    ) {
+                                                    if let Ok(analysis) = analyzer
+                                                        .analyze_requested(
+                                                            &validated_path,
+                                                            &content,
+                                                            &context,
+                                                            config.trace_imports,
+                                                            config.include_callers,
+                                                            config.include_types,
+                                                            config.include_callers,
+                                                        )
+                                                    {
                                                         // Update file info with semantic data
                                                         file_info.type_references =
                                                             analysis.type_references;
@@ -539,46 +688,45 @@ fn expand_file_list_internal(
                         Ok(validated_path) => {
                             visited_paths.insert(validated_path.clone());
 
-                            // For Rust files, if we're importing a module, also include lib.rs
-                            if source_path.extension() == Some(std::ffi::OsStr::new("rs")) {
-                                // Check if this is a module file (not main.rs or lib.rs itself)
-                                if let Some(parent) = validated_path.parent() {
-                                    let lib_rs = parent.join("lib.rs");
-                                    if lib_rs.exists()
-                                        && lib_rs != validated_path
-                                        && !visited_paths.contains(&lib_rs)
-                                    {
-                                        // Check if lib.rs declares this module
-                                        if let Ok(lib_content) = cache.get_or_load(&lib_rs) {
-                                            let module_name = validated_path
-                                                .file_stem()
-                                                .and_then(|s| s.to_str())
-                                                .unwrap_or("");
-                                            if lib_content.contains(&format!("mod {module_name};"))
-                                                || lib_content
-                                                    .contains(&format!("pub mod {module_name};"))
-                                            {
-                                                // Add lib.rs to files to include
-                                                visited_paths.insert(lib_rs.clone());
-                                                if let Some(context) = all_files_context {
-                                                    if let Some(lib_file) = context.get(&lib_rs) {
-                                                        files_to_add.push((
-                                                            lib_rs.clone(),
-                                                            lib_file.clone(),
-                                                        ));
-                                                    }
-                                                } else {
-                                                    let lib_info = create_file_info_for_path(
-                                                        &lib_rs,
-                                                        &source_path,
-                                                    )?;
-                                                    files_to_add.push((lib_rs, lib_info));
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            add_rust_module_declaration_files(
+                                &validated_path,
+                                &source_path,
+                                &rust_declaration_context,
+                                &mut visited_paths,
+                                &mut files_to_add,
+                            )?;
+                            add_go_package_files(
+                                &validated_path,
+                                &source_path,
+                                GoPackageExpansionContext {
+                                    project_root: &project_root,
+                                    cache,
+                                    config,
+                                    all_files_context,
+                                    depth,
+                                },
+                                ExpansionQueues {
+                                    visited_paths: &mut visited_paths,
+                                    files_to_add: &mut files_to_add,
+                                    work_queue: &mut work_queue,
+                                },
+                            )?;
+                            add_swift_module_files(
+                                &validated_path,
+                                &source_path,
+                                SwiftModuleExpansionContext {
+                                    project_root: &project_root,
+                                    cache,
+                                    config,
+                                    all_files_context,
+                                    depth,
+                                },
+                                ExpansionQueues {
+                                    visited_paths: &mut visited_paths,
+                                    files_to_add: &mut files_to_add,
+                                    work_queue: &mut work_queue,
+                                },
+                            )?;
 
                             // Check if we have this file in the context first
                             let mut file_info = if let Some(context) = all_files_context {
@@ -600,15 +748,21 @@ fn expand_file_list_internal(
                                     file
                                 } else {
                                     // Create FileInfo for the imported file
-                                    let mut file =
-                                        create_file_info_for_path(&validated_path, &source_path)?;
+                                    let mut file = create_file_info_for_path(
+                                        &validated_path,
+                                        &source_path,
+                                        Some(&project_root),
+                                    )?;
                                     file.imported_by.push(source_path.clone());
                                     file
                                 }
                             } else {
                                 // No context, create from scratch
-                                let mut file =
-                                    create_file_info_for_path(&validated_path, &source_path)?;
+                                let mut file = create_file_info_for_path(
+                                    &validated_path,
+                                    &source_path,
+                                    Some(&project_root),
+                                )?;
                                 file.imported_by.push(source_path.clone());
                                 file
                             };
@@ -652,10 +806,14 @@ fn expand_file_list_internal(
                                             config.semantic_depth,
                                         );
 
-                                        if let Ok(analysis) = analyzer.analyze_file(
+                                        if let Ok(analysis) = analyzer.analyze_requested(
                                             &validated_path,
                                             &content,
                                             &context,
+                                            config.trace_imports,
+                                            config.include_callers,
+                                            config.include_types,
+                                            config.include_callers,
                                         ) {
                                             // Update file info with semantic data
                                             file_info.imports = analysis
@@ -733,6 +891,340 @@ fn expand_file_list_internal(
     Ok(files_map)
 }
 
+fn normalize_initial_file_paths(
+    files_map: HashMap<PathBuf, FileInfo>,
+    project_root: &Path,
+) -> HashMap<PathBuf, FileInfo> {
+    let mut normalized = HashMap::new();
+
+    for (_, mut file_info) in files_map {
+        let canonical_path = file_info
+            .path
+            .canonicalize()
+            .unwrap_or_else(|_| file_info.path.clone());
+        if let Ok(relative_path) = canonical_path.strip_prefix(project_root) {
+            file_info.relative_path = relative_path.to_path_buf();
+        }
+        file_info.path = canonical_path.clone();
+
+        normalized
+            .entry(canonical_path)
+            .and_modify(|existing: &mut FileInfo| {
+                merge_unique_paths(&mut existing.imports, &file_info.imports);
+                merge_unique_paths(&mut existing.imported_by, &file_info.imported_by);
+                existing
+                    .function_calls
+                    .extend(file_info.function_calls.clone());
+                existing
+                    .type_references
+                    .extend(file_info.type_references.clone());
+                existing
+                    .exported_functions
+                    .extend(file_info.exported_functions.clone());
+            })
+            .or_insert(file_info);
+    }
+
+    normalized
+}
+
+fn merge_unique_paths(target: &mut Vec<PathBuf>, source: &[PathBuf]) {
+    for path in source {
+        if !target.contains(path) {
+            target.push(path.clone());
+        }
+    }
+}
+
+struct GoPackageExpansionContext<'a> {
+    project_root: &'a Path,
+    cache: &'a Arc<FileCache>,
+    config: &'a Config,
+    all_files_context: Option<&'a HashMap<PathBuf, FileInfo>>,
+    depth: usize,
+}
+
+struct SwiftModuleExpansionContext<'a> {
+    project_root: &'a Path,
+    cache: &'a Arc<FileCache>,
+    config: &'a Config,
+    all_files_context: Option<&'a HashMap<PathBuf, FileInfo>>,
+    depth: usize,
+}
+
+struct ExpansionQueues<'a> {
+    visited_paths: &'a mut HashSet<PathBuf>,
+    files_to_add: &'a mut Vec<(PathBuf, FileInfo)>,
+    work_queue: &'a mut VecDeque<(PathBuf, FileInfo, ExpansionReason, usize)>,
+}
+
+fn add_go_package_files(
+    go_file: &Path,
+    source_path: &Path,
+    context: GoPackageExpansionContext<'_>,
+    queues: ExpansionQueues<'_>,
+) -> Result<(), ContextCreatorError> {
+    if go_file.extension() != Some(std::ffi::OsStr::new("go")) {
+        return Ok(());
+    }
+
+    for package_file in go_package_files(go_file) {
+        let validated_path = match validate_import_path(context.project_root, &package_file) {
+            Ok(path) => path,
+            Err(_) => continue,
+        };
+
+        let canonical = validated_path
+            .canonicalize()
+            .unwrap_or_else(|_| validated_path.clone());
+        if queues.visited_paths.contains(&validated_path)
+            || queues.visited_paths.contains(&canonical)
+        {
+            continue;
+        }
+
+        queues.visited_paths.insert(validated_path.clone());
+        queues.visited_paths.insert(canonical);
+
+        let mut file_info = file_info_for_expanded_path(
+            &validated_path,
+            source_path,
+            context.all_files_context,
+            context.project_root,
+        )?;
+
+        if context.depth + 1 < context.config.semantic_depth {
+            if file_info.imports.is_empty()
+                && file_info.type_references.is_empty()
+                && file_info.function_calls.is_empty()
+            {
+                analyze_expanded_file_semantics(
+                    &validated_path,
+                    &mut file_info,
+                    context.project_root,
+                    context.cache,
+                    context.config,
+                )?;
+            }
+
+            if !file_info.imports.is_empty() {
+                queues.work_queue.push_back((
+                    validated_path.clone(),
+                    file_info.clone(),
+                    ExpansionReason::Imports,
+                    context.depth + 1,
+                ));
+            }
+
+            if context.config.include_types && !file_info.type_references.is_empty() {
+                queues.work_queue.push_back((
+                    validated_path.clone(),
+                    file_info.clone(),
+                    ExpansionReason::Types,
+                    context.depth + 1,
+                ));
+            }
+        }
+
+        queues.files_to_add.push((validated_path, file_info));
+    }
+
+    Ok(())
+}
+
+fn add_swift_module_files(
+    swift_file: &Path,
+    source_path: &Path,
+    context: SwiftModuleExpansionContext<'_>,
+    queues: ExpansionQueues<'_>,
+) -> Result<(), ContextCreatorError> {
+    if swift_file.extension() != Some(std::ffi::OsStr::new("swift")) {
+        return Ok(());
+    }
+
+    for module_file in swift_module_files(swift_file, context.project_root) {
+        let validated_path = match validate_import_path(context.project_root, &module_file) {
+            Ok(path) => path,
+            Err(_) => continue,
+        };
+
+        let canonical = validated_path
+            .canonicalize()
+            .unwrap_or_else(|_| validated_path.clone());
+        if queues.visited_paths.contains(&validated_path)
+            || queues.visited_paths.contains(&canonical)
+        {
+            continue;
+        }
+
+        queues.visited_paths.insert(validated_path.clone());
+        queues.visited_paths.insert(canonical);
+
+        let mut file_info = file_info_for_expanded_path(
+            &validated_path,
+            source_path,
+            context.all_files_context,
+            context.project_root,
+        )?;
+
+        if context.depth + 1 < context.config.semantic_depth {
+            if file_info.imports.is_empty()
+                && file_info.type_references.is_empty()
+                && file_info.function_calls.is_empty()
+            {
+                analyze_expanded_file_semantics(
+                    &validated_path,
+                    &mut file_info,
+                    context.project_root,
+                    context.cache,
+                    context.config,
+                )?;
+            }
+
+            if !file_info.imports.is_empty() {
+                queues.work_queue.push_back((
+                    validated_path.clone(),
+                    file_info.clone(),
+                    ExpansionReason::Imports,
+                    context.depth + 1,
+                ));
+            }
+
+            if context.config.include_types && !file_info.type_references.is_empty() {
+                queues.work_queue.push_back((
+                    validated_path.clone(),
+                    file_info.clone(),
+                    ExpansionReason::Types,
+                    context.depth + 1,
+                ));
+            }
+        }
+
+        queues.files_to_add.push((validated_path, file_info));
+    }
+
+    Ok(())
+}
+
+fn go_package_files(go_file: &Path) -> Vec<PathBuf> {
+    let Some(package_dir) = go_file.parent() else {
+        return Vec::new();
+    };
+
+    let mut files = std::fs::read_dir(package_dir)
+        .ok()
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.extension().and_then(|ext| ext.to_str()) == Some("go")
+                && path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .is_some_and(|name| !name.ends_with("_test.go"))
+        })
+        .collect::<Vec<_>>();
+
+    files.sort();
+    files
+}
+
+fn swift_module_files(swift_file: &Path, project_root: &Path) -> Vec<PathBuf> {
+    let module_dir = swift_target_dir_for_path(swift_file, project_root)
+        .or_else(|| swift_file.parent().map(Path::to_path_buf));
+
+    let Some(module_dir) = module_dir else {
+        return Vec::new();
+    };
+
+    let mut files = Vec::new();
+    collect_swift_source_files(&module_dir, &mut files);
+    files.sort();
+    files
+}
+
+fn collect_swift_source_files(dir: &Path, files: &mut Vec<PathBuf>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.starts_with('.') || name == ".build")
+            || path.extension().and_then(|ext| ext.to_str()) == Some("docc")
+        {
+            continue;
+        }
+
+        if path.is_dir() {
+            collect_swift_source_files(&path, files);
+        } else if path.extension().and_then(|ext| ext.to_str()) == Some("swift")
+            && !is_swift_test_file(&path)
+        {
+            files.push(path);
+        }
+    }
+}
+
+fn swift_target_dir_for_path(path: &Path, project_root: &Path) -> Option<PathBuf> {
+    crate::core::semantic::languages::swift::swift_target_dir_for_file(path, project_root)
+}
+
+fn is_swift_test_file(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.ends_with("Tests.swift") || name.ends_with("Test.swift"))
+}
+
+fn analyze_expanded_file_semantics(
+    path: &Path,
+    file_info: &mut FileInfo,
+    project_root: &Path,
+    cache: &Arc<FileCache>,
+    config: &Config,
+) -> Result<(), ContextCreatorError> {
+    let Ok(content) = cache.get_or_load(path) else {
+        return Ok(());
+    };
+
+    let Ok(Some(analyzer)) = crate::core::semantic::get_analyzer_for_file(path) else {
+        return Ok(());
+    };
+
+    let context = crate::core::semantic::analyzer::SemanticContext::new(
+        path.to_path_buf(),
+        project_root.to_path_buf(),
+        config.semantic_depth,
+    );
+
+    let Ok(analysis) = analyzer.analyze_requested(
+        path,
+        &content,
+        &context,
+        config.trace_imports,
+        config.include_callers,
+        config.include_types,
+        config.include_callers,
+    ) else {
+        return Ok(());
+    };
+
+    file_info.imports = analysis
+        .imports
+        .iter()
+        .filter_map(|imp| resolve_import_to_path(&imp.module, path, project_root))
+        .collect();
+    file_info.function_calls = analysis.function_calls;
+    file_info.type_references = analysis.type_references;
+    file_info.exported_functions = analysis.exported_functions;
+
+    Ok(())
+}
+
 /// Reason for expanding to include a file
 #[derive(Debug, Clone, Copy)]
 enum ExpansionReason {
@@ -744,6 +1236,7 @@ enum ExpansionReason {
 fn create_file_info_for_path(
     path: &PathBuf,
     source_path: &Path,
+    project_root: Option<&Path>,
 ) -> Result<FileInfo, ContextCreatorError> {
     use crate::utils::file_ext::FileType;
     use std::fs;
@@ -751,9 +1244,16 @@ fn create_file_info_for_path(
     let metadata = fs::metadata(path)?;
     let file_type = FileType::from_path(path);
 
-    // Calculate relative path from common ancestor
+    let detected_project_root;
+    let project_root = if let Some(project_root) = project_root {
+        project_root
+    } else {
+        detected_project_root = detect_project_root(path);
+        &detected_project_root
+    };
     let relative_path = path
-        .strip_prefix(common_ancestor(path, source_path))
+        .strip_prefix(project_root)
+        .or_else(|_| path.strip_prefix(common_ancestor(path, source_path)))
         .unwrap_or(path)
         .to_path_buf();
 
@@ -768,6 +1268,188 @@ fn create_file_info_for_path(
         function_calls: Vec::new(),
         type_references: Vec::new(),
         exported_functions: Vec::new(),
+    })
+}
+
+fn file_info_for_expanded_path(
+    path: &Path,
+    source_path: &Path,
+    all_files_context: Option<&HashMap<PathBuf, FileInfo>>,
+    project_root: &Path,
+) -> Result<FileInfo, ContextCreatorError> {
+    if let Some(context) = all_files_context {
+        if let Some(file_info) = lookup_file_info(context, path) {
+            return Ok(file_info);
+        }
+    }
+
+    create_file_info_for_path(&path.to_path_buf(), source_path, Some(project_root))
+}
+
+fn lookup_file_info(context: &HashMap<PathBuf, FileInfo>, path: &Path) -> Option<FileInfo> {
+    context.get(path).cloned().or_else(|| {
+        path.canonicalize()
+            .ok()
+            .and_then(|canonical| context.get(&canonical).cloned())
+    })
+}
+
+struct RustModuleDeclarationContext<'a> {
+    project_root: &'a Path,
+    cache: &'a Arc<FileCache>,
+    all_files_context: Option<&'a HashMap<PathBuf, FileInfo>>,
+}
+
+fn add_rust_module_declaration_files(
+    rust_file: &Path,
+    source_path: &Path,
+    context: &RustModuleDeclarationContext<'_>,
+    visited_paths: &mut HashSet<PathBuf>,
+    files_to_add: &mut Vec<(PathBuf, FileInfo)>,
+) -> Result<(), ContextCreatorError> {
+    if rust_file.extension() != Some(std::ffi::OsStr::new("rs")) {
+        return Ok(());
+    }
+
+    for declaration_file in
+        rust_module_declaration_files(rust_file, context.project_root, context.cache)
+    {
+        let validated_path = match validate_import_path(context.project_root, &declaration_file) {
+            Ok(path) => path,
+            Err(_) => continue,
+        };
+
+        let canonical = validated_path
+            .canonicalize()
+            .unwrap_or_else(|_| validated_path.clone());
+        if visited_paths.contains(&validated_path) || visited_paths.contains(&canonical) {
+            continue;
+        }
+
+        visited_paths.insert(validated_path.clone());
+        visited_paths.insert(canonical);
+
+        let file_info = file_info_for_expanded_path(
+            &validated_path,
+            source_path,
+            context.all_files_context,
+            context.project_root,
+        )?;
+        files_to_add.push((validated_path, file_info));
+    }
+
+    Ok(())
+}
+
+fn rust_module_declaration_files(
+    rust_file: &Path,
+    project_root: &Path,
+    cache: &Arc<FileCache>,
+) -> Vec<PathBuf> {
+    let crate_root = if project_root.join("src").is_dir() {
+        project_root.join("src")
+    } else {
+        project_root.to_path_buf()
+    };
+
+    let relative = match rust_file.strip_prefix(&crate_root) {
+        Ok(path) => path,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut components: Vec<String> = relative
+        .components()
+        .filter_map(|component| match component {
+            std::path::Component::Normal(value) => Some(value.to_string_lossy().to_string()),
+            _ => None,
+        })
+        .collect();
+
+    if components.is_empty() {
+        return Vec::new();
+    }
+
+    let Some(file_name) = components.pop() else {
+        return Vec::new();
+    };
+
+    let mut module_segments = components;
+    match file_name.as_str() {
+        "lib.rs" | "main.rs" | "mod.rs" => {}
+        _ => {
+            let Some(stem) = Path::new(&file_name).file_stem() else {
+                return Vec::new();
+            };
+            module_segments.push(stem.to_string_lossy().to_string());
+        }
+    }
+
+    if module_segments.is_empty() {
+        return Vec::new();
+    }
+
+    let mut declaration_files = Vec::new();
+    for index in (0..module_segments.len()).rev() {
+        let module_name = &module_segments[index];
+        let parent_segments = &module_segments[..index];
+
+        let candidates = rust_parent_module_candidates(&crate_root, parent_segments);
+        for candidate in candidates {
+            if candidate == rust_file || !candidate.exists() {
+                continue;
+            }
+
+            if let Ok(content) = cache.get_or_load(&candidate) {
+                if declares_rust_module(&content, module_name) {
+                    declaration_files.push(candidate);
+                }
+            }
+        }
+    }
+
+    declaration_files
+}
+
+fn rust_parent_module_candidates(crate_root: &Path, parent_segments: &[String]) -> Vec<PathBuf> {
+    if parent_segments.is_empty() {
+        return vec![crate_root.join("lib.rs"), crate_root.join("main.rs")];
+    }
+
+    let mut path = crate_root.to_path_buf();
+    for segment in parent_segments {
+        path.push(segment);
+    }
+
+    vec![path.with_extension("rs"), path.join("mod.rs")]
+}
+
+fn declares_rust_module(content: &str, module_name: &str) -> bool {
+    content.lines().any(|line| {
+        let Some(code) = line.split("//").next() else {
+            return false;
+        };
+        let mut code = code.trim();
+        if let Some(rest) = code.strip_prefix("pub ") {
+            code = rest.trim_start();
+        } else if code.starts_with("pub(") {
+            let Some(end) = code.find(')') else {
+                return false;
+            };
+            code = code[end + 1..].trim_start();
+        }
+
+        let Some(rest) = code.strip_prefix("mod ") else {
+            return false;
+        };
+        let rest = rest.trim_start();
+        let Some(after_name) = rest.strip_prefix(module_name) else {
+            return false;
+        };
+
+        matches!(
+            after_name.trim_start().chars().next(),
+            Some(';') | Some('{')
+        )
     })
 }
 
@@ -811,6 +1493,8 @@ fn file_contains_definition(path: &Path, content: &str, type_name: &str) -> bool
         Some("py") => Some(tree_sitter_python::language()),
         Some("ts") | Some("tsx") => Some(tree_sitter_typescript::language_typescript()),
         Some("js") | Some("jsx") => Some(tree_sitter_javascript::language()),
+        Some("go") => Some(tree_sitter_go::language()),
+        Some("swift") => Some(tree_sitter_swift::language()),
         _ => None,
     };
 
@@ -860,6 +1544,23 @@ fn file_contains_definition(path: &Path, content: &str, type_name: &str) -> bool
                     ]
                 "#
                 }
+                Some("go") => {
+                    r#"
+                    [
+                      (type_spec name: (type_identifier) @name)
+                      (type_alias name: (type_identifier) @name)
+                    ]
+                "#
+                }
+                Some("swift") => {
+                    r#"
+                    [
+                      (class_declaration name: (type_identifier) @name)
+                      (protocol_declaration name: (type_identifier) @name)
+                      (typealias_declaration name: (type_identifier) @name)
+                    ]
+                "#
+                }
                 _ => return false,
             };
 
@@ -904,7 +1605,10 @@ fn find_type_definition_file(
     let mut project_root = source_dir;
     while let Some(parent) = project_root.parent() {
         // If we find a Cargo.toml or src directory, the parent is likely the project root
-        if parent.join("Cargo.toml").exists() || parent.join("src").exists() {
+        if parent.join("Cargo.toml").exists()
+            || parent.join("Package.swift").exists()
+            || parent.join("src").exists()
+        {
             project_root = parent;
             break;
         }
@@ -928,11 +1632,15 @@ fn find_type_definition_file(
         format!("{type_name_lower}.js"),
         format!("{type_name_lower}.tsx"),
         format!("{type_name_lower}.jsx"),
+        format!("{type_name_lower}.go"),
+        format!("{type_name_lower}.swift"),
         // Types files
         "types.rs".to_string(),
         "types.py".to_string(),
         "types.ts".to_string(),
         "types.js".to_string(),
+        "types.go".to_string(),
+        "Types.swift".to_string(),
         // Module files
         "mod.rs".to_string(),
         "index.ts".to_string(),
@@ -962,6 +1670,12 @@ fn find_type_definition_file(
             let module_path = module.replace("::", "/");
             patterns.insert(0, format!("{module_path}.rs"));
             patterns.insert(1, format!("{module_path}/mod.rs"));
+        } else if module.contains('/') {
+            // Handle Go import paths or package directories.
+            let module_path = module.trim_matches('/');
+            patterns.insert(0, format!("{module_path}/{type_name_lower}.go"));
+            patterns.insert(1, format!("{module_path}/types.go"));
+            patterns.insert(2, format!("{module_path}.go"));
         } else {
             // Simple module names
             let module_lower = module.to_lowercase();
@@ -971,10 +1685,14 @@ fn find_type_definition_file(
             patterns.insert(3, format!("{module_lower}.js"));
             patterns.insert(4, format!("{module_lower}.tsx"));
             patterns.insert(5, format!("{module_lower}.jsx"));
-            patterns.insert(6, format!("{module}.rs")); // Also try original case
-            patterns.insert(7, format!("{module}.py"));
-            patterns.insert(8, format!("{module}.ts"));
-            patterns.insert(9, format!("{module}.js"));
+            patterns.insert(6, format!("{module_lower}.go"));
+            patterns.insert(7, format!("{module_lower}.swift"));
+            patterns.insert(8, format!("{module}.rs")); // Also try original case
+            patterns.insert(9, format!("{module}.py"));
+            patterns.insert(10, format!("{module}.ts"));
+            patterns.insert(11, format!("{module}.js"));
+            patterns.insert(12, format!("{module}.go"));
+            patterns.insert(13, format!("{module}.swift"));
         }
     }
 
@@ -1016,6 +1734,7 @@ fn find_type_definition_file(
         project_root.join("shared/types"),
         project_root.join("lib"),
         project_root.join("domain"),
+        project_root.join("Sources"),
         source_dir.join("models"),
         source_dir.join("types"),
     ];
@@ -1070,6 +1789,7 @@ fn resolve_import_to_path(
                     resolve_typescript_import(module_name, source_dir, project_root)
                 }
                 Some("go") => resolve_go_import(module_name, source_dir, project_root),
+                Some("swift") => resolve_swift_import(module_name, source_dir, project_root),
                 _ => None,
             };
         }
@@ -1105,6 +1825,7 @@ fn resolve_import_to_path(
                     resolve_typescript_import(module_name, source_dir, project_root)
                 }
                 Some("go") => resolve_go_import(module_name, source_dir, project_root),
+                Some("swift") => resolve_swift_import(module_name, source_dir, project_root),
                 _ => None,
             }
         }
@@ -1139,7 +1860,7 @@ fn resolve_relative_import(
     }
 
     // Try common file extensions
-    for ext in &["py", "js", "ts", "rs"] {
+    for ext in &["py", "js", "ts", "rs", "swift"] {
         let file_path = path.with_extension(ext);
         if file_path.exists() {
             return Some(file_path);
@@ -1148,7 +1869,13 @@ fn resolve_relative_import(
 
     // Try as directory with index/mod/__init__ files
     if path.is_dir() {
-        for index_file in &["__init__.py", "index.js", "index.ts", "mod.rs"] {
+        for index_file in &[
+            "__init__.py",
+            "index.js",
+            "index.ts",
+            "mod.rs",
+            "main.swift",
+        ] {
             let index_path = path.join(index_file);
             if index_path.exists() {
                 return Some(index_path);
@@ -1338,42 +2065,184 @@ fn resolve_typescript_import(
 }
 
 /// Resolve Go module imports
-fn resolve_go_import(
-    module_name: &str,
-    _source_dir: &Path,
-    project_root: &Path,
-) -> Option<PathBuf> {
-    // Go imports are typically package-based
-    // Skip external packages (those with dots in the first part usually)
-    if module_name.contains('/') && module_name.split('/').next()?.contains('.') {
-        return None; // External package
+fn resolve_go_import(module_name: &str, source_dir: &Path, project_root: &Path) -> Option<PathBuf> {
+    let module_name = module_name
+        .trim()
+        .trim_matches('"')
+        .trim_matches('\'')
+        .trim_matches('`');
+
+    if module_name.starts_with('.') {
+        let target = source_dir.join(module_name);
+        return first_go_package_file(&target);
     }
 
-    // Try to find in project
-    let parts: Vec<&str> = module_name.split('/').collect();
-    let mut path = project_root.to_path_buf();
+    if let Ok(go_mod) = std::fs::read_to_string(project_root.join("go.mod")) {
+        if let Some(go_module) = go_mod.lines().find_map(|line| {
+            let trimmed = line.trim();
+            trimmed
+                .strip_prefix("module ")
+                .map(str::trim)
+                .filter(|module| !module.is_empty())
+        }) {
+            if module_name == go_module {
+                return first_go_package_file(project_root);
+            }
 
-    for part in parts {
-        path = path.join(part);
-    }
-
-    // Go files in a directory form a package
-    if path.is_dir() {
-        // Return the first .go file in the directory (excluding tests)
-        if let Ok(entries) = std::fs::read_dir(&path) {
-            for entry in entries.flatten() {
-                let file_path = entry.path();
-                if file_path.extension() == Some(std::ffi::OsStr::new("go")) {
-                    let file_name = file_path.file_name()?.to_string_lossy();
-                    if !file_name.ends_with("_test.go") {
-                        return Some(file_path);
-                    }
-                }
+            if let Some(relative_path) = module_name.strip_prefix(&format!("{go_module}/")) {
+                return first_go_package_file(&project_root.join(relative_path));
             }
         }
     }
 
+    // External module paths normally start with a domain-like first segment.
+    if module_name.split('/').next()?.contains('.') {
+        return None;
+    }
+
+    first_go_package_file(&project_root.join(module_name))
+}
+
+fn first_go_package_file(path: &Path) -> Option<PathBuf> {
+    if path.is_file() && path.extension().and_then(|ext| ext.to_str()) == Some("go") {
+        return Some(path.to_path_buf());
+    }
+
+    let direct_file = path.with_extension("go");
+    if direct_file.is_file()
+        && direct_file
+            .file_name()
+            .and_then(|name| name.to_str())
+            .map_or(true, |name| !name.ends_with("_test.go"))
+    {
+        return Some(direct_file);
+    }
+
+    if path.is_dir() {
+        if let Some(package_name) = path.file_name().and_then(|name| name.to_str()) {
+            let same_name = path.join(format!("{package_name}.go"));
+            if same_name.is_file() {
+                return Some(same_name);
+            }
+        }
+
+        let mut go_files = Vec::new();
+        if let Ok(entries) = std::fs::read_dir(path) {
+            for entry in entries.flatten() {
+                let file_path = entry.path();
+                if file_path.extension().and_then(|ext| ext.to_str()) == Some("go") {
+                    let file_name = file_path.file_name()?.to_string_lossy();
+                    if !file_name.ends_with("_test.go") {
+                        go_files.push(file_path);
+                    }
+                }
+            }
+        }
+        go_files.sort();
+        return go_files.into_iter().next();
+    }
+
     None
+}
+
+/// Resolve Swift module imports in Swift Package Manager projects.
+fn resolve_swift_import(
+    module_name: &str,
+    source_dir: &Path,
+    project_root: &Path,
+) -> Option<PathBuf> {
+    let clean_module = module_name
+        .trim()
+        .trim_matches('"')
+        .trim_matches('\'')
+        .trim_matches('`');
+    let module = clean_module.split('.').find(|part| !part.is_empty())?;
+
+    if is_swift_external_module(module) {
+        return None;
+    }
+
+    let candidates = [
+        project_root.join("Sources").join(module),
+        project_root.join("Tests").join(module),
+        project_root.join("Tests").join(format!("{module}Tests")),
+        project_root.join(module),
+        project_root.join(format!("{module}.swift")),
+        source_dir.join(module),
+        source_dir.join(format!("{module}.swift")),
+    ];
+
+    for candidate in candidates {
+        if let Some(file) = first_swift_module_file(&candidate, module) {
+            return Some(file);
+        }
+    }
+
+    None
+}
+
+fn first_swift_module_file(path: &Path, module: &str) -> Option<PathBuf> {
+    if path.is_file()
+        && path.extension().and_then(|ext| ext.to_str()) == Some("swift")
+        && !is_swift_test_file(path)
+    {
+        return Some(path.to_path_buf());
+    }
+
+    let direct_file = path.with_extension("swift");
+    if direct_file.is_file() && !is_swift_test_file(&direct_file) {
+        return Some(direct_file);
+    }
+
+    if path.is_dir() {
+        for preferred in [format!("{module}.swift"), "main.swift".to_string()] {
+            let preferred_path = path.join(preferred);
+            if preferred_path.is_file() && !is_swift_test_file(&preferred_path) {
+                return Some(preferred_path);
+            }
+        }
+
+        let mut files = Vec::new();
+        collect_swift_source_files(path, &mut files);
+        files.sort();
+        return files.into_iter().next();
+    }
+
+    None
+}
+
+fn is_swift_external_module(module: &str) -> bool {
+    matches!(
+        module,
+        "Swift"
+            | "Foundation"
+            | "FoundationNetworking"
+            | "PackageDescription"
+            | "Darwin"
+            | "Glibc"
+            | "Dispatch"
+            | "CoreFoundation"
+            | "CoreGraphics"
+            | "UIKit"
+            | "AppKit"
+            | "SwiftUI"
+            | "Combine"
+            | "XCTest"
+            | "Observation"
+            | "CoreData"
+            | "MapKit"
+            | "WebKit"
+            | "AVFoundation"
+            | "Security"
+            | "OSLog"
+            | "CloudKit"
+            | "Network"
+            | "CryptoKit"
+            | "Metal"
+            | "SpriteKit"
+            | "SceneKit"
+            | "WidgetKit"
+    )
 }
 
 /// Update import relationships after expansion

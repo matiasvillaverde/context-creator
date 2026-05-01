@@ -25,6 +25,22 @@ pub fn perform_semantic_analysis_graph(
     config: &crate::cli::Config,
     cache: &FileCache,
 ) -> Result<()> {
+    let project_root = if let Some(first_file) = files.first() {
+        detect_project_root(&first_file.path)
+    } else {
+        std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+    };
+
+    perform_semantic_analysis_graph_with_root(files, config, cache, &project_root)
+}
+
+/// Performs semantic analysis using an explicit project root.
+pub fn perform_semantic_analysis_graph_with_root(
+    files: &mut [FileInfo],
+    config: &crate::cli::Config,
+    cache: &FileCache,
+    project_root: &std::path::Path,
+) -> Result<()> {
     // Skip if no semantic analysis is requested
     if !config.trace_imports && !config.include_callers && !config.include_types {
         return Ok(());
@@ -32,18 +48,11 @@ pub fn perform_semantic_analysis_graph(
 
     let semantic_options = SemanticOptions::from_config(config);
 
-    // Detect project root from first file
-    let project_root = if let Some(first_file) = files.first() {
-        detect_project_root(&first_file.path)
-    } else {
-        std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
-    };
-
     // Step 1: Parallel file analysis
     let analyzer = ParallelAnalyzer::new(cache);
     let analysis_options = AnalysisOptions {
         semantic_depth: semantic_options.semantic_depth,
-        trace_imports: semantic_options.trace_imports,
+        trace_imports: semantic_options.trace_imports || semantic_options.include_callers,
         include_types: semantic_options.include_types,
         include_functions: semantic_options.include_callers,
     };
@@ -54,7 +63,7 @@ pub fn perform_semantic_analysis_graph(
         .map(|f| f.path.canonicalize().unwrap_or_else(|_| f.path.clone()))
         .collect();
     let analysis_results =
-        analyzer.analyze_files(&file_paths, &project_root, &analysis_options, &valid_files)?;
+        analyzer.analyze_files(&file_paths, project_root, &analysis_options, &valid_files)?;
 
     // Step 2: Build dependency graph
     let builder = GraphBuilder::new();
@@ -146,7 +155,7 @@ fn detect_project_root(start_path: &std::path::Path) -> PathBuf {
     // First try to find git root
     loop {
         if current.join(".git").exists() {
-            return current.to_path_buf();
+            return absolute_project_root(current);
         }
         if let Some(parent) = current.parent() {
             current = parent;
@@ -162,8 +171,10 @@ fn detect_project_root(start_path: &std::path::Path) -> PathBuf {
             || current.join("package.json").exists()
             || current.join("pyproject.toml").exists()
             || current.join("setup.py").exists()
+            || current.join("go.mod").exists()
+            || current.join("Package.swift").exists()
         {
-            return current.to_path_buf();
+            return absolute_project_root(current);
         }
 
         if let Some(parent) = current.parent() {
@@ -174,7 +185,19 @@ fn detect_project_root(start_path: &std::path::Path) -> PathBuf {
     }
 
     // Ultimate fallback
-    start_path.parent().unwrap_or(start_path).to_path_buf()
+    absolute_project_root(start_path.parent().unwrap_or(start_path))
+}
+
+fn absolute_project_root(path: &std::path::Path) -> PathBuf {
+    path.canonicalize().unwrap_or_else(|_| {
+        if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            std::env::current_dir()
+                .map(|current_dir| current_dir.join(path))
+                .unwrap_or_else(|_| path.to_path_buf())
+        }
+    })
 }
 
 /// Apply import relationships from analysis results
