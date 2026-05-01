@@ -26,7 +26,6 @@ pub struct ContextCreatorServer {
     tool_router: ToolRouter<Self>,
 }
 
-#[tool_router]
 impl ContextCreatorServer {
     pub fn new() -> Self {
         Self {
@@ -42,6 +41,7 @@ impl Default for ContextCreatorServer {
     }
 }
 
+#[tool_router]
 impl ContextCreatorServer {
     #[tool(description = "Analyze a local codebase directory and answer questions about it")]
     pub async fn analyze_local(
@@ -63,13 +63,17 @@ impl ContextCreatorServer {
         let cache_key = crate::mcp_server::cache::ProcessLocalCacheKey::from_request(&request);
         if let Some(cached) = self.cache.get_process_local(&cache_key).await {
             let processing_time_ms = start.elapsed().as_millis() as u64;
+            let include_context =
+                request.include_context.unwrap_or(false) || request.prompt.trim().is_empty();
+            let markdown = cached.markdown;
             return Ok(Json(ProcessLocalResponse {
                 answer: cached.answer,
-                context: if request.include_context.unwrap_or(false) {
-                    Some(cached.markdown)
+                context: if include_context {
+                    Some(markdown.clone())
                 } else {
                     None
                 },
+                markdown: Some(markdown),
                 file_count: cached.file_count,
                 token_count: cached.token_count,
                 processing_time_ms,
@@ -89,7 +93,7 @@ impl ContextCreatorServer {
         // Cache the response
         let cache_value = crate::mcp_server::cache::ProcessLocalCacheValue {
             answer: response.answer.clone(),
-            markdown: response.context.clone().unwrap_or_default(),
+            markdown: response.markdown.clone().unwrap_or_default(),
             file_count: response.file_count,
             token_count: response.token_count,
             llm_tool: response.llm_tool.clone(),
@@ -110,13 +114,17 @@ impl ContextCreatorServer {
         let cache_key = crate::mcp_server::cache::ProcessRemoteCacheKey::from_request(&request);
         if let Some(cached) = self.cache.get_process_remote(&cache_key).await {
             let processing_time_ms = start.elapsed().as_millis() as u64;
+            let include_context =
+                request.include_context.unwrap_or(false) || request.prompt.trim().is_empty();
+            let markdown = cached.markdown;
             return Ok(Json(ProcessRemoteResponse {
                 answer: cached.answer,
-                context: if request.include_context.unwrap_or(false) {
-                    Some(cached.markdown)
+                context: if include_context {
+                    Some(markdown.clone())
                 } else {
                     None
                 },
+                markdown: Some(markdown),
                 file_count: cached.file_count,
                 token_count: cached.token_count,
                 processing_time_ms,
@@ -137,7 +145,7 @@ impl ContextCreatorServer {
         // Cache the response
         let cache_value = crate::mcp_server::cache::ProcessRemoteCacheValue {
             answer: response.answer.clone(),
-            markdown: response.context.clone().unwrap_or_default(),
+            markdown: response.markdown.clone().unwrap_or_default(),
             file_count: response.file_count,
             token_count: response.token_count,
             repo_name: response.repo_name.clone(),

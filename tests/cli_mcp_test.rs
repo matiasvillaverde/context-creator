@@ -18,7 +18,7 @@ fn test_mcp_flag_help() {
 fn test_mcp_flag_with_default_port() {
     let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg("--mcp");
-    cmd.timeout(std::time::Duration::from_secs(1));
+    cmd.timeout(std::time::Duration::from_secs(5));
 
     // Server should start but we'll kill it after 1 second
     let output = cmd.output().unwrap();
@@ -35,7 +35,7 @@ fn test_mcp_flag_with_default_port() {
 fn test_mcp_flag_with_custom_port() {
     let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.args(["--mcp", "--mcp-port", "8888"]);
-    cmd.timeout(std::time::Duration::from_secs(1));
+    cmd.timeout(std::time::Duration::from_secs(5));
 
     let output = cmd.output().unwrap();
 

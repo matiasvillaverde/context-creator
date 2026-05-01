@@ -38,14 +38,18 @@ pub trait HealthRpc {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct ProcessLocalRequest {
     /// The question/prompt to ask about the codebase (primary feature)
+    #[serde(default)]
     pub prompt: String,
     /// Path to the codebase to analyze
     pub path: std::path::PathBuf,
     /// Optional: specific file patterns to include
+    #[serde(default)]
     pub include_patterns: Vec<String>,
     /// Optional: patterns to ignore
+    #[serde(default)]
     pub ignore_patterns: Vec<String>,
     /// Optional: whether to trace imports
+    #[serde(default)]
     pub include_imports: bool,
     /// Optional: max tokens for context (auto-calculated based on LLM if not specified)
     pub max_tokens: Option<u32>,
@@ -62,6 +66,9 @@ pub struct ProcessLocalResponse {
     pub answer: String,
     /// Optional: the markdown context used (if include_context is true)
     pub context: Option<String>,
+    /// Backward-compatible alias for markdown context.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub markdown: Option<String>,
     /// Number of files analyzed
     pub file_count: usize,
     /// Token count of the context
@@ -76,14 +83,18 @@ pub struct ProcessLocalResponse {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct ProcessRemoteRequest {
     /// The question/prompt to ask about the repository (primary feature)
+    #[serde(default)]
     pub prompt: String,
     /// Git repository URL to analyze
     pub repo_url: String,
     /// Optional: specific file patterns to include
+    #[serde(default)]
     pub include_patterns: Vec<String>,
     /// Optional: patterns to ignore
+    #[serde(default)]
     pub ignore_patterns: Vec<String>,
     /// Optional: whether to trace imports
+    #[serde(default)]
     pub include_imports: bool,
     /// Optional: max tokens for context (auto-calculated based on LLM if not specified)
     pub max_tokens: Option<u32>,
@@ -100,6 +111,9 @@ pub struct ProcessRemoteResponse {
     pub answer: String,
     /// Optional: the markdown context used (if include_context is true)
     pub context: Option<String>,
+    /// Backward-compatible alias for markdown context.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub markdown: Option<String>,
     /// Number of files analyzed
     pub file_count: usize,
     /// Token count of the context
