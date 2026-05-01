@@ -97,18 +97,26 @@ exit /b 1
 }
 
 #[test]
-#[ignore = "Git fallback test has issues with mock script"]
 fn test_github_repo_parsing_fallback_to_git() {
     let temp_dir = TempDir::new().unwrap();
     let mock_bin_dir = temp_dir.path().join("bin");
     fs::create_dir(&mock_bin_dir).unwrap();
 
     // Create mock git script (no gh available)
+    let mock_gh_path = mock_bin_dir.join("gh");
     let mock_git_path = mock_bin_dir.join("git");
     let _mock_repo_path = temp_dir.path().join("repo");
 
     #[cfg(unix)]
     {
+        fs::write(
+            &mock_gh_path,
+            r#"#!/bin/sh
+exit 1
+"#,
+        )
+        .unwrap();
+
         let script = r#"#!/bin/sh
 # Mock git command
 if [ "$1" = "clone" ]; then
@@ -132,11 +140,17 @@ exit 1
         fs::write(&mock_git_path, script).unwrap();
 
         use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&mock_gh_path, fs::Permissions::from_mode(0o755)).unwrap();
         fs::set_permissions(&mock_git_path, fs::Permissions::from_mode(0o755)).unwrap();
     }
 
     #[cfg(windows)]
     {
+        fs::write(
+            mock_gh_path.with_extension("bat"),
+            "@echo off\r\nexit /b 1\r\n",
+        )
+        .unwrap();
         let script = r#"@echo off
 if "%1" == "clone" (
     rem For git clone, the last argument is the target directory
@@ -159,8 +173,14 @@ exit /b 1
 
     let mut cmd = Command::cargo_bin("context-creator").unwrap();
 
-    // Set PATH with only our mock bin (no gh available)
-    cmd.env("PATH", mock_bin_dir.display().to_string());
+    // Put mocks first so gh is unavailable, but keep system utilities available to scripts.
+    let original_path = std::env::var("PATH").unwrap_or_default();
+    #[cfg(windows)]
+    let new_path = format!("{};{}", mock_bin_dir.display(), original_path);
+    #[cfg(not(windows))]
+    let new_path = format!("{}:{}", mock_bin_dir.display(), original_path);
+
+    cmd.env("PATH", new_path);
     cmd.arg("--remote").arg("https://github.com/fake/repo");
 
     cmd.assert()

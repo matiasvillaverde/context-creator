@@ -319,6 +319,17 @@ pub struct Config {
     #[arg(value_name = "PATHS", help = "Process files and directories")]
     pub paths: Option<Vec<PathBuf>>,
 
+    /// One or more directory paths to process
+    /// IMPORTANT: Use `get_directories()` to access the correct input paths.
+    #[arg(
+        short = 'd',
+        long = "directory",
+        value_name = "PATH",
+        num_args = 1..,
+        help = "Process files and directories (same as positional PATHS)"
+    )]
+    pub directories: Option<Vec<PathBuf>>,
+
     /// Include files and directories matching glob patterns
     /// IMPORTANT: Use `get_directories()` to access the correct input paths.
     #[arg(
@@ -335,7 +346,7 @@ pub struct Config {
     pub ignore: Option<Vec<String>>,
 
     /// GitHub repository URL to analyze (e.g., <https://github.com/owner/repo>)
-    #[arg(long, help = "Process a GitHub repository")]
+    #[arg(long, visible_alias = "repo", help = "Process a GitHub repository")]
     pub remote: Option<String>,
 
     /// Read prompt from stdin
@@ -464,6 +475,7 @@ impl Default for Config {
             command: None,
             prompt: None,
             paths: None,
+            directories: None,
             include: None,
             ignore: None,
             remote: None,
@@ -504,7 +516,7 @@ impl Config {
 
         // If MCP server mode is enabled, validate conflicts
         if self.mcp || self.rmcp {
-            if self.paths.is_some() {
+            if self.paths.is_some() || self.directories.is_some() {
                 return Err(ContextCreatorError::InvalidConfiguration(
                     "Paths cannot be used with MCP server mode".to_string(),
                 ));
@@ -531,19 +543,6 @@ impl Config {
         // If a command is provided, it's a valid input source on its own
         if self.command.is_some() {
             return Ok(());
-        }
-
-        // Validate that at least one input source is provided
-        let has_input_source = self.get_prompt().is_some()
-            || self.paths.is_some()
-            || self.include.is_some()
-            || self.remote.is_some()
-            || self.read_stdin;
-
-        if !has_input_source {
-            return Err(ContextCreatorError::InvalidConfiguration(
-                "At least one input source must be provided: --prompt, paths, --include, --remote, or --stdin".to_string(),
-            ));
         }
 
         // Validate verbose and quiet mutual exclusion
@@ -629,7 +628,7 @@ impl Config {
         // Validate repo and paths mutual exclusivity
         // When --remote is specified, any positional paths are silently ignored in run()
         // This prevents user confusion by failing early with a clear error message
-        if self.remote.is_some() && self.paths.is_some() {
+        if self.remote.is_some() && (self.paths.is_some() || self.directories.is_some()) {
             return Err(ContextCreatorError::InvalidConfiguration(
                 "Cannot specify both --remote and local paths. Use --remote to analyze a remote repository, or provide local paths to analyze local directories.".to_string(),
             ));
@@ -693,10 +692,21 @@ impl Config {
     /// When using --include patterns, this returns the default directory (current dir)
     /// unless explicit paths are also provided (flexible combinations)
     pub fn get_directories(&self) -> Vec<PathBuf> {
-        // If explicit paths are provided, use them
+        let mut directories = Vec::new();
+        if let Some(flag_directories) = &self.directories {
+            directories.extend(flag_directories.clone());
+        }
+
         if let Some(paths) = &self.paths {
-            paths.clone()
-        } else if self.include.is_some() {
+            directories.extend(paths.clone());
+        }
+
+        // If explicit paths are provided, use them
+        if !directories.is_empty() {
+            return directories;
+        }
+
+        if self.include.is_some() {
             // When using include patterns without explicit paths, use current directory as base
             vec![PathBuf::from(".")]
         } else {

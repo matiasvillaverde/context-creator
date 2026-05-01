@@ -28,7 +28,7 @@ impl DigestFormatter for PlainFormatter {
     fn render_header(&mut self, _data: &DigestData) -> Result<()> {
         self.buffer
             .push_str("================================================================\n");
-        self.buffer.push_str("Code Digest\n");
+        self.buffer.push_str("Context Creator\n");
         self.buffer
             .push_str("================================================================\n\n");
         Ok(())

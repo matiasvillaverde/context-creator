@@ -105,7 +105,8 @@ fn test_plain_style_outputs_plain_text() {
 
     let output = std::fs::read_to_string(temp_dir.path().join("output.txt")).unwrap();
     assert!(output.contains("================================================================"));
-    assert!(output.contains("Code Digest"));
+    assert!(output.contains("Context Creator"));
+    assert!(!output.contains("Code Digest"));
     assert!(output.contains("File Summary:"));
     assert!(!output.contains("```"));
     assert!(!output.contains("#"));

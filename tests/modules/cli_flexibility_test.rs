@@ -411,8 +411,8 @@ fn test_copy_with_output_file_should_fail() {
 }
 
 #[test]
-fn test_no_input_source_should_fail() {
-    // Should fail: no input source provided
+fn test_options_only_defaults_to_current_directory() {
+    // Should work: no explicit input source means process the current directory.
     let config = Config::parse_from(["context-creator", "--max-tokens", "100000", "--verbose"]);
 
     assert_eq!(config.get_prompt(), None);
@@ -420,9 +420,9 @@ fn test_no_input_source_should_fail() {
     assert_eq!(config.include, None);
     assert_eq!(config.remote, None);
     assert!(!config.read_stdin);
+    assert_eq!(config.get_directories(), vec![PathBuf::from(".")]);
 
-    // This should FAIL validation (no input source)
-    assert!(config.validate().is_err());
+    assert!(config.validate().is_ok());
 }
 
 // BACKWARD COMPATIBILITY VERIFICATION
