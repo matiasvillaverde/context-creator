@@ -92,10 +92,10 @@ pub fn function_c() {
         "main.rs should import a, b, c"
     );
 
-    // Check that modules are imported by main
-    assert!(stdout.contains("a.rs") && stdout.contains("Imported by: main.rs"));
-    assert!(stdout.contains("b.rs") && stdout.contains("Imported by: main.rs"));
-    assert!(stdout.contains("c.rs") && stdout.contains("Imported by: main.rs"));
+    // Check that modules list main among their importers, even when cycle importers are also shown.
+    assert!(stdout.contains("a.rs") && stdout.contains("Imported by: c.rs, main.rs"));
+    assert!(stdout.contains("b.rs") && stdout.contains("Imported by: a.rs, main.rs"));
+    assert!(stdout.contains("c.rs") && stdout.contains("Imported by: b.rs, main.rs"));
 }
 
 /// Test files with no imports/exports

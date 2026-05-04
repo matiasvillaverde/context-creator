@@ -52,8 +52,13 @@ impl ProjectAnalysis {
 
         // Perform semantic analysis once
         if config.trace_imports || config.include_callers || config.include_types {
-            super::walker::perform_semantic_analysis(&mut all_files, config, cache)
-                .map_err(|e| ContextCreatorError::ContextGenerationError(e.to_string()))?;
+            super::semantic_graph::perform_semantic_analysis_graph_with_root(
+                &mut all_files,
+                config,
+                cache,
+                &project_root,
+            )
+            .map_err(|e| ContextCreatorError::ContextGenerationError(e.to_string()))?;
 
             if config.progress && !config.quiet {
                 let import_count: usize = all_files.iter().map(|f| f.imports.len()).sum();

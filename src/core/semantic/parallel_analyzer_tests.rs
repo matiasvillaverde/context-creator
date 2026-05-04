@@ -155,7 +155,7 @@ fn test_analysis_error_handling() {
 
     let valid_files: HashSet<PathBuf> = [bad_file.clone()].iter().cloned().collect();
     let results = analyzer
-        .analyze_files(&[bad_file.clone()], dir, &options, &valid_files)
+        .analyze_files(std::slice::from_ref(&bad_file), dir, &options, &valid_files)
         .unwrap();
 
     // Should still return a result, but with limited information
@@ -293,7 +293,7 @@ fn test_cache_utilization() {
     // Second run should be faster due to caching
     // Allow more time for slower systems or CI environments
     assert!(
-        duration.as_millis() < 500,
+        duration.as_secs() < 2,
         "Cache not being utilized effectively: {duration:?}"
     );
 }

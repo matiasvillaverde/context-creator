@@ -82,7 +82,6 @@ fn scenario_2_3_rust_crate_function_call() {
 }
 
 #[test]
-#[ignore = "Bug: --include-callers doesn't find all callers when starting from a single file"]
 fn test_multiple_callers() {
     // Test that a function called from many files includes all callers
     use super::builders::*;

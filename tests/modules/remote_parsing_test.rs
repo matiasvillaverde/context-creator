@@ -15,10 +15,10 @@ fn test_github_repo_parsing_with_gh() {
 
     // Create the mock gh script
     let _mock_repo_path = temp_dir.path().join("repo");
+    let mock_gh_path = mock_bin_dir.join("gh");
 
     #[cfg(unix)]
     {
-        let mock_gh_path = mock_bin_dir.join("gh");
         let script = r#"#!/bin/sh
 # Mock gh command
 if [ "$1" = "repo" ] && [ "$2" = "clone" ]; then
@@ -75,19 +75,12 @@ if "%1" == "repo" if "%2" == "clone" (
 echo Command not recognized >> gh_debug.log
 exit /b 1
 "#;
-        fs::write(mock_bin_dir.join("gh.cmd"), script).unwrap();
+        fs::write(mock_gh_path.with_extension("cmd"), script).unwrap();
     }
 
     let mut cmd = Command::cargo_bin("context-creator").unwrap();
 
-    // Prepend the mock bin directory to the PATH
-    let original_path = std::env::var("PATH").unwrap_or_default();
-    #[cfg(windows)]
-    let new_path = format!("{};{}", mock_bin_dir.display(), original_path);
-    #[cfg(not(windows))]
-    let new_path = format!("{}:{}", mock_bin_dir.display(), original_path);
-
-    cmd.env("PATH", new_path);
+    cmd.env("CONTEXT_CREATOR_GH", mock_tool_path(&mock_gh_path));
     cmd.arg("--remote").arg("https://github.com/fake/repo");
 
     cmd.assert()
@@ -97,18 +90,26 @@ exit /b 1
 }
 
 #[test]
-#[ignore = "Git fallback test has issues with mock script"]
 fn test_github_repo_parsing_fallback_to_git() {
     let temp_dir = TempDir::new().unwrap();
     let mock_bin_dir = temp_dir.path().join("bin");
     fs::create_dir(&mock_bin_dir).unwrap();
 
     // Create mock git script (no gh available)
+    let mock_gh_path = mock_bin_dir.join("gh");
     let mock_git_path = mock_bin_dir.join("git");
     let _mock_repo_path = temp_dir.path().join("repo");
 
     #[cfg(unix)]
     {
+        fs::write(
+            &mock_gh_path,
+            r#"#!/bin/sh
+exit 1
+"#,
+        )
+        .unwrap();
+
         let script = r#"#!/bin/sh
 # Mock git command
 if [ "$1" = "clone" ]; then
@@ -132,40 +133,130 @@ exit 1
         fs::write(&mock_git_path, script).unwrap();
 
         use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&mock_gh_path, fs::Permissions::from_mode(0o755)).unwrap();
         fs::set_permissions(&mock_git_path, fs::Permissions::from_mode(0o755)).unwrap();
     }
 
     #[cfg(windows)]
     {
+        fs::write(
+            mock_gh_path.with_extension("bat"),
+            "@echo off\r\nexit /b 1\r\n",
+        )
+        .unwrap();
+        fs::write(
+            mock_gh_path.with_extension("cmd"),
+            "@echo off\r\nexit /b 1\r\n",
+        )
+        .unwrap();
         let script = r#"@echo off
-if "%1" == "clone" (
-    rem For git clone, the last argument is the target directory
-    rem Get the last argument using a simple approach
-    for %%a in (%*) do set "target_dir=%%a"
-    mkdir "%target_dir%\src" 2>nul
-    echo fn main() {} > "%target_dir%\src\main.rs"
-    echo # Mock Repo > "%target_dir%\README.md"
-    echo Cloned successfully
-    exit /b 0
-)
-if "%1" == "--version" (
-    echo git version 2.40.0
-    exit /b 0
-)
+if "%~1" == "--version" goto version
+if "%~1" == "clone" goto clone
 exit /b 1
+
+:version
+echo git version 2.40.0
+exit /b 0
+
+:clone
+rem context-creator invokes: git clone --depth 1 <repo_url> <target_dir>
+set "target_dir=%~5"
+if "%target_dir%" == "" exit /b 1
+mkdir "%target_dir%\src" 2>nul
+echo fn main() {} > "%target_dir%\src\main.rs"
+echo # Mock Repo > "%target_dir%\README.md"
+echo Cloned successfully
+exit /b 0
 "#;
         fs::write(mock_git_path.with_extension("bat"), script).unwrap();
+        fs::write(mock_git_path.with_extension("cmd"), script).unwrap();
     }
 
     let mut cmd = Command::cargo_bin("context-creator").unwrap();
 
-    // Set PATH with only our mock bin (no gh available)
-    cmd.env("PATH", mock_bin_dir.display().to_string());
+    cmd.env("CONTEXT_CREATOR_GH", mock_tool_path(&mock_gh_path))
+        .env("CONTEXT_CREATOR_GIT", mock_tool_path(&mock_git_path));
     cmd.arg("--remote").arg("https://github.com/fake/repo");
 
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("main.rs"));
+}
+
+fn mock_tool_path(path: &std::path::Path) -> std::path::PathBuf {
+    #[cfg(windows)]
+    {
+        path.with_extension("cmd")
+    }
+
+    #[cfg(not(windows))]
+    {
+        path.to_path_buf()
+    }
+}
+
+#[test]
+#[cfg_attr(windows, ignore = "Uses Unix-style file:// paths")]
+fn test_remote_local_bare_git_repo_e2e() {
+    let temp_dir = TempDir::new().unwrap();
+    let worktree = temp_dir.path().join("local-remote-source");
+    let bare_repo = temp_dir.path().join("local-remote.git");
+
+    fs::create_dir(&worktree).unwrap();
+    Command::new("git")
+        .arg("init")
+        .current_dir(&worktree)
+        .status()
+        .expect("Failed to init source repo");
+    Command::new("git")
+        .args(["config", "user.name", "Test User"])
+        .current_dir(&worktree)
+        .status()
+        .expect("Failed to configure git user name");
+    Command::new("git")
+        .args(["config", "user.email", "test@example.com"])
+        .current_dir(&worktree)
+        .status()
+        .expect("Failed to configure git user email");
+
+    fs::create_dir(worktree.join("src")).unwrap();
+    fs::write(
+        worktree.join("src/main.rs"),
+        r#"fn main() {
+    println!("hello from local bare remote");
+}
+"#,
+    )
+    .unwrap();
+    fs::write(worktree.join("README.md"), "# Local Bare Remote\n").unwrap();
+
+    Command::new("git")
+        .args(["add", "."])
+        .current_dir(&worktree)
+        .status()
+        .expect("Failed to add source files");
+    Command::new("git")
+        .args(["commit", "-m", "Initial local remote fixture"])
+        .current_dir(&worktree)
+        .status()
+        .expect("Failed to commit source files");
+    Command::new("git")
+        .arg("clone")
+        .arg("--bare")
+        .arg(&worktree)
+        .arg(&bare_repo)
+        .status()
+        .expect("Failed to create bare repository");
+
+    let remote_url = format!("file://{}", bare_repo.display());
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
+    cmd.arg("--remote").arg(remote_url);
+
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("src/main.rs"))
+        .stdout(predicate::str::contains("README.md"))
+        .stdout(predicate::str::contains("hello from local bare remote"));
 }
 
 #[test]
@@ -199,7 +290,7 @@ fn test_no_git_or_gh_available() {
     let mut cmd = Command::cargo_bin("context-creator").unwrap();
 
     // Set PATH to empty directory (no commands available)
-    cmd.env("PATH", empty_bin_dir.display().to_string());
+    crate::test_env::set_command_path(&mut cmd, empty_bin_dir.as_os_str());
     cmd.arg("--remote").arg("https://github.com/fake/repo");
 
     cmd.assert().failure().stderr(predicate::str::contains(

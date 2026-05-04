@@ -230,37 +230,44 @@ fn process_directory(
             info!("Analyzing semantic dependencies...");
         }
 
-        // Perform single-pass project analysis
-        let project_analysis = core::project_analyzer::ProjectAnalysis::analyze_project(
-            path,
-            &walk_options,
-            config,
-            &cache,
-        )?;
-
-        // Create initial set from our filtered files
+        // Caller discovery needs a project-wide index. Import and type expansion can
+        // stay on-demand, which keeps single-file runs on real projects responsive.
         let mut initial_files_map = std::collections::HashMap::new();
-        for file in files {
-            if let Some(analyzed_file) = project_analysis.get_file(&file.path) {
-                initial_files_map.insert(file.path.clone(), analyzed_file.clone());
-            } else {
+        let files_map = if config.include_callers {
+            let project_analysis = core::project_analyzer::ProjectAnalysis::analyze_project(
+                path,
+                &walk_options,
+                config,
+                &cache,
+            )?;
+
+            for file in files {
+                if let Some(analyzed_file) = project_analysis.get_file(&file.path) {
+                    initial_files_map.insert(file.path.clone(), analyzed_file.clone());
+                } else {
+                    initial_files_map.insert(file.path.clone(), file);
+                }
+            }
+
+            core::file_expander::expand_file_list_with_context(
+                initial_files_map,
+                config,
+                &cache,
+                &walk_options,
+                &project_analysis.file_map,
+            )?
+        } else {
+            for file in files {
                 initial_files_map.insert(file.path.clone(), file);
             }
-        }
 
-        // Expand file list based on semantic relationships, using the full project context
+            core::file_expander::expand_file_list(initial_files_map, config, &cache, &walk_options)?
+        };
+
+        // Expand file list based on semantic relationships.
         if config.progress && !config.quiet {
             info!("Expanding file list based on semantic relationships...");
         }
-
-        // Pass the project analysis file map as context for expansion
-        let files_map = core::file_expander::expand_file_list_with_context(
-            initial_files_map,
-            config,
-            &cache,
-            &walk_options,
-            &project_analysis.file_map,
-        )?;
 
         // Convert back to Vec<FileInfo>
         files = files_map.into_values().collect();
@@ -273,6 +280,8 @@ fn process_directory(
         }
 
         if config.progress && !config.quiet {
+            let import_count: usize = files.iter().map(|file| file.imports.len()).sum();
+            info!("Found {} import relationships in project", import_count);
             info!("Expanded to {} files", files.len());
         }
     }

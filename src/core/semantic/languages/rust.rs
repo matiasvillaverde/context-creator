@@ -157,10 +157,16 @@ impl ModuleResolver for RustModuleResolver {
                                 crate_name,
                                 module_path
                             );
-                            if module_path.starts_with(&format!("{crate_name}::")) {
+                            let crate_ident = crate_name.replace('-', "_");
+                            let crate_prefix = format!("{crate_name}::");
+                            let crate_ident_prefix = format!("{crate_ident}::");
+                            if module_path.starts_with(&crate_prefix)
+                                || module_path.starts_with(&crate_ident_prefix)
+                            {
                                 // This is a reference to the current crate - treat it like crate::
                                 let relative_path = module_path
-                                    .strip_prefix(&format!("{crate_name}::"))
+                                    .strip_prefix(&crate_prefix)
+                                    .or_else(|| module_path.strip_prefix(&crate_ident_prefix))
                                     .unwrap();
 
                                 // IMPORTANT: For crate-level imports, we should also include lib.rs
@@ -180,43 +186,48 @@ impl ModuleResolver for RustModuleResolver {
                                 for i in (1..=parts.len()).rev() {
                                     let module_path = parts[..i].join("::");
                                     let path = ResolverUtils::module_to_path(&module_path);
-                                    let full_path = base_dir.join("src").join(path);
+                                    let search_roots =
+                                        [base_dir.join("src"), base_dir.to_path_buf()];
 
-                                    tracing::debug!(
-                                        "Trying module path '{}' at: {}",
-                                        module_path,
-                                        full_path.display()
-                                    );
+                                    for search_root in search_roots {
+                                        let full_path = search_root.join(&path);
 
-                                    // Try as a direct .rs file
-                                    if let Some(resolved) =
-                                        ResolverUtils::find_with_extensions(&full_path, &["rs"])
-                                    {
                                         tracing::debug!(
-                                            "Resolved crate import to: {}",
-                                            resolved.display()
+                                            "Trying module path '{}' at: {}",
+                                            module_path,
+                                            full_path.display()
                                         );
-                                        let validated_path =
-                                            validate_import_path(base_dir, &resolved)?;
-                                        return Ok(ResolvedPath {
-                                            path: validated_path,
-                                            is_external: false,
-                                            confidence: 0.9,
-                                        });
-                                    }
 
-                                    // Try as a directory module (mod.rs)
-                                    let mod_path = full_path.join("mod.rs");
-                                    if mod_path.exists() {
-                                        let validated_path =
-                                            validate_import_path(base_dir, &mod_path)?;
-                                        // For directory modules, we found the target
-                                        // This is the deepest module file we can find
-                                        return Ok(ResolvedPath {
-                                            path: validated_path,
-                                            is_external: false,
-                                            confidence: 0.9,
-                                        });
+                                        // Try as a direct .rs file
+                                        if let Some(resolved) =
+                                            ResolverUtils::find_with_extensions(&full_path, &["rs"])
+                                        {
+                                            tracing::debug!(
+                                                "Resolved crate import to: {}",
+                                                resolved.display()
+                                            );
+                                            let validated_path =
+                                                validate_import_path(base_dir, &resolved)?;
+                                            return Ok(ResolvedPath {
+                                                path: validated_path,
+                                                is_external: false,
+                                                confidence: 0.9,
+                                            });
+                                        }
+
+                                        // Try as a directory module (mod.rs)
+                                        let mod_path = full_path.join("mod.rs");
+                                        if mod_path.exists() {
+                                            let validated_path =
+                                                validate_import_path(base_dir, &mod_path)?;
+                                            // For directory modules, we found the target
+                                            // This is the deepest module file we can find
+                                            return Ok(ResolvedPath {
+                                                path: validated_path,
+                                                is_external: false,
+                                                confidence: 0.9,
+                                            });
+                                        }
                                     }
                                 }
                             }
@@ -229,27 +240,37 @@ impl ModuleResolver for RustModuleResolver {
         // Handle crate-relative imports
         if module_path.starts_with("crate::") {
             let relative_path = module_path.strip_prefix("crate::").unwrap();
-            let path = ResolverUtils::module_to_path(relative_path);
-            let full_path = base_dir.join("src").join(path);
+            let parts: Vec<&str> = relative_path.split("::").collect();
 
-            if let Some(resolved) = ResolverUtils::find_with_extensions(&full_path, &["rs"]) {
-                let validated_path = validate_import_path(base_dir, &resolved)?;
-                return Ok(ResolvedPath {
-                    path: validated_path,
-                    is_external: false,
-                    confidence: 0.9,
-                });
-            }
+            for i in (1..=parts.len()).rev() {
+                let module_path = parts[..i].join("::");
+                let path = ResolverUtils::module_to_path(&module_path);
+                let search_roots = [base_dir.join("src"), base_dir.to_path_buf()];
 
-            // Try as a directory module (mod.rs)
-            let mod_path = full_path.join("mod.rs");
-            if mod_path.exists() {
-                let validated_path = validate_import_path(base_dir, &mod_path)?;
-                return Ok(ResolvedPath {
-                    path: validated_path,
-                    is_external: false,
-                    confidence: 0.9,
-                });
+                for search_root in search_roots {
+                    let full_path = search_root.join(&path);
+
+                    if let Some(resolved) = ResolverUtils::find_with_extensions(&full_path, &["rs"])
+                    {
+                        let validated_path = validate_import_path(base_dir, &resolved)?;
+                        return Ok(ResolvedPath {
+                            path: validated_path,
+                            is_external: false,
+                            confidence: 0.9,
+                        });
+                    }
+
+                    // Try as a directory module (mod.rs)
+                    let mod_path = full_path.join("mod.rs");
+                    if mod_path.exists() {
+                        let validated_path = validate_import_path(base_dir, &mod_path)?;
+                        return Ok(ResolvedPath {
+                            path: validated_path,
+                            is_external: false,
+                            confidence: 0.9,
+                        });
+                    }
+                }
             }
         }
 
@@ -333,6 +354,17 @@ impl ModuleResolver for RustModuleResolver {
             }
         }
 
+        if !module_path.starts_with("crate::")
+            && !module_path.starts_with("self::")
+            && !module_path.starts_with("super::")
+        {
+            if let Some(resolved) =
+                self.resolve_unprefixed_local_module(module_path, from_file, base_dir)?
+            {
+                return Ok(resolved);
+            }
+        }
+
         // Handle simple module names (e.g., "mod lib;" in same directory)
         if !module_path.contains("::") {
             if let Some(parent) = from_file.parent() {
@@ -413,5 +445,58 @@ impl ModuleResolver for RustModuleResolver {
         // Other paths with :: might be external crates
         // For now, we'll consider them external unless we have more context
         true
+    }
+}
+
+impl RustModuleResolver {
+    fn resolve_unprefixed_local_module(
+        &self,
+        module_path: &str,
+        from_file: &Path,
+        base_dir: &Path,
+    ) -> Result<Option<ResolvedPath>, ContextCreatorError> {
+        let parts: Vec<&str> = module_path.split("::").collect();
+        if parts.is_empty() {
+            return Ok(None);
+        }
+
+        let mut search_roots = Vec::new();
+        if let Some(parent) = from_file.parent() {
+            search_roots.push(parent.to_path_buf());
+        }
+
+        let src_root = base_dir.join("src");
+        if src_root.is_dir() {
+            search_roots.push(src_root);
+        }
+        search_roots.push(base_dir.to_path_buf());
+
+        for root in search_roots {
+            for len in (1..=parts.len()).rev() {
+                let relative = ResolverUtils::module_to_path(&parts[..len].join("::"));
+                let full_path = root.join(relative);
+
+                if let Some(resolved) = ResolverUtils::find_with_extensions(&full_path, &["rs"]) {
+                    let validated_path = validate_import_path(base_dir, &resolved)?;
+                    return Ok(Some(ResolvedPath {
+                        path: validated_path,
+                        is_external: false,
+                        confidence: 0.85,
+                    }));
+                }
+
+                let mod_path = full_path.join("mod.rs");
+                if mod_path.exists() {
+                    let validated_path = validate_import_path(base_dir, &mod_path)?;
+                    return Ok(Some(ResolvedPath {
+                        path: validated_path,
+                        is_external: false,
+                        confidence: 0.85,
+                    }));
+                }
+            }
+        }
+
+        Ok(None)
     }
 }

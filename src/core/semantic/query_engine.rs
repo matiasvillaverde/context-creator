@@ -245,6 +245,40 @@ impl QueryEngine {
                 ) @require
             "#
             }
+            "go" => {
+                r#"
+                ; Package imports: import "example.com/acme/app/internal/config"
+                (import_spec
+                  path: [
+                    (interpreted_string_literal) @module_path
+                    (raw_string_literal) @module_path
+                  ]
+                ) @go_import
+
+                ; Named package imports: import cfg "example.com/acme/app/internal/config"
+                (import_spec
+                  name: [
+                    (package_identifier) @import_name
+                    (blank_identifier) @import_name
+                    (dot) @import_name
+                  ]
+                  path: [
+                    (interpreted_string_literal) @module_path
+                    (raw_string_literal) @module_path
+                  ]
+                ) @go_named_import
+            "#
+            }
+            "swift" => {
+                r#"
+                ; Module imports: import Foundation, import Models
+                ; Declaration imports: import struct Models.User
+                ; Testable imports: @testable import Support
+                (import_declaration
+                  (identifier) @module_path
+                ) @swift_import
+            "#
+            }
             _ => {
                 return Err(ContextCreatorError::ParseError(format!(
                     "Unsupported language for import queries: {language_name}"
@@ -351,6 +385,29 @@ impl QueryEngine {
                     )
                   ]
                 ) @call
+            "#
+            }
+            "go" => {
+                r#"
+                ; Simple function calls: Run()
+                (call_expression
+                  function: (identifier) @fn_name
+                ) @call
+
+                ; Package or receiver calls: app.Run(), svc.Process()
+                (call_expression
+                  function: (selector_expression
+                    operand: (identifier) @module_name
+                    field: (field_identifier) @fn_name
+                  )
+                ) @selector_call
+            "#
+            }
+            "swift" => {
+                r#"
+                ; Swift call expressions are parsed manually by SwiftAnalyzer because
+                ; the grammar's expression recursion is too broad for target-specific queries.
+                (call_expression) @swift_call
             "#
             }
             _ => {
@@ -496,6 +553,32 @@ impl QueryEngine {
                     name: (identifier) @export_fn_name
                   )
                 ) @export_function
+            "#
+            }
+            "go" => {
+                r#"
+                ; Package-level functions
+                (function_declaration
+                  name: (identifier) @fn_name
+                ) @function
+
+                ; Methods with receivers
+                (method_declaration
+                  name: (field_identifier) @method_name
+                ) @method
+            "#
+            }
+            "swift" => {
+                r#"
+                ; Free functions and methods with bodies
+                (function_declaration
+                  name: (simple_identifier) @fn_name
+                ) @function
+
+                ; Protocol requirements are callable API surface too
+                (protocol_function_declaration
+                  name: (simple_identifier) @method_name
+                ) @method
             "#
             }
             _ => {
@@ -650,6 +733,93 @@ impl QueryEngine {
                 )
             "#
             }
+            "go" => {
+                r#"
+                ; Type identifiers used in declarations, literals, generics, and signatures.
+                (type_identifier) @type_name
+
+                ; Qualified package types: domain.User
+                (qualified_type
+                  package: (package_identifier) @module_name
+                  name: (type_identifier) @type_name
+                )
+
+                ; Generic type constructors and qualified generic constructors.
+                (generic_type
+                  type: [
+                    (type_identifier) @type_name
+                    (qualified_type
+                      package: (package_identifier) @module_name
+                      name: (type_identifier) @type_name
+                    )
+                  ]
+                )
+
+                ; Function and method parameter types.
+                (parameter_declaration
+                  type: [
+                    (type_identifier) @param_type
+                    (qualified_type
+                      package: (package_identifier) @module_name
+                      name: (type_identifier) @param_type
+                    )
+                    (pointer_type (type_identifier) @param_type)
+                    (pointer_type
+                      (qualified_type
+                        package: (package_identifier) @module_name
+                        name: (type_identifier) @param_type
+                      )
+                    )
+                  ]
+                )
+
+                ; Struct field types, including embedded fields.
+                (field_declaration
+                  type: [
+                    (type_identifier) @field_type
+                    (qualified_type
+                      package: (package_identifier) @module_name
+                      name: (type_identifier) @field_type
+                    )
+                    (pointer_type (type_identifier) @field_type)
+                    (pointer_type
+                      (qualified_type
+                        package: (package_identifier) @module_name
+                        name: (type_identifier) @field_type
+                      )
+                    )
+                  ]
+                )
+            "#
+            }
+            "swift" => {
+                r#"
+                ; Swift user types include nominal types, qualified module types, and generic arguments.
+                (user_type
+                  (type_identifier) @type_name
+                )
+
+                ; Function parameter and return types.
+                (parameter
+                  type: (user_type
+                    (type_identifier) @param_type
+                  )
+                )
+
+                (function_declaration
+                  return_type: (user_type
+                    (type_identifier) @return_type
+                  )
+                )
+
+                ; Stored property annotations.
+                (type_annotation
+                  type: (user_type
+                    (type_identifier) @field_type
+                  )
+                )
+            "#
+            }
             _ => {
                 return Err(ContextCreatorError::ParseError(format!(
                     "Unsupported language for type queries: {language_name}"
@@ -721,8 +891,9 @@ impl QueryEngine {
                             items.push(format!("as {alias_text}"));
                         }
                     }
-                    "js_import" | "ts_import" => {
-                        // For JavaScript/TypeScript, we rely on module_path and import_name captures
+                    "js_import" | "ts_import" | "go_import" | "go_named_import"
+                    | "swift_import" => {
+                        // For JavaScript/TypeScript/Go/Swift, we rely on module_path and import_name captures
                         // The module and items will be set by those specific captures
                     }
                     "simple_import" => {
@@ -791,7 +962,11 @@ impl QueryEngine {
                     }
                     "module_path" => {
                         if let Ok(name) = node.utf8_text(content.as_bytes()) {
-                            module = name.trim_matches('"').trim_matches('\'').to_string();
+                            module = name
+                                .trim_matches('"')
+                                .trim_matches('\'')
+                                .trim_matches('`')
+                                .to_string();
                             // Check if it's a relative import for JavaScript/TypeScript
                             if module.starts_with('.') {
                                 is_relative = true;
@@ -1117,6 +1292,8 @@ impl QueryEngine {
             Some("py") => Some(tree_sitter_python::language()),
             Some("ts") | Some("tsx") => Some(tree_sitter_typescript::language_typescript()),
             Some("js") | Some("jsx") => Some(tree_sitter_javascript::language()),
+            Some("go") => Some(tree_sitter_go::language()),
+            Some("swift") => Some(tree_sitter_swift::language()),
             _ => None,
         };
 
@@ -1166,6 +1343,25 @@ impl QueryEngine {
                         ]
                     "#
                     }
+                    Some("go") => {
+                        r#"
+                        [
+                          (type_spec name: (type_identifier) @name)
+                          (type_alias name: (type_identifier) @name)
+                          (function_declaration name: (identifier) @name)
+                        ]
+                    "#
+                    }
+                    Some("swift") => {
+                        r#"
+                        [
+                          (class_declaration name: (type_identifier) @name)
+                          (protocol_declaration name: (type_identifier) @name)
+                          (typealias_declaration name: (type_identifier) @name)
+                          (function_declaration name: (simple_identifier) @name)
+                        ]
+                    "#
+                    }
                     _ => return Ok(false),
                 };
 
@@ -1197,7 +1393,9 @@ impl QueryEngine {
             Some("py") => vec!["py"],
             Some("ts") | Some("tsx") => vec!["ts", "tsx", "js", "jsx"],
             Some("js") | Some("jsx") => vec!["js", "jsx", "ts", "tsx"],
-            _ => vec!["rs", "py", "ts", "js"], // Default fallback
+            Some("go") => vec!["go"],
+            Some("swift") => vec!["swift"],
+            _ => vec!["rs", "py", "ts", "js", "go", "swift"], // Default fallback
         }
     }
 
@@ -1428,8 +1626,10 @@ impl QueryEngine {
                             is_exported = !name.starts_with('_');
                         } else if self.language_name == "javascript"
                             || self.language_name == "typescript"
+                            || self.language_name == "go"
+                            || self.language_name == "swift"
                         {
-                            // In JS/TS, all module-level functions are potentially callable
+                            // In JS/TS/Go/Swift, all module-level functions are potentially callable
                             // unless explicitly marked private or are nested
                             is_exported = true;
                         }
@@ -1444,8 +1644,11 @@ impl QueryEngine {
                     is_exported = true;
                 }
 
-                // Special handling for JavaScript/TypeScript without explicit export
-                if (self.language_name == "javascript" || self.language_name == "typescript")
+                // Special handling for JavaScript/TypeScript/Go without explicit export
+                if (self.language_name == "javascript"
+                    || self.language_name == "typescript"
+                    || self.language_name == "go"
+                    || self.language_name == "swift")
                     && !is_exported
                 {
                     // Default to exported for top-level functions
@@ -1500,6 +1703,55 @@ impl QueryEngine {
                 | "dict"
                 | "tuple"
                 | "set"
+                | "int8"
+                | "int16"
+                | "int32"
+                | "int64"
+                | "uint"
+                | "uint8"
+                | "uint16"
+                | "uint32"
+                | "uint64"
+                | "uintptr"
+                | "float32"
+                | "float64"
+                | "complex64"
+                | "complex128"
+                | "byte"
+                | "rune"
+                | "error"
+                | "any"
+                | "comparable"
+                | "Int"
+                | "Int8"
+                | "Int16"
+                | "Int32"
+                | "Int64"
+                | "UInt"
+                | "UInt8"
+                | "UInt16"
+                | "UInt32"
+                | "UInt64"
+                | "Float"
+                | "Double"
+                | "CGFloat"
+                | "Bool"
+                | "Character"
+                | "Substring"
+                | "Void"
+                | "Any"
+                | "AnyObject"
+                | "Never"
+                | "Array"
+                | "Dictionary"
+                | "Set"
+                | "Optional"
+                | "Data"
+                | "Date"
+                | "URL"
+                | "UUID"
+                | "Error"
+                | "Task"
         )
     }
 }
@@ -1537,6 +1789,24 @@ mod tests {
         let engine = QueryEngine::new(tree_sitter_typescript::language_typescript(), "typescript");
         if let Err(e) = &engine {
             println!("TypeScript QueryEngine error: {e}");
+        }
+        assert!(engine.is_ok());
+    }
+
+    #[test]
+    fn test_go_query_creation() {
+        let engine = QueryEngine::new(tree_sitter_go::language(), "go");
+        if let Err(e) = &engine {
+            println!("Go QueryEngine error: {e}");
+        }
+        assert!(engine.is_ok());
+    }
+
+    #[test]
+    fn test_swift_query_creation() {
+        let engine = QueryEngine::new(tree_sitter_swift::language(), "swift");
+        if let Err(e) = &engine {
+            println!("Swift QueryEngine error: {e}");
         }
         assert!(engine.is_ok());
     }

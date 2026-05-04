@@ -1,6 +1,7 @@
 //! Paths-only formatter that outputs file paths without content
 
 use super::{DigestData, DigestFormatter};
+use crate::core::context_builder::format_path_for_output;
 use crate::core::walker::FileInfo;
 use anyhow::Result;
 
@@ -48,7 +49,7 @@ impl DigestFormatter for PathsFormatter {
     fn render_file_details(&mut self, file: &FileInfo, _data: &DigestData) -> Result<()> {
         // Only output the relative path
         self.buffer
-            .push_str(&file.relative_path.display().to_string());
+            .push_str(&format_path_for_output(&file.relative_path));
         self.buffer.push('\n');
         Ok(())
     }

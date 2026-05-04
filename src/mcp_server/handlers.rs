@@ -56,13 +56,17 @@ impl CodebaseRpcServer for CodebaseRpcImpl {
         let cache_key = crate::mcp_server::cache::ProcessLocalCacheKey::from_request(&request);
         if let Some(cached) = self.cache.get_process_local(&cache_key).await {
             let processing_time_ms = start.elapsed().as_millis() as u64;
+            let include_context =
+                request.include_context.unwrap_or(false) || request.prompt.trim().is_empty();
+            let markdown = cached.markdown;
             return Ok(ProcessLocalResponse {
                 answer: cached.answer,
-                context: if request.include_context.unwrap_or(false) {
-                    Some(cached.markdown)
+                context: if include_context {
+                    Some(markdown.clone())
                 } else {
                     None
                 },
+                markdown: Some(markdown),
                 file_count: cached.file_count,
                 token_count: cached.token_count,
                 processing_time_ms,
@@ -88,7 +92,7 @@ impl CodebaseRpcServer for CodebaseRpcImpl {
         // Cache the response
         let cache_value = crate::mcp_server::cache::ProcessLocalCacheValue {
             answer: response.answer.clone(),
-            markdown: response.context.clone().unwrap_or_default(),
+            markdown: response.markdown.clone().unwrap_or_default(),
             file_count: response.file_count,
             token_count: response.token_count,
             llm_tool: response.llm_tool.clone(),
@@ -255,16 +259,27 @@ fn validate_url(url: &str) -> RpcResult<()> {
         ));
     }
 
-    // GitHub URL validation
-    if url.contains("github.com") && !url.contains("/") {
-        return Err(jsonrpsee::types::ErrorObject::owned(
-            -32602,
-            "Invalid GitHub URL format",
-            None::<String>,
-        ));
+    if url.starts_with("https://github.com/") || url.starts_with("http://github.com/") {
+        crate::remote::parse_github_url(url).map_err(|e| {
+            jsonrpsee::types::ErrorObject::owned(
+                -32602,
+                "Invalid GitHub URL format",
+                Some(e.to_string()),
+            )
+        })?;
     }
 
     Ok(())
+}
+
+fn resolve_llm_tool(tool: Option<&str>) -> (crate::cli::LlmTool, String) {
+    match tool {
+        Some("codex") => (crate::cli::LlmTool::Codex, "codex".to_string()),
+        Some("claude") => (crate::cli::LlmTool::Claude, "claude".to_string()),
+        Some("ollama") => (crate::cli::LlmTool::Ollama, "ollama".to_string()),
+        Some("gemini") | None => (crate::cli::LlmTool::Gemini, "gemini".to_string()),
+        Some(_) => (crate::cli::LlmTool::Gemini, "gemini".to_string()),
+    }
 }
 
 /// Synchronous implementation of codebase processing
@@ -272,7 +287,7 @@ pub(super) fn process_codebase_sync(
     request: ProcessLocalRequest,
     start: Instant,
 ) -> Result<ProcessLocalResponse> {
-    use crate::cli::{Config, LlmTool};
+    use crate::cli::Config;
     use crate::core::cache::FileCache;
     use crate::core::context_builder::{generate_markdown, ContextOptions};
     use crate::core::prioritizer::prioritize_files;
@@ -280,16 +295,8 @@ pub(super) fn process_codebase_sync(
     use crate::core::walker::{walk_directory, WalkOptions};
     use std::sync::Arc;
 
-    // Determine LLM tool
-    let llm_tool = if let Some(tool_str) = &request.llm_tool {
-        match tool_str.as_str() {
-            "gemini" => LlmTool::Gemini,
-            "codex" => LlmTool::Codex,
-            _ => LlmTool::Gemini,
-        }
-    } else {
-        LlmTool::Gemini
-    };
+    let (llm_tool, llm_tool_name) = resolve_llm_tool(request.llm_tool.as_deref());
+    let has_prompt = !request.prompt.trim().is_empty();
 
     // Calculate effective token limit considering prompt
     let effective_max_tokens = if let Some(max_tokens) = request.max_tokens {
@@ -327,8 +334,11 @@ pub(super) fn process_codebase_sync(
         trace_imports: request.include_imports,
         max_tokens: Some(context_tokens),
         llm_tool,
-        // Enable prompt for proper context calculation
-        prompt: Some(request.prompt.clone()),
+        prompt: if has_prompt {
+            Some(request.prompt.clone())
+        } else {
+            None
+        },
         // Disable other options
         output_file: None,
         copy: false,
@@ -374,22 +384,27 @@ pub(super) fn process_codebase_sync(
         })
         .count();
 
-    // Execute LLM with prompt and context
-    let answer = execute_llm_sync(&request.prompt, &output, request.llm_tool.as_deref())?;
+    let answer = if has_prompt {
+        execute_llm_sync(&request.prompt, &output, Some(&llm_tool_name))?
+    } else {
+        String::new()
+    };
 
     let processing_time_ms = start.elapsed().as_millis() as u64;
+    let include_context = request.include_context.unwrap_or(false) || !has_prompt;
 
     Ok(ProcessLocalResponse {
         answer,
-        context: if request.include_context.unwrap_or(false) {
-            Some(output)
+        context: if include_context {
+            Some(output.clone())
         } else {
             None
         },
+        markdown: Some(output),
         file_count,
         token_count,
         processing_time_ms,
-        llm_tool: request.llm_tool.unwrap_or_else(|| "gemini".to_string()),
+        llm_tool: llm_tool_name,
     })
 }
 
@@ -419,16 +434,8 @@ pub(super) fn process_remote_sync(
         .trim_end_matches(".git")
         .to_string();
 
-    // Determine LLM tool
-    let llm_tool = if let Some(tool_str) = &request.llm_tool {
-        match tool_str.as_str() {
-            "gemini" => crate::cli::LlmTool::Gemini,
-            "codex" => crate::cli::LlmTool::Codex,
-            _ => crate::cli::LlmTool::Gemini,
-        }
-    } else {
-        crate::cli::LlmTool::Gemini
-    };
+    let (llm_tool, llm_tool_name) = resolve_llm_tool(request.llm_tool.as_deref());
+    let has_prompt = !request.prompt.trim().is_empty();
 
     // Calculate effective token limit considering prompt
     let effective_max_tokens = if let Some(max_tokens) = request.max_tokens {
@@ -465,7 +472,11 @@ pub(super) fn process_remote_sync(
         trace_imports: request.include_imports,
         max_tokens: Some(context_tokens),
         llm_tool,
-        prompt: Some(request.prompt.clone()),
+        prompt: if has_prompt {
+            Some(request.prompt.clone())
+        } else {
+            None
+        },
         // Disable other options
         output_file: None,
         copy: false,
@@ -511,23 +522,28 @@ pub(super) fn process_remote_sync(
         })
         .count();
 
-    // Execute LLM with prompt and context
-    let answer = execute_llm_sync(&request.prompt, &output, request.llm_tool.as_deref())?;
+    let answer = if has_prompt {
+        execute_llm_sync(&request.prompt, &output, Some(&llm_tool_name))?
+    } else {
+        String::new()
+    };
 
     let processing_time_ms = start.elapsed().as_millis() as u64;
+    let include_context = request.include_context.unwrap_or(false) || !has_prompt;
 
     Ok(ProcessRemoteResponse {
         answer,
-        context: if request.include_context.unwrap_or(false) {
-            Some(output)
+        context: if include_context {
+            Some(output.clone())
         } else {
             None
         },
+        markdown: Some(output),
         file_count,
         token_count,
         processing_time_ms,
         repo_name,
-        llm_tool: request.llm_tool.unwrap_or_else(|| "gemini".to_string()),
+        llm_tool: llm_tool_name,
     })
 }
 
@@ -1192,61 +1208,17 @@ pub(super) fn semantic_search_sync(
 fn is_supported_language_file(ext: &str) -> bool {
     matches!(
         ext,
-        "rs" | "py"
-            | "js"
-            | "jsx"
-            | "ts"
-            | "tsx"
-            | "go"
-            | "java"
-            | "c"
-            | "cpp"
-            | "cc"
-            | "cxx"
-            | "h"
-            | "hpp"
-            | "cs"
-            | "rb"
-            | "php"
-            | "swift"
-            | "kt"
-            | "kts"
-            | "scala"
-            | "r"
-            | "lua"
-            | "dart"
-            | "jl"
-            | "hs"
-            | "elm"
-            | "clj"
-            | "cljs"
-            | "ex"
-            | "exs"
-            | "ml"
-            | "mli"
-            | "nim"
-            | "zig"
+        "rs" | "py" | "js" | "jsx" | "ts" | "tsx" | "go" | "swift"
     )
 }
 
 /// Execute LLM with prompt and context
 fn execute_llm_sync(prompt: &str, context: &str, llm_tool: Option<&str>) -> Result<String> {
-    use crate::cli::LlmTool;
     use crate::utils::error::ContextCreatorError;
     use std::io::Write;
     use std::process::{Command, Stdio};
 
-    // Determine which LLM tool to use
-    let tool = if let Some(tool_str) = llm_tool {
-        match tool_str {
-            "gemini" => LlmTool::Gemini,
-            "codex" => LlmTool::Codex,
-            _ => LlmTool::Gemini, // Default to gemini for unknown tools
-        }
-    } else {
-        LlmTool::Gemini // Default
-    };
-
+    let (tool, _) = resolve_llm_tool(llm_tool);
     let full_input = format!("{prompt}\n\n{context}");
     let tool_command = tool.command();
 

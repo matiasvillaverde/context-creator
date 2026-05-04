@@ -34,6 +34,7 @@ tree-sitter-javascript = "0.20"
 tree-sitter-typescript = "0.20"
 tree-sitter-python = "0.20"
 tree-sitter-go = "0.20"
+tree-sitter-swift = "0.4.3"
 tree-sitter-java = "0.20"
 walkdir = "2.5"
 deadpool = "0.10"
@@ -45,7 +46,7 @@ petgraph = "0.6"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 rmcp = { version = "0.2.0", features = ["server", "transport-io", "transport-sse-server"] }
-jsonrpsee = { version = "0.22", features = ["server", "http-client", "macros"] }
+jsonrpsee = { version = "0.26", features = ["server", "http-client", "macros"] }
 schemars = "0.8"
 axum = "0.7"
 hyper = "1.0"

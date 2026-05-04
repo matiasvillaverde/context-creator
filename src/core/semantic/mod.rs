@@ -86,21 +86,7 @@ pub fn get_analyzer_for_file(
         "js" | "jsx" => Some(Box::new(languages::javascript::JavaScriptAnalyzer::new())),
         "ts" | "tsx" => Some(Box::new(languages::typescript::TypeScriptAnalyzer::new())),
         "go" => Some(Box::new(languages::go::GoAnalyzer::new())),
-        "java" => Some(Box::new(languages::java::JavaAnalyzer::new())),
-        "cpp" | "cc" | "cxx" | "hpp" | "h" => Some(Box::new(languages::cpp::CppAnalyzer::new())),
-        "c" => Some(Box::new(languages::c::CAnalyzer::new())),
-        "cs" => Some(Box::new(languages::csharp::CSharpAnalyzer::new())),
-        "rb" => Some(Box::new(languages::ruby::RubyAnalyzer::new())),
-        "php" => Some(Box::new(languages::php::PhpAnalyzer::new())),
         "swift" => Some(Box::new(languages::swift::SwiftAnalyzer::new())),
-        "kt" | "kts" => Some(Box::new(languages::kotlin::KotlinAnalyzer::new())),
-        "scala" | "sc" => Some(Box::new(languages::scala::ScalaAnalyzer::new())),
-        "dart" => Some(Box::new(languages::dart::DartAnalyzer::new())),
-        "lua" => Some(Box::new(languages::lua::LuaAnalyzer::new())),
-        "r" | "R" => Some(Box::new(languages::r::RAnalyzer::new())),
-        "jl" => Some(Box::new(languages::julia::JuliaAnalyzer::new())),
-        "ex" | "exs" => Some(Box::new(languages::elixir::ElixirAnalyzer::new())),
-        "elm" => Some(Box::new(languages::elm::ElmAnalyzer::new())),
         _ => None,
     };
 
@@ -118,6 +104,8 @@ pub fn get_resolver_for_file(
         "py" => Some(Box::new(languages::python::PythonModuleResolver)),
         "js" | "jsx" => Some(Box::new(languages::javascript::JavaScriptModuleResolver)),
         "ts" | "tsx" => Some(Box::new(languages::typescript::TypeScriptModuleResolver)),
+        "go" => Some(Box::new(languages::go::GoModuleResolver)),
+        "swift" => Some(Box::new(languages::swift::SwiftModuleResolver)),
         _ => None,
     };
 

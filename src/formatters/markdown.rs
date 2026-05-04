@@ -2,8 +2,9 @@
 
 use super::{DigestData, DigestFormatter};
 use crate::core::context_builder::{
-    format_import_names, format_imported_by_names, format_path_with_metadata, generate_file_tree,
-    generate_statistics, get_language_hint, path_to_anchor,
+    format_import_names, format_imported_by_names, format_path_for_output,
+    format_path_with_metadata, generate_file_tree, generate_statistics, get_language_hint,
+    path_to_anchor,
 };
 use crate::core::walker::FileInfo;
 use crate::utils::git::{format_git_context_to_markdown, get_file_git_context_with_depth};
@@ -70,7 +71,7 @@ impl DigestFormatter for MarkdownFormatter {
                 let anchor = path_to_anchor(&file.relative_path);
                 self.buffer.push_str(&format!(
                     "- [{path}](#{anchor})\n",
-                    path = file.relative_path.display(),
+                    path = format_path_for_output(&file.relative_path),
                     anchor = anchor
                 ));
             }

@@ -181,7 +181,7 @@ impl ConfigFile {
         // This prevents conflict with --remote validation
         let current_paths = cli_config.get_directories();
         if current_paths.len() == 1
-            && current_paths[0] == PathBuf::from(".")
+            && current_paths[0].as_path() == Path::new(".")
             && self.defaults.directory.is_some()
             && cli_config.remote.is_none()
         {

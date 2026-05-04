@@ -127,30 +127,26 @@ context-creator -d /path/to/project -c config.toml -o project.md
 
 ## Supported Languages
 
-| Language | Extension | Priority | Notes |
-|----------|-----------|----------|--------|
-| Rust | `.rs` | High | Native optimization |
-| Python | `.py` | High | Complete support |
-| JavaScript | `.js` | High | ES6+ features |
-| TypeScript | `.ts`, `.tsx` | High | Full type support |
-| Go | `.go` | Medium | Standard library aware |
-| Java | `.java` | Medium | Package structure |
-| C++ | `.cpp`, `.hpp` | Medium | Header handling |
-| C | `.c`, `.h` | Medium | Include processing |
-| C# | `.cs` | Medium | Namespace support |
-| Ruby | `.rb` | Medium | Gem structure |
-| PHP | `.php` | Medium | Framework aware |
-| Swift | `.swift` | Medium | iOS/macOS focus |
-| Kotlin | `.kt` | Medium | Android support |
-| Scala | `.scala` | Medium | JVM integration |
-| Haskell | `.hs` | Medium | Functional focus |
-| Markdown | `.md` | Low | Documentation |
-| JSON | `.json` | Low | Configuration |
-| YAML | `.yml`, `.yaml` | Low | Configuration |
-| TOML | `.toml` | Low | Configuration |
-| XML | `.xml` | Low | Data format |
-| HTML | `.html` | Low | Web content |
-| CSS | `.css` | Low | Styling |
+Context generation, syntax-highlighted output, and prioritization support many common file types.
+Semantic dependency expansion is intentionally narrower and only advertised when the analyzer and
+resolver are implemented.
+
+### Semantic Dependency Expansion
+
+| Language | Extensions | Semantic Features |
+|----------|------------|-------------------|
+| Rust | `.rs` | imports, callers, types |
+| Python | `.py` | imports, callers, types |
+| JavaScript | `.js`, `.jsx` | imports, callers, types |
+| TypeScript | `.ts`, `.tsx` | imports, callers, types |
+| Go | `.go` | imports, callers, types |
+| Swift | `.swift` | imports, callers, types |
+
+### Context Formatting
+
+Java, C, C++, C#, Ruby, PHP, Kotlin, Scala, Dart, Lua, R, Julia, Elixir, Elm,
+Haskell, Markdown, JSON, YAML, TOML, HTML, CSS, XML, and plain text files are
+still included as normal context files when they match the requested paths and patterns.
 
 ## Project Status
 

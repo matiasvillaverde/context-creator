@@ -1,8 +1,69 @@
 //! Integration tests for telemetry command functionality
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tempfile::TempDir;
+
+fn valid_protobuf_trace_bytes() -> Vec<u8> {
+    use context_creator::core::telemetry::otlp_parser::{
+        any_value, AnyValue, ExportTraceServiceRequest, KeyValue, ProtobufSpan, Resource,
+        ResourceSpans, ScopeSpans,
+    };
+    use prost::Message;
+
+    let otlp = ExportTraceServiceRequest {
+        resource_spans: vec![ResourceSpans {
+            resource: Some(Resource {
+                attributes: vec![KeyValue {
+                    key: "service.name".to_string(),
+                    value: Some(AnyValue {
+                        value: Some(any_value::Value::StringValue("payment-api".to_string())),
+                    }),
+                }],
+            }),
+            scope_spans: vec![ScopeSpans {
+                spans: vec![ProtobufSpan {
+                    name: "process_payment".to_string(),
+                    start_time_unix_nano: 1_704_067_200_000_000_000,
+                    end_time_unix_nano: 1_704_067_200_050_000_000,
+                    attributes: vec![
+                        KeyValue {
+                            key: "code.function.name".to_string(),
+                            value: Some(AnyValue {
+                                value: Some(any_value::Value::StringValue(
+                                    "process_payment".to_string(),
+                                )),
+                            }),
+                        },
+                        KeyValue {
+                            key: "code.file.path".to_string(),
+                            value: Some(AnyValue {
+                                value: Some(any_value::Value::StringValue(
+                                    "src/api/handlers.rs".to_string(),
+                                )),
+                            }),
+                        },
+                        KeyValue {
+                            key: "code.line.number".to_string(),
+                            value: Some(AnyValue {
+                                value: Some(any_value::Value::IntValue(1)),
+                            }),
+                        },
+                    ],
+                    status: None,
+                }],
+            }],
+        }],
+    };
+
+    let mut protobuf_data = Vec::new();
+    otlp.encode(&mut protobuf_data).unwrap();
+    protobuf_data
+}
+
+fn write_valid_protobuf_trace(path: &Path) {
+    fs::write(path, valid_protobuf_trace_bytes()).unwrap();
+}
 
 #[test]
 fn test_parse_otlp_json_format() {
@@ -56,15 +117,61 @@ fn test_parse_otlp_json_format() {
 }
 
 #[test]
-#[should_panic(expected = "Protobuf parser not yet implemented")]
 fn test_parse_otlp_protobuf_format() {
-    // Given: Valid OTLP binary/protobuf export
-    let _protobuf_data = [0x0A, 0x00]; // Simplified protobuf data
+    use context_creator::core::telemetry::otlp_parser::ProtobufParser;
+    use context_creator::core::telemetry::OtlpParser;
 
-    // When: Parsing the file
-    // Then: Should extract telemetry data correctly
-    // This will fail until we implement the parser
-    panic!("Protobuf parser not yet implemented");
+    let parser = ProtobufParser::new();
+    let result = parser.parse_bytes(&valid_protobuf_trace_bytes()).unwrap();
+
+    assert_eq!(result.spans.len(), 1);
+    assert_eq!(result.code_spans.len(), 1);
+
+    let span = &result.code_spans[0];
+    assert_eq!(span.name, "process_payment");
+    assert_eq!(span.function_name.as_deref(), Some("process_payment"));
+    assert_eq!(span.service_name.as_deref(), Some("payment-api"));
+    assert_eq!(span.file_path, Some(PathBuf::from("src/api/handlers.rs")));
+    assert_eq!(span.line_number, Some(1));
+}
+
+#[test]
+fn test_telemetry_command_with_valid_protobuf_file() {
+    let temp_dir = TempDir::new().unwrap();
+    let source_dir = temp_dir.path().join("src/api");
+    fs::create_dir_all(&source_dir).unwrap();
+    fs::write(
+        source_dir.join("handlers.rs"),
+        r#"pub fn process_payment() {
+    println!("paid");
+}
+"#,
+    )
+    .unwrap();
+
+    let telemetry_file = temp_dir.path().join("traces.pb");
+    write_valid_protobuf_trace(&telemetry_file);
+
+    let mut cmd = assert_cmd::Command::cargo_bin("context-creator").unwrap();
+    let output = cmd
+        .arg("telemetry")
+        .arg("-t")
+        .arg(&telemetry_file)
+        .arg(temp_dir.path())
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "telemetry protobuf command failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Total spans: 1"), "{stdout}");
+    assert!(stdout.contains("Spans after filters: 1"), "{stdout}");
+    assert!(stdout.contains("Correlated spans: 1"), "{stdout}");
+    assert!(stdout.contains("process_payment"), "{stdout}");
 }
 
 #[test]

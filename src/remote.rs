@@ -1,29 +1,104 @@
 //! Remote repository fetching functionality
 
 use crate::utils::error::ContextCreatorError;
-use std::path::PathBuf;
+use std::ffi::OsString;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use tempfile::TempDir;
 
 #[cfg(unix)]
 use std::fs;
 
+#[cfg(windows)]
+fn tool_command(tool: &str) -> Command {
+    let program = tool_override(tool).unwrap_or_else(|| OsString::from(tool));
+
+    let path = Path::new(&program);
+    if matches!(
+        path.extension().and_then(|extension| extension.to_str()),
+        Some(extension) if extension.eq_ignore_ascii_case("bat")
+            || extension.eq_ignore_ascii_case("cmd")
+    ) {
+        let mut command = Command::new("cmd.exe");
+        command.arg("/C").arg(program);
+        return command;
+    }
+
+    let mut command = Command::new("cmd.exe");
+    command.arg("/C").arg(program);
+    command
+}
+
+#[cfg(not(windows))]
+fn tool_command(tool: &str) -> Command {
+    Command::new(tool_override(tool).unwrap_or_else(|| OsString::from(tool)))
+}
+
+fn tool_override(tool: &str) -> Option<OsString> {
+    tool_override_env(tool)
+        .and_then(std::env::var_os)
+        .filter(|value| !value.is_empty())
+}
+
+fn tool_override_env(tool: &str) -> Option<&'static str> {
+    match tool {
+        "gh" => Some("CONTEXT_CREATOR_GH"),
+        "git" => Some("CONTEXT_CREATOR_GIT"),
+        _ => None,
+    }
+}
+
+fn tool_available(tool: &str) -> Result<(), String> {
+    let output = tool_command(tool).arg("--version").output().map_err(|e| {
+        format!(
+            "{tool} failed to start ({})",
+            describe_tool(tool, &e.to_string())
+        )
+    })?;
+
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(format!(
+            "{tool} exited with status {} ({}; stderr: {}; stdout: {})",
+            output.status,
+            describe_tool(tool, "started"),
+            trim_command_output(&output.stderr),
+            trim_command_output(&output.stdout)
+        ))
+    }
+}
+
+fn describe_tool(tool: &str, detail: &str) -> String {
+    match tool_override(tool) {
+        Some(path) => format!(
+            "override {}={}; {detail}",
+            tool_override_env(tool).unwrap_or("unknown"),
+            Path::new(&path).display()
+        ),
+        None => format!("program={tool}; {detail}"),
+    }
+}
+
+fn trim_command_output(output: &[u8]) -> String {
+    let text = String::from_utf8_lossy(output);
+    let trimmed = text.trim();
+    if trimmed.len() > 240 {
+        let prefix: String = trimmed.chars().take(240).collect();
+        format!("{prefix}...")
+    } else {
+        trimmed.to_string()
+    }
+}
+
 /// Check if gh CLI is available
 pub fn gh_available() -> bool {
-    Command::new("gh")
-        .arg("--version")
-        .output()
-        .map(|output| output.status.success())
-        .unwrap_or(false)
+    tool_available("gh").is_ok()
 }
 
 /// Check if git is available
 pub fn git_available() -> bool {
-    Command::new("git")
-        .arg("--version")
-        .output()
-        .map(|output| output.status.success())
-        .unwrap_or(false)
+    tool_available("git").is_ok()
 }
 
 /// Parse GitHub URL to extract owner and repo
@@ -57,12 +132,11 @@ pub fn parse_github_url(url: &str) -> Result<(String, String), ContextCreatorErr
         ));
     }
 
-    Ok((parts[0].to_string(), parts[1].to_string()))
+    Ok((parts[0].to_string(), repo_dir_name(parts[1])))
 }
 
 /// Fetch a repository from GitHub
 pub fn fetch_repository(repo_url: &str, verbose: bool) -> Result<TempDir, ContextCreatorError> {
-    let (owner, repo) = parse_github_url(repo_url)?;
     let temp_dir = TempDir::new().map_err(|e| {
         ContextCreatorError::RemoteFetchError(format!("Failed to create temp directory: {e}"))
     })?;
@@ -85,25 +159,51 @@ pub fn fetch_repository(repo_url: &str, verbose: bool) -> Result<TempDir, Contex
         })?;
     }
 
-    if verbose {
-        eprintln!("📥 Fetching repository: {owner}/{repo}");
-    }
+    let success = if let Ok((owner, repo)) = parse_github_url(repo_url) {
+        if verbose {
+            eprintln!("📥 Fetching repository: {owner}/{repo}");
+        }
 
-    // Try gh first, then fall back to git
-    let success = if gh_available() {
-        if verbose {
-            eprintln!("🔧 Using gh CLI for optimal performance");
+        // Try gh first, then fall back to git
+        let gh_status = tool_available("gh");
+        if gh_status.is_ok() {
+            if verbose {
+                eprintln!("🔧 Using gh CLI for optimal performance");
+            }
+            clone_with_gh(&owner, &repo, temp_dir.path(), verbose)?
+        } else {
+            let git_status = tool_available("git");
+            if git_status.is_ok() {
+                if verbose {
+                    eprintln!("🔧 Using git clone (gh CLI not available)");
+                }
+                clone_with_git(repo_url, temp_dir.path(), verbose)?
+            } else {
+                return Err(ContextCreatorError::RemoteFetchError(format!(
+                    "Neither gh CLI nor git is available. Please install one of them. gh probe: {}; git probe: {}",
+                    gh_status.err().unwrap_or_else(|| "unavailable".to_string()),
+                    git_status.err().unwrap_or_else(|| "unavailable".to_string())
+                )));
+            }
         }
-        clone_with_gh(&owner, &repo, temp_dir.path(), verbose)?
-    } else if git_available() {
+    } else if is_local_git_remote(repo_url) {
         if verbose {
-            eprintln!("🔧 Using git clone (gh CLI not available)");
+            eprintln!("📥 Fetching local git repository: {repo_url}");
         }
-        clone_with_git(repo_url, temp_dir.path(), verbose)?
+        let git_status = tool_available("git");
+        if git_status.is_ok() {
+            clone_with_git(repo_url, temp_dir.path(), verbose)?
+        } else {
+            return Err(ContextCreatorError::RemoteFetchError(format!(
+                "git is required to clone local remote repositories. git probe: {}",
+                git_status
+                    .err()
+                    .unwrap_or_else(|| "unavailable".to_string())
+            )));
+        }
     } else {
-        return Err(ContextCreatorError::RemoteFetchError(
-            "Neither gh CLI nor git is available. Please install one of them.".to_string(),
-        ));
+        parse_github_url(repo_url)?;
+        unreachable!("parse_github_url returned an unexpected result");
     };
 
     if !success {
@@ -127,7 +227,7 @@ fn clone_with_gh(
     verbose: bool,
 ) -> Result<bool, ContextCreatorError> {
     let repo_spec = format!("{owner}/{repo}");
-    let mut cmd = Command::new("gh");
+    let mut cmd = tool_command("gh");
     cmd.arg("repo")
         .arg("clone")
         .arg(&repo_spec)
@@ -153,11 +253,14 @@ fn clone_with_git(
     target_dir: &std::path::Path,
     verbose: bool,
 ) -> Result<bool, ContextCreatorError> {
-    let repo_name = repo_url.split('/').next_back().ok_or_else(|| {
-        ContextCreatorError::InvalidConfiguration("Invalid repository URL".to_string())
-    })?;
+    let repo_name = repo_dir_name(repo_url);
+    if repo_name.is_empty() {
+        return Err(ContextCreatorError::InvalidConfiguration(
+            "Invalid repository URL".to_string(),
+        ));
+    }
 
-    let mut cmd = Command::new("git");
+    let mut cmd = tool_command("git");
     cmd.arg("clone")
         .arg("--depth")
         .arg("1")
@@ -177,7 +280,14 @@ fn clone_with_git(
 
 /// Get the path to the cloned repository within the temp directory
 pub fn get_repo_path(temp_dir: &TempDir, repo_url: &str) -> Result<PathBuf, ContextCreatorError> {
-    let (_, repo) = parse_github_url(repo_url)?;
+    let repo = if let Ok((_, repo)) = parse_github_url(repo_url) {
+        repo
+    } else if is_local_git_remote(repo_url) {
+        repo_dir_name(repo_url)
+    } else {
+        parse_github_url(repo_url)?;
+        unreachable!("parse_github_url returned an unexpected result");
+    };
     let repo_path = temp_dir.path().join(&repo);
 
     if !repo_path.exists() {
@@ -188,6 +298,22 @@ pub fn get_repo_path(temp_dir: &TempDir, repo_url: &str) -> Result<PathBuf, Cont
     }
 
     Ok(repo_path)
+}
+
+fn is_local_git_remote(repo_url: &str) -> bool {
+    repo_url.starts_with("file://") || Path::new(repo_url).exists()
+}
+
+fn repo_dir_name(repo_url: &str) -> String {
+    let trimmed = repo_url.trim_end_matches('/');
+    let path_part = trimmed.strip_prefix("file://").unwrap_or(trimmed);
+    let name = Path::new(path_part)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .or_else(|| trimmed.split('/').next_back())
+        .unwrap_or("");
+
+    name.trim_end_matches(".git").to_string()
 }
 
 #[cfg(test)]

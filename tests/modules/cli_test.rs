@@ -145,6 +145,16 @@ fn test_repo_argument() {
 }
 
 #[test]
+fn test_repo_alias_argument() {
+    let config = Config::parse_from(["context-creator", "--repo", "https://github.com/owner/repo"]);
+    assert_eq!(
+        config.remote,
+        Some("https://github.com/owner/repo".to_string())
+    );
+    assert!(config.validate().is_ok());
+}
+
+#[test]
 fn test_repo_and_directory_now_disallowed() {
     // This combination is now disallowed to prevent silent overwriting bug
     let config = Config::parse_from([
@@ -226,6 +236,54 @@ fn test_multiple_directories() {
             PathBuf::from("tests")
         ]
     );
+}
+
+#[test]
+fn test_directory_short_flag() {
+    let config = Config::parse_from(["context-creator", "-d", "src/core"]);
+    assert_eq!(config.get_directories(), vec![PathBuf::from("src/core")]);
+    assert!(config.validate().is_ok());
+}
+
+#[test]
+fn test_directory_long_flag() {
+    let config = Config::parse_from(["context-creator", "--directory", "src/core"]);
+    assert_eq!(config.get_directories(), vec![PathBuf::from("src/core")]);
+    assert!(config.validate().is_ok());
+}
+
+#[test]
+fn test_multiple_directory_flags() {
+    let config = Config::parse_from([
+        "context-creator",
+        "-d",
+        "src/core",
+        "-d",
+        "src/utils",
+        "tests",
+    ]);
+    assert_eq!(
+        config.get_directories(),
+        vec![
+            PathBuf::from("src/core"),
+            PathBuf::from("src/utils"),
+            PathBuf::from("tests")
+        ]
+    );
+    assert!(config.validate().is_ok());
+}
+
+#[test]
+fn test_directory_flag_with_remote_is_disallowed() {
+    let config = Config::parse_from([
+        "context-creator",
+        "--repo",
+        "https://github.com/owner/repo",
+        "-d",
+        "src",
+    ]);
+    let error = config.validate().unwrap_err().to_string();
+    assert!(error.contains("Cannot specify both --remote and local paths"));
 }
 
 #[test]
@@ -406,9 +464,19 @@ fn test_include_with_stdin_now_allowed() {
 fn test_no_arguments_defaults_to_current_directory() {
     // This test ensures that when no paths or include flags are provided,
     // we default to current directory "."
-    let config = Config::parse_from(["context-creator", "--prompt", "test"]);
+    let config = Config::parse_from(["context-creator"]);
     // Note: This is testing that the default behavior is preserved
     assert_eq!(config.get_directories(), vec![PathBuf::from(".")]);
+    assert!(config.validate().is_ok());
+}
+
+#[test]
+fn test_options_only_defaults_to_current_directory() {
+    let config = Config::parse_from(["context-creator", "--max-tokens", "100000", "--verbose"]);
+    assert_eq!(config.get_directories(), vec![PathBuf::from(".")]);
+    assert_eq!(config.max_tokens, Some(100000));
+    assert_eq!(config.verbose, 1);
+    assert!(config.validate().is_ok());
 }
 
 #[test]

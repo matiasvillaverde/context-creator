@@ -29,10 +29,8 @@ fn test_help_output_contains_new_name() {
 
 #[test]
 fn test_old_binary_name_no_longer_exists() {
-    // This should fail because code-digest binary shouldn't exist anymore
-    let result = Command::cargo_bin("code-digest");
     assert!(
-        result.is_err(),
-        "Old binary name 'code-digest' should not exist"
+        std::env::var_os("CARGO_BIN_EXE_code-digest").is_none(),
+        "Old binary name 'code-digest' should not be built for integration tests"
     );
 }

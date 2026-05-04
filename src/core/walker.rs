@@ -639,13 +639,13 @@ mod tests {
         assert_eq!(files.len(), 3);
         assert!(files
             .iter()
-            .any(|f| f.relative_path == PathBuf::from("main.rs")));
+            .any(|f| f.relative_path.as_path() == Path::new("main.rs")));
         assert!(files
             .iter()
-            .any(|f| f.relative_path == PathBuf::from("lib.rs")));
+            .any(|f| f.relative_path.as_path() == Path::new("lib.rs")));
         assert!(files
             .iter()
-            .any(|f| f.relative_path == PathBuf::from("src/utils.rs")));
+            .any(|f| f.relative_path.as_path() == Path::new("src/utils.rs")));
     }
 
     #[test]
@@ -753,10 +753,10 @@ mod tests {
         assert!(files.len() >= 2);
         assert!(files
             .iter()
-            .any(|f| f.relative_path == PathBuf::from("main.rs")));
+            .any(|f| f.relative_path.as_path() == Path::new("main.rs")));
         assert!(files
             .iter()
-            .any(|f| f.relative_path == PathBuf::from("test.rs")));
+            .any(|f| f.relative_path.as_path() == Path::new("test.rs")));
     }
 
     #[test]
@@ -780,10 +780,10 @@ mod tests {
         assert!(files.len() >= 2);
         assert!(files
             .iter()
-            .any(|f| f.relative_path == PathBuf::from("main.rs")));
+            .any(|f| f.relative_path.as_path() == Path::new("main.rs")));
         assert!(files
             .iter()
-            .any(|f| f.relative_path == PathBuf::from("lib.rs")));
+            .any(|f| f.relative_path.as_path() == Path::new("lib.rs")));
     }
 
     #[test]
@@ -804,13 +804,13 @@ mod tests {
         assert_eq!(files.len(), 3);
         assert!(files
             .iter()
-            .any(|f| f.relative_path == PathBuf::from("main.rs")));
+            .any(|f| f.relative_path.as_path() == Path::new("main.rs")));
         assert!(files
             .iter()
-            .any(|f| f.relative_path == PathBuf::from("src/lib.rs")));
+            .any(|f| f.relative_path.as_path() == Path::new("src/lib.rs")));
         assert!(files
             .iter()
-            .any(|f| f.relative_path == PathBuf::from("src/utils/helpers.rs")));
+            .any(|f| f.relative_path.as_path() == Path::new("src/utils/helpers.rs")));
     }
 
     #[test]
@@ -1569,16 +1569,16 @@ mod tests {
         assert_eq!(files.len(), 2);
         assert!(files
             .iter()
-            .any(|f| f.relative_path == PathBuf::from("main.rs")));
+            .any(|f| f.relative_path.as_path() == Path::new("main.rs")));
         assert!(files
             .iter()
-            .any(|f| f.relative_path == PathBuf::from("config.json")));
+            .any(|f| f.relative_path.as_path() == Path::new("config.json")));
         assert!(!files
             .iter()
-            .any(|f| f.relative_path == PathBuf::from("image.jpg")));
+            .any(|f| f.relative_path.as_path() == Path::new("image.jpg")));
         assert!(!files
             .iter()
-            .any(|f| f.relative_path == PathBuf::from("video.mp4")));
+            .any(|f| f.relative_path.as_path() == Path::new("video.mp4")));
     }
 
     #[test]
@@ -1604,16 +1604,16 @@ mod tests {
         assert_eq!(files.len(), 4);
         assert!(files
             .iter()
-            .any(|f| f.relative_path == PathBuf::from("main.rs")));
+            .any(|f| f.relative_path.as_path() == Path::new("main.rs")));
         assert!(files
             .iter()
-            .any(|f| f.relative_path == PathBuf::from("config.json")));
+            .any(|f| f.relative_path.as_path() == Path::new("config.json")));
         assert!(files
             .iter()
-            .any(|f| f.relative_path == PathBuf::from("image.jpg")));
+            .any(|f| f.relative_path.as_path() == Path::new("image.jpg")));
         assert!(files
             .iter()
-            .any(|f| f.relative_path == PathBuf::from("video.mp4")));
+            .any(|f| f.relative_path.as_path() == Path::new("video.mp4")));
     }
 
     #[test]
@@ -1640,18 +1640,18 @@ mod tests {
         assert_eq!(files.len(), 4);
         assert!(files
             .iter()
-            .any(|f| f.relative_path == PathBuf::from("README")));
+            .any(|f| f.relative_path.as_path() == Path::new("README")));
         assert!(files
             .iter()
-            .any(|f| f.relative_path == PathBuf::from("LICENSE")));
+            .any(|f| f.relative_path.as_path() == Path::new("LICENSE")));
         assert!(files
             .iter()
-            .any(|f| f.relative_path == PathBuf::from("Makefile")));
+            .any(|f| f.relative_path.as_path() == Path::new("Makefile")));
         assert!(files
             .iter()
-            .any(|f| f.relative_path == PathBuf::from("Dockerfile")));
+            .any(|f| f.relative_path.as_path() == Path::new("Dockerfile")));
         assert!(!files
             .iter()
-            .any(|f| f.relative_path == PathBuf::from("binary.exe")));
+            .any(|f| f.relative_path.as_path() == Path::new("binary.exe")));
     }
 }

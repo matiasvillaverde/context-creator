@@ -754,14 +754,11 @@ fn test_error_message_quality_for_invalid_combinations() {
     let error_msg2 = result2.unwrap_err().to_string();
     assert!(error_msg2.contains("Cannot specify both --copy and --output"));
 
-    // Test 3: No input source (should fail with helpful message)
+    // Test 3: No explicit input source defaults to current directory
     let config3 = Config::parse_from(["context-creator", "--max-tokens", "100000", "--verbose"]);
 
     let result3 = config3.validate();
-    assert!(result3.is_err());
-    let error_msg3 = result3.unwrap_err().to_string();
-    assert!(error_msg3.contains("At least one input source must be provided"));
-    assert!(error_msg3.contains("--prompt, paths, --include, --remote, or --stdin"));
+    assert!(result3.is_ok());
 
     // Test 4: Invalid repo URL (should fail with clear message)
     let config4 = Config::parse_from(["context-creator", "--remote", "not-a-github-url"]);

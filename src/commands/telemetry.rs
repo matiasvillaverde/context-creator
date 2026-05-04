@@ -218,6 +218,7 @@ pub fn run_telemetry(config: Config) -> Result<()> {
     } else {
         filtered_spans
     };
+    let filtered_spans_count = time_filtered_spans.len();
 
     // Determine paths to analyze
     let analysis_paths = paths.unwrap_or_else(|| {
@@ -288,6 +289,7 @@ pub fn run_telemetry(config: Config) -> Result<()> {
     // Print correlation summary for user
     println!("Telemetry Correlation Summary:");
     println!("  Total spans: {total_spans}");
+    println!("  Spans after filters: {filtered_spans_count}");
     println!(
         "  Correlated spans: {}",
         correlation_result.correlated_count

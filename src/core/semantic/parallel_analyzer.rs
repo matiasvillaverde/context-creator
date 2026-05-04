@@ -186,8 +186,16 @@ impl<'a> ParallelAnalyzer<'a> {
                     options.semantic_depth,
                 );
 
-                // Perform analysis
-                let result = analyzer.analyze_file(file_path, &content, &context)?;
+                // Perform only the analysis required by the active semantic options.
+                let result = analyzer.analyze_requested(
+                    file_path,
+                    &content,
+                    &context,
+                    options.trace_imports,
+                    options.include_functions,
+                    options.include_types,
+                    options.include_functions,
+                )?;
 
                 // Store in cache
                 self.semantic_cache

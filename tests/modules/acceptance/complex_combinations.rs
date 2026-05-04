@@ -380,17 +380,136 @@ def test_user_endpoint():
 }
 
 #[test]
-#[ignore = "Mock GitHub API for repository tests not implemented"]
 fn scenario_5_2_mock_repository_test() {
-    // Scenario 5.2: Mock test for repository functionality
-    // This would test against a mock GitHub API or local git repository
-    // Skipping actual implementation as it requires significant test infrastructure
+    // Scenario 5.2: Remote repository analysis with semantic expansion
+    use assert_cmd::prelude::*;
+    use predicates::prelude::*;
+    use std::fs;
+    use std::process::Command;
+    use tempfile::TempDir;
 
-    // In a real implementation, this would:
-    // 1. Set up a mock HTTP server or use a testing framework
-    // 2. Mock GitHub API responses for repository structure
-    // 3. Test context-creator with repository URLs
-    // 4. Verify correct handling of remote repositories
+    let temp_dir = TempDir::new().unwrap();
+    let mock_bin_dir = temp_dir.path().join("bin");
+    fs::create_dir(&mock_bin_dir).unwrap();
+
+    let mock_gh_path = mock_bin_dir.join("gh");
+    let mock_git_path = mock_bin_dir.join("git");
+
+    #[cfg(unix)]
+    {
+        fs::write(
+            &mock_gh_path,
+            r#"#!/bin/sh
+exit 1
+"#,
+        )
+        .unwrap();
+
+        let script = r#"#!/bin/sh
+if [ "$1" = "clone" ]; then
+    for last; do true; done
+    target_dir="$last"
+    mkdir -p "$target_dir/src"
+    cat > "$target_dir/Cargo.toml" <<'EOF'
+[package]
+name = "mock-remote"
+version = "0.1.0"
+edition = "2021"
+EOF
+    cat > "$target_dir/src/lib.rs" <<'EOF'
+mod config;
+
+pub fn run() -> String {
+    config::load()
+}
+EOF
+    cat > "$target_dir/src/config.rs" <<'EOF'
+pub fn load() -> String {
+    "loaded".to_string()
+}
+EOF
+    echo '# Mock Repo' > "$target_dir/README.md"
+    exit 0
+fi
+if [ "$1" = "--version" ]; then
+    echo "git version 2.40.0"
+    exit 0
+fi
+exit 1
+"#;
+        fs::write(&mock_git_path, script).unwrap();
+
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&mock_gh_path, fs::Permissions::from_mode(0o755)).unwrap();
+        fs::set_permissions(&mock_git_path, fs::Permissions::from_mode(0o755)).unwrap();
+    }
+
+    #[cfg(windows)]
+    {
+        fs::write(
+            mock_gh_path.with_extension("bat"),
+            "@echo off\r\nexit /b 1\r\n",
+        )
+        .unwrap();
+        fs::write(
+            mock_gh_path.with_extension("cmd"),
+            "@echo off\r\nexit /b 1\r\n",
+        )
+        .unwrap();
+        let script = r#"@echo off
+if "%~1" == "--version" goto version
+if "%~1" == "clone" goto clone
+exit /b 1
+
+:version
+echo git version 2.40.0
+exit /b 0
+
+:clone
+rem context-creator invokes: git clone --depth 1 <repo_url> <target_dir>
+set "target_dir=%~5"
+if "%target_dir%" == "" exit /b 1
+mkdir "%target_dir%\src" 2>nul
+echo [package] > "%target_dir%\Cargo.toml"
+echo name = "mock-remote" >> "%target_dir%\Cargo.toml"
+echo version = "0.1.0" >> "%target_dir%\Cargo.toml"
+echo edition = "2021" >> "%target_dir%\Cargo.toml"
+echo mod config; > "%target_dir%\src\lib.rs"
+echo pub fn run() -^> String { config::load() } >> "%target_dir%\src\lib.rs"
+echo pub fn load() -^> String { "loaded".to_string() } > "%target_dir%\src\config.rs"
+echo # Mock Repo > "%target_dir%\README.md"
+exit /b 0
+"#;
+        fs::write(mock_git_path.with_extension("bat"), script).unwrap();
+        fs::write(mock_git_path.with_extension("cmd"), script).unwrap();
+    }
+
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
+    cmd.env("CONTEXT_CREATOR_GH", mock_tool_path(&mock_gh_path))
+        .env("CONTEXT_CREATOR_GIT", mock_tool_path(&mock_git_path))
+        .arg("--remote")
+        .arg("https://github.com/fake/repo")
+        .arg("--include")
+        .arg("src/lib.rs")
+        .arg("--trace-imports");
+
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("src/lib.rs"))
+        .stdout(predicate::str::contains("src/config.rs"))
+        .stdout(predicate::str::contains("README.md").not());
+}
+
+fn mock_tool_path(path: &std::path::Path) -> std::path::PathBuf {
+    #[cfg(windows)]
+    {
+        path.with_extension("cmd")
+    }
+
+    #[cfg(not(windows))]
+    {
+        path.to_path_buf()
+    }
 }
 
 #[test]

@@ -40,7 +40,6 @@ fn setup_git_repo_for_e2e() -> TempDir {
 "#,
     )
     .unwrap();
-
     fs::write(
         repo_path.join("lib.rs"),
         r#"pub mod utils;
@@ -101,6 +100,118 @@ fn main() {
     temp_dir
 }
 
+/// Helper function to set up a git repository where a changed file has semantic
+/// dependencies and callers elsewhere in the project.
+fn setup_git_repo_for_semantic_diff_e2e() -> TempDir {
+    let temp_dir = TempDir::new().unwrap();
+    let repo_path = temp_dir.path();
+
+    StdCommand::new("git")
+        .arg("init")
+        .current_dir(repo_path)
+        .status()
+        .expect("Failed to init git repo");
+
+    StdCommand::new("git")
+        .args(["config", "user.name", "Test User"])
+        .current_dir(repo_path)
+        .status()
+        .expect("Failed to configure git user name");
+
+    StdCommand::new("git")
+        .args(["config", "user.email", "test@example.com"])
+        .current_dir(repo_path)
+        .status()
+        .expect("Failed to configure git user email");
+
+    fs::create_dir_all(repo_path.join("src")).unwrap();
+    fs::write(
+        repo_path.join("Cargo.toml"),
+        r#"[package]
+name = "diff_semantic"
+version = "0.1.0"
+edition = "2021"
+"#,
+    )
+    .unwrap();
+    fs::write(
+        repo_path.join("src/config.rs"),
+        r#"pub struct AppConfig {
+    pub name: String,
+}
+"#,
+    )
+    .unwrap();
+    fs::write(
+        repo_path.join("src/service.rs"),
+        r#"use crate::config::AppConfig;
+
+pub fn run_service(config: AppConfig) -> String {
+    config.name
+}
+"#,
+    )
+    .unwrap();
+    fs::write(
+        repo_path.join("src/main.rs"),
+        r#"mod config;
+mod service;
+
+use config::AppConfig;
+
+fn main() {
+    let config = AppConfig {
+        name: "prod".to_string(),
+    };
+
+    println!("{}", service::run_service(config));
+}
+"#,
+    )
+    .unwrap();
+
+    StdCommand::new("git")
+        .args(["add", "."])
+        .current_dir(repo_path)
+        .status()
+        .expect("Failed to git add semantic fixture");
+
+    StdCommand::new("git")
+        .args(["commit", "-m", "Initial semantic fixture"])
+        .current_dir(repo_path)
+        .status()
+        .expect("Failed to create semantic fixture first commit");
+
+    fs::write(
+        repo_path.join("src/service.rs"),
+        r#"use crate::config::AppConfig;
+
+pub fn run_service(config: AppConfig) -> String {
+    format!("service: {}", config.name)
+}
+
+pub fn service_status() -> &'static str {
+    "ok"
+}
+"#,
+    )
+    .unwrap();
+
+    StdCommand::new("git")
+        .args(["add", "."])
+        .current_dir(repo_path)
+        .status()
+        .expect("Failed to git add semantic fixture update");
+
+    StdCommand::new("git")
+        .args(["commit", "-m", "Update service behavior"])
+        .current_dir(repo_path)
+        .status()
+        .expect("Failed to create semantic fixture second commit");
+
+    temp_dir
+}
+
 /// Test E2E: Happy path - diff command with valid git references
 #[test]
 fn test_diff_command_e2e_happy_path() {
@@ -118,7 +229,7 @@ fn test_diff_command_e2e_happy_path() {
         .stdout(predicate::str::contains("# Git Diff Analysis"))
         .stdout(predicate::str::contains("From: HEAD~1"))
         .stdout(predicate::str::contains("To: HEAD"))
-        .stdout(predicate::str::contains("Files changed:"))
+        .stdout(predicate::str::contains("- **Files changed**:"))
         .stdout(predicate::str::contains("main.rs"))
         .stdout(predicate::str::contains("utils.rs"));
 }
@@ -155,7 +266,7 @@ fn test_diff_command_e2e_invalid_ref() {
 
     cmd.assert()
         .failure()
-        .stderr(predicate::str::contains("Git command failed"));
+        .stderr(predicate::str::contains("Failed to get changed files"));
 }
 
 /// Test E2E: diff command in non-git directory
@@ -188,7 +299,7 @@ fn test_diff_command_e2e_no_changes() {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("# Git Diff Analysis"))
-        .stdout(predicate::str::contains("Files changed: 0"));
+        .stdout(predicate::str::contains("- **Files changed**: 0"));
 }
 
 /// Test E2E: diff command with global flags
@@ -207,4 +318,28 @@ fn test_diff_command_e2e_with_global_flags() {
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("# Git Diff Analysis"));
+}
+
+/// Test E2E: diff command expands semantic context around changed files
+#[test]
+fn test_diff_command_e2e_with_semantic_expansion() {
+    let repo = setup_git_repo_for_semantic_diff_e2e();
+
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
+    cmd.arg("--trace-imports")
+        .arg("--include-types")
+        .arg("--include-callers")
+        .arg("diff")
+        .arg("HEAD~1")
+        .arg("HEAD")
+        .current_dir(repo.path());
+
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("src/service.rs"))
+        .stdout(predicate::str::contains("src/config.rs"))
+        .stdout(predicate::str::contains("src/main.rs"))
+        .stdout(predicate::str::contains("pub struct AppConfig"))
+        .stdout(predicate::str::contains("fn main()"))
+        .stdout(predicate::str::contains("Semantic analysis integration is in development").not());
 }

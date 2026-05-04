@@ -250,7 +250,7 @@ mod tests {
     use super::*;
     use crate::utils::file_ext::FileType;
     use std::fs;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
     use tempfile::TempDir;
 
     fn create_test_cache() -> Arc<FileCache> {
@@ -560,7 +560,7 @@ mod tests {
             (dir == "." || dir.is_empty())
                 && files
                     .iter()
-                    .any(|f| f.relative_path == PathBuf::from("main.rs"))
+                    .any(|f| f.relative_path.as_path() == Path::new("main.rs"))
         });
         assert!(has_root_or_main);
 
@@ -568,7 +568,7 @@ mod tests {
             dir == "src/core"
                 && files
                     .iter()
-                    .any(|f| f.relative_path == PathBuf::from("src/core/mod.rs"))
+                    .any(|f| f.relative_path.as_path() == Path::new("src/core/mod.rs"))
         });
         assert!(has_src_core);
     }

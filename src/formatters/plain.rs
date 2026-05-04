@@ -1,6 +1,7 @@
 //! Plain text formatter for context generation
 
 use super::{DigestData, DigestFormatter};
+use crate::core::context_builder::format_path_for_output;
 use crate::core::walker::FileInfo;
 use anyhow::Result;
 
@@ -28,7 +29,7 @@ impl DigestFormatter for PlainFormatter {
     fn render_header(&mut self, _data: &DigestData) -> Result<()> {
         self.buffer
             .push_str("================================================================\n");
-        self.buffer.push_str("Code Digest\n");
+        self.buffer.push_str("Context Creator\n");
         self.buffer
             .push_str("================================================================\n\n");
         Ok(())
@@ -54,8 +55,10 @@ impl DigestFormatter for PlainFormatter {
     fn render_file_details(&mut self, file: &FileInfo, data: &DigestData) -> Result<()> {
         self.buffer
             .push_str("----------------------------------------------------------------\n");
-        self.buffer
-            .push_str(&format!("File: {}\n", file.relative_path.display()));
+        self.buffer.push_str(&format!(
+            "File: {}\n",
+            format_path_for_output(&file.relative_path)
+        ));
         self.buffer
             .push_str("----------------------------------------------------------------\n\n");
 
