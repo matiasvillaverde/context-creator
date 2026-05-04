@@ -35,31 +35,70 @@ fn tool_command(tool: &str) -> Command {
 }
 
 fn tool_override(tool: &str) -> Option<OsString> {
-    let env_var = match tool {
-        "gh" => "CONTEXT_CREATOR_GH",
-        "git" => "CONTEXT_CREATOR_GIT",
-        _ => return None,
-    };
+    tool_override_env(tool)
+        .and_then(std::env::var_os)
+        .filter(|value| !value.is_empty())
+}
 
-    std::env::var_os(env_var).filter(|value| !value.is_empty())
+fn tool_override_env(tool: &str) -> Option<&'static str> {
+    match tool {
+        "gh" => Some("CONTEXT_CREATOR_GH"),
+        "git" => Some("CONTEXT_CREATOR_GIT"),
+        _ => None,
+    }
+}
+
+fn tool_available(tool: &str) -> Result<(), String> {
+    let output = tool_command(tool).arg("--version").output().map_err(|e| {
+        format!(
+            "{tool} failed to start ({})",
+            describe_tool(tool, &e.to_string())
+        )
+    })?;
+
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(format!(
+            "{tool} exited with status {} ({}; stderr: {}; stdout: {})",
+            output.status,
+            describe_tool(tool, "started"),
+            trim_command_output(&output.stderr),
+            trim_command_output(&output.stdout)
+        ))
+    }
+}
+
+fn describe_tool(tool: &str, detail: &str) -> String {
+    match tool_override(tool) {
+        Some(path) => format!(
+            "override {}={}; {detail}",
+            tool_override_env(tool).unwrap_or("unknown"),
+            Path::new(&path).display()
+        ),
+        None => format!("program={tool}; {detail}"),
+    }
+}
+
+fn trim_command_output(output: &[u8]) -> String {
+    let text = String::from_utf8_lossy(output);
+    let trimmed = text.trim();
+    if trimmed.len() > 240 {
+        let prefix: String = trimmed.chars().take(240).collect();
+        format!("{prefix}...")
+    } else {
+        trimmed.to_string()
+    }
 }
 
 /// Check if gh CLI is available
 pub fn gh_available() -> bool {
-    tool_command("gh")
-        .arg("--version")
-        .output()
-        .map(|output| output.status.success())
-        .unwrap_or(false)
+    tool_available("gh").is_ok()
 }
 
 /// Check if git is available
 pub fn git_available() -> bool {
-    tool_command("git")
-        .arg("--version")
-        .output()
-        .map(|output| output.status.success())
-        .unwrap_or(false)
+    tool_available("git").is_ok()
 }
 
 /// Parse GitHub URL to extract owner and repo
@@ -126,31 +165,41 @@ pub fn fetch_repository(repo_url: &str, verbose: bool) -> Result<TempDir, Contex
         }
 
         // Try gh first, then fall back to git
-        if gh_available() {
+        let gh_status = tool_available("gh");
+        if gh_status.is_ok() {
             if verbose {
                 eprintln!("🔧 Using gh CLI for optimal performance");
             }
             clone_with_gh(&owner, &repo, temp_dir.path(), verbose)?
-        } else if git_available() {
-            if verbose {
-                eprintln!("🔧 Using git clone (gh CLI not available)");
-            }
-            clone_with_git(repo_url, temp_dir.path(), verbose)?
         } else {
-            return Err(ContextCreatorError::RemoteFetchError(
-                "Neither gh CLI nor git is available. Please install one of them.".to_string(),
-            ));
+            let git_status = tool_available("git");
+            if git_status.is_ok() {
+                if verbose {
+                    eprintln!("🔧 Using git clone (gh CLI not available)");
+                }
+                clone_with_git(repo_url, temp_dir.path(), verbose)?
+            } else {
+                return Err(ContextCreatorError::RemoteFetchError(format!(
+                    "Neither gh CLI nor git is available. Please install one of them. gh probe: {}; git probe: {}",
+                    gh_status.err().unwrap_or_else(|| "unavailable".to_string()),
+                    git_status.err().unwrap_or_else(|| "unavailable".to_string())
+                )));
+            }
         }
     } else if is_local_git_remote(repo_url) {
         if verbose {
             eprintln!("📥 Fetching local git repository: {repo_url}");
         }
-        if git_available() {
+        let git_status = tool_available("git");
+        if git_status.is_ok() {
             clone_with_git(repo_url, temp_dir.path(), verbose)?
         } else {
-            return Err(ContextCreatorError::RemoteFetchError(
-                "git is required to clone local remote repositories.".to_string(),
-            ));
+            return Err(ContextCreatorError::RemoteFetchError(format!(
+                "git is required to clone local remote repositories. git probe: {}",
+                git_status
+                    .err()
+                    .unwrap_or_else(|| "unavailable".to_string())
+            )));
         }
     } else {
         parse_github_url(repo_url)?;
