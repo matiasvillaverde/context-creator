@@ -150,7 +150,7 @@ Notes:
 
 - Language analyzers live in `src/core/semantic/languages/`.
 - `get_analyzer_for_file()` controls which files get semantic extraction.
-- `get_resolver_for_file()` currently provides module resolution for Rust, Python, JavaScript, and TypeScript.
+- `get_resolver_for_file()` currently provides module resolution for Rust, Python, JavaScript, TypeScript, Go, and Swift.
 - Adding or expanding language support usually requires:
   - Updating `src/utils/file_ext.rs` if file type or fence-language behavior changes.
   - Updating `src/core/semantic/languages/mod.rs` and the language file.

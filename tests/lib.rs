@@ -117,6 +117,8 @@ mod semantic_include_types_integration_test;
 #[path = "modules/semantic_include_types_simple_test.rs"]
 mod semantic_include_types_simple_test;
 #[path = "modules/semantic_include_types_test.rs"]
+#[path = "modules/semantic_language_support_test.rs"]
+mod semantic_language_support_test;
 mod semantic_include_types_test;
 #[path = "modules/semantic_markdown_test.rs"]
 mod semantic_markdown_test;

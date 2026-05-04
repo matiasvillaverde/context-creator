@@ -37,7 +37,7 @@ context-creator --prompt "How does the authentication work?"
 - **Dependency-aware**: Uses tree-sitter AST parsing to understand imports, not just file names
 - **Fast**: Rust-powered parallel processing handles massive codebases in seconds
 - **Smart selection**: Includes only files connected to your query through the dependency graph
-- **Multi-language**: Semantic analysis for Python, TypeScript, JavaScript, and Rust
+- **Multi-language**: Semantic dependency expansion for Rust, Python, JavaScript, TypeScript, Go, and Swift
 - **MCP integration**: Works as a server for AI assistants to query your codebase programmatically
 
 ## Installation
