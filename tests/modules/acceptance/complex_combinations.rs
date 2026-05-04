@@ -457,24 +457,28 @@ exit 1
         )
         .unwrap();
         let script = r#"@echo off
-if "%1" == "clone" (
-    for %%a in (%*) do set "target_dir=%%a"
-    mkdir "%target_dir%\src" 2>nul
-    echo [package] > "%target_dir%\Cargo.toml"
-    echo name = "mock-remote" >> "%target_dir%\Cargo.toml"
-    echo version = "0.1.0" >> "%target_dir%\Cargo.toml"
-    echo edition = "2021" >> "%target_dir%\Cargo.toml"
-    echo mod config; > "%target_dir%\src\lib.rs"
-    echo pub fn run() -^> String { config::load() } >> "%target_dir%\src\lib.rs"
-    echo pub fn load() -^> String { "loaded".to_string() } > "%target_dir%\src\config.rs"
-    echo # Mock Repo > "%target_dir%\README.md"
-    exit /b 0
-)
-if "%1" == "--version" (
-    echo git version 2.40.0
-    exit /b 0
-)
+if "%~1" == "--version" goto version
+if "%~1" == "clone" goto clone
 exit /b 1
+
+:version
+echo git version 2.40.0
+exit /b 0
+
+:clone
+rem context-creator invokes: git clone --depth 1 <repo_url> <target_dir>
+set "target_dir=%~5"
+if "%target_dir%" == "" exit /b 1
+mkdir "%target_dir%\src" 2>nul
+echo [package] > "%target_dir%\Cargo.toml"
+echo name = "mock-remote" >> "%target_dir%\Cargo.toml"
+echo version = "0.1.0" >> "%target_dir%\Cargo.toml"
+echo edition = "2021" >> "%target_dir%\Cargo.toml"
+echo mod config; > "%target_dir%\src\lib.rs"
+echo pub fn run() -^> String { config::load() } >> "%target_dir%\src\lib.rs"
+echo pub fn load() -^> String { "loaded".to_string() } > "%target_dir%\src\config.rs"
+echo # Mock Repo > "%target_dir%\README.md"
+exit /b 0
 "#;
         fs::write(mock_git_path.with_extension("bat"), script).unwrap();
         fs::write(mock_git_path.with_extension("cmd"), script).unwrap();
