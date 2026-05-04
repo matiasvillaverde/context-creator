@@ -171,10 +171,7 @@ fn test_protobuf_parser_handles_invalid_data() {
 }
 
 #[test]
-#[should_panic(expected = "Time filtering not implemented")]
-fn test_time_filtering_not_implemented() {
-    // CRITICAL TEST: This should FAIL because time filtering is not implemented
-
+fn test_time_filtering_filters_spans_by_start_time() {
     let source_content = std::fs::read_to_string(get_test_data_path("rust", "analyzer_service.rs"))
         .expect("Failed to read Rust source file");
     let telemetry_file = get_test_data_path("rust", "analyzer_traces.json");
@@ -182,25 +179,31 @@ fn test_time_filtering_not_implemented() {
     let source_files = vec![(PathBuf::from("analyzer_service.rs"), source_content)];
     let temp_dir = setup_test_directory(&source_files).expect("Failed to setup test directory");
 
-    // Try to filter by time range - this should filter spans but currently doesn't
     let mut cmd = assert_cmd::Command::cargo_bin("context-creator").unwrap();
     let output = cmd
         .arg("telemetry")
         .arg("-t")
         .arg(&telemetry_file)
         .arg("--time-range")
-        .arg("2024-01-01T00:00:00Z/2024-01-01T00:00:01Z") // Very narrow range
+        .arg("2024-01-01T00:00:01Z/2024-01-01T00:00:02Z")
         .arg(temp_dir.path())
         .output()
         .expect("Failed to run command");
 
+    assert!(
+        output.status.success(),
+        "telemetry command failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    // With proper time filtering, this narrow range should filter out most/all spans
-    // But currently time filtering is not implemented, so all spans are returned
-    if stdout.contains("Total spans: 6") {
-        panic!("Time filtering not implemented - should filter spans in narrow time range");
-    }
+    assert!(stdout.contains("Total spans: 6"));
+    assert!(stdout.contains("Spans after filters: 2"), "{stdout}");
+    assert!(stdout.contains("Correlated spans: 2"), "{stdout}");
+    assert!(stdout.contains("analyze_repository"), "{stdout}");
+    assert!(stdout.contains("generate_report"), "{stdout}");
+    assert!(!stdout.contains("check_cache"), "{stdout}");
 }
 
 #[test]
