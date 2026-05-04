@@ -451,6 +451,11 @@ exit 1
             "@echo off\r\nexit /b 1\r\n",
         )
         .unwrap();
+        fs::write(
+            mock_gh_path.with_extension("cmd"),
+            "@echo off\r\nexit /b 1\r\n",
+        )
+        .unwrap();
         let script = r#"@echo off
 if "%1" == "clone" (
     for %%a in (%*) do set "target_dir=%%a"
@@ -472,17 +477,12 @@ if "%1" == "--version" (
 exit /b 1
 "#;
         fs::write(mock_git_path.with_extension("bat"), script).unwrap();
+        fs::write(mock_git_path.with_extension("cmd"), script).unwrap();
     }
 
-    let original_path = std::env::var("PATH").unwrap_or_default();
-    #[cfg(windows)]
-    let new_path = format!("{};{}", mock_bin_dir.display(), original_path);
-    #[cfg(not(windows))]
-    let new_path = format!("{}:{}", mock_bin_dir.display(), original_path);
-
     let mut cmd = Command::cargo_bin("context-creator").unwrap();
-    cmd.env("PATH", new_path)
-        .arg("--remote")
+    crate::test_env::prepend_to_command_path(&mut cmd, &mock_bin_dir);
+    cmd.arg("--remote")
         .arg("https://github.com/fake/repo")
         .arg("--include")
         .arg("src/lib.rs")

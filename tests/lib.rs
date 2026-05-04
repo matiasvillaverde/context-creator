@@ -8,6 +8,8 @@
 #[allow(dead_code)]
 #[allow(clippy::duplicate_mod)]
 mod semantic_test_helpers;
+#[path = "modules/test_env.rs"]
+mod test_env;
 
 // Core functionality tests
 #[path = "modules/binary_filtering_integration_test.rs"]
