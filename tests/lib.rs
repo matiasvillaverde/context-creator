@@ -51,6 +51,8 @@ mod diff_security_vulnerabilities_test;
 #[path = "modules/git_utilities_test.rs"]
 mod git_utilities_test;
 #[path = "modules/git_utilities_vulnerability_test.rs"]
+#[path = "modules/llm_tool_e2e_test.rs"]
+mod llm_tool_e2e_test;
 mod git_utilities_vulnerability_test;
 #[path = "modules/logging_test.rs"]
 mod logging_test;
