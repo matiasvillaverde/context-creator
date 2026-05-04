@@ -1,6 +1,7 @@
 //! XML formatter for context generation
 
 use super::{DigestData, DigestFormatter};
+use crate::core::context_builder::format_path_for_output;
 use crate::core::walker::FileInfo;
 use anyhow::Result;
 
@@ -63,7 +64,7 @@ impl DigestFormatter for XmlFormatter {
         if let Ok(content) = data.cache.get_or_load(&file.path) {
             self.buffer.push_str(&format!(
                 "    <file path=\"{}\">\n",
-                file.relative_path.display()
+                format_path_for_output(&file.relative_path)
             ));
             self.buffer.push_str("      <![CDATA[");
             self.buffer.push_str(&content);

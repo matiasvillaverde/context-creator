@@ -203,7 +203,7 @@ fn add_toc_entry(output: &mut String, file: &FileInfo) {
     let anchor = path_to_anchor(&file.relative_path);
     output.push_str(&format!(
         "- [{path}](#{anchor})\n",
-        path = file.relative_path.display(),
+        path = format_path_for_output(&file.relative_path),
         anchor = anchor
     ));
 }
@@ -330,15 +330,16 @@ fn add_file_header(output: &mut String, file: &FileInfo, options: &ContextOption
 }
 
 pub fn format_path_with_metadata(file: &FileInfo, options: &ContextOptions) -> String {
+    let path = format_path_for_output(&file.relative_path);
     if options.enhanced_context {
         format!(
             "{} ({}, {})",
-            file.relative_path.display(),
+            path,
             format_size(file.size),
             file_type_display(&file.file_type)
         )
     } else {
-        file.relative_path.display().to_string()
+        path
     }
 }
 
@@ -531,7 +532,7 @@ pub fn generate_file_tree(files: &[FileInfo], options: &ContextOptions) -> Strin
     // Create a lookup map from relative path to FileInfo for metadata
     let file_lookup: HashMap<String, &FileInfo> = files
         .iter()
-        .map(|f| (f.relative_path.to_string_lossy().to_string(), f))
+        .map(|f| (format_path_for_output(&f.relative_path), f))
         .collect();
 
     // Build tree structure
@@ -763,10 +764,14 @@ fn file_type_priority(file_type: &FileType) -> u8 {
 
 /// Convert path to anchor-friendly string
 pub fn path_to_anchor(path: &Path) -> String {
-    path.display()
-        .to_string()
+    format_path_for_output(path)
         .replace(['/', '\\', '.', ' '], "-")
         .to_lowercase()
+}
+
+/// Format repository-relative paths consistently across platforms.
+pub fn format_path_for_output(path: &Path) -> String {
+    path.display().to_string().replace('\\', "/")
 }
 
 /// Format file size in human-readable format

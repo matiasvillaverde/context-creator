@@ -633,15 +633,14 @@ impl UserData {
         "Should include files through re-export chain"
     );
 
-    let file_paths: Vec<String> = expanded_files
-        .values()
-        .map(|f| f.path.to_string_lossy().to_string())
-        .collect();
+    let file_paths: Vec<PathBuf> = expanded_files.values().map(|f| f.path.clone()).collect();
 
     assert!(file_paths.iter().any(|p| p.ends_with("main.rs")));
     assert!(file_paths.iter().any(|p| p.ends_with("lib.rs")));
     assert!(
-        file_paths.iter().any(|p| p.ends_with("core/types.rs")),
+        file_paths
+            .iter()
+            .any(|p| p.ends_with(PathBuf::from("core").join("types.rs"))),
         "Should trace through re-exports to find the actual type definition"
     );
 }

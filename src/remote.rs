@@ -8,9 +8,43 @@ use tempfile::TempDir;
 #[cfg(unix)]
 use std::fs;
 
+fn tool_command(tool: &str) -> Command {
+    if let Some(path) = resolve_tool_on_path(tool) {
+        Command::new(path)
+    } else {
+        Command::new(tool)
+    }
+}
+
+#[cfg(windows)]
+fn resolve_tool_on_path(tool: &str) -> Option<PathBuf> {
+    let path_var = std::env::var_os("PATH")?;
+
+    for dir in std::env::split_paths(&path_var) {
+        for extension in ["exe", "cmd", "bat"] {
+            let candidate = dir.join(format!("{tool}.{extension}"));
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+
+        let candidate = dir.join(tool);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+
+    None
+}
+
+#[cfg(not(windows))]
+fn resolve_tool_on_path(_tool: &str) -> Option<PathBuf> {
+    None
+}
+
 /// Check if gh CLI is available
 pub fn gh_available() -> bool {
-    Command::new("gh")
+    tool_command("gh")
         .arg("--version")
         .output()
         .map(|output| output.status.success())
@@ -19,7 +53,7 @@ pub fn gh_available() -> bool {
 
 /// Check if git is available
 pub fn git_available() -> bool {
-    Command::new("git")
+    tool_command("git")
         .arg("--version")
         .output()
         .map(|output| output.status.success())
@@ -142,7 +176,7 @@ fn clone_with_gh(
     verbose: bool,
 ) -> Result<bool, ContextCreatorError> {
     let repo_spec = format!("{owner}/{repo}");
-    let mut cmd = Command::new("gh");
+    let mut cmd = tool_command("gh");
     cmd.arg("repo")
         .arg("clone")
         .arg(&repo_spec)
@@ -175,7 +209,7 @@ fn clone_with_git(
         ));
     }
 
-    let mut cmd = Command::new("git");
+    let mut cmd = tool_command("git");
     cmd.arg("clone")
         .arg("--depth")
         .arg("1")

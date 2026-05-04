@@ -3,7 +3,7 @@
 use crate::cli::{Commands, Config};
 use crate::core::{
     cache::FileCache,
-    context_builder::ContextOptions,
+    context_builder::{format_path_for_output, ContextOptions},
     file_expander, prioritizer,
     project_analyzer::ProjectAnalysis,
     walker::{walk_directory, FileInfo, WalkOptions},
@@ -189,7 +189,10 @@ fn generate_diff_markdown(params: DiffMarkdownParams) -> Result<String> {
         markdown.push_str("No files changed.\n");
     } else {
         for file in changed_files {
-            markdown.push_str(&format!("- `{}`\n", file.relative_path.display()));
+            markdown.push_str(&format!(
+                "- `{}`\n",
+                format_path_for_output(&file.relative_path)
+            ));
         }
     }
     markdown.push('\n');
@@ -203,7 +206,10 @@ fn generate_diff_markdown(params: DiffMarkdownParams) -> Result<String> {
     if !semantic_files.is_empty() {
         markdown.push_str("## Semantic Context Files\n\n");
         for file in semantic_files {
-            markdown.push_str(&format!("- `{}`\n", file.relative_path.display()));
+            markdown.push_str(&format!(
+                "- `{}`\n",
+                format_path_for_output(&file.relative_path)
+            ));
         }
         markdown.push('\n');
     }
@@ -220,7 +226,10 @@ fn generate_diff_markdown(params: DiffMarkdownParams) -> Result<String> {
             &file.relative_path
         };
 
-        markdown.push_str(&format!("### {}\n\n", relative_path.display()));
+        markdown.push_str(&format!(
+            "### {}\n\n",
+            format_path_for_output(relative_path)
+        ));
 
         let language = get_language_from_extension(&file.path);
 
