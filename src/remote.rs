@@ -9,11 +9,28 @@ use tempfile::TempDir;
 use std::fs;
 
 fn tool_command(tool: &str) -> Command {
-    if let Some(path) = resolve_tool_on_path(tool) {
-        Command::new(path)
-    } else {
-        Command::new(tool)
+    let executable = resolve_tool_on_path(tool).unwrap_or_else(|| PathBuf::from(tool));
+
+    #[cfg(windows)]
+    {
+        if is_windows_script(&executable) {
+            let mut command = Command::new("cmd");
+            command.arg("/C").arg(executable);
+            return command;
+        }
     }
+
+    Command::new(executable)
+}
+
+#[cfg(windows)]
+fn is_windows_script(path: &Path) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| {
+            extension.eq_ignore_ascii_case("bat") || extension.eq_ignore_ascii_case("cmd")
+        })
+        .unwrap_or(false)
 }
 
 #[cfg(windows)]
