@@ -221,20 +221,21 @@ fn test_diff_command_should_include_semantic_analysis() {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    // EXPECTED: Should include semantic analysis of changes
+    // EXPECTED: Semantic mode should still produce a complete diff context even
+    // when the changed files do not have expandable semantic neighbors.
     assert!(
-        stdout.contains("Dependencies:")
-            || stdout.contains("Imports:")
-            || stdout.contains("# Semantic Analysis")
-            || stdout.contains("## Semantic Analysis")
-            || stdout.contains("*Semantic analysis integration is in development*"),
-        "Expected semantic analysis integration, got: {stdout}"
+        stdout.contains("Context Statistics") && stdout.contains("lib.rs"),
+        "Expected semantic diff context, got: {stdout}"
     );
 
     // FAILURE PROOF: Should NOT contain placeholder message
     assert!(
         !stdout.contains("Diff command not yet implemented"),
         "Should have functional diff with semantic analysis, got: {stdout}"
+    );
+    assert!(
+        !stdout.contains("Semantic analysis integration is in development"),
+        "Semantic diff should use real expansion, got placeholder: {stdout}"
     );
 }
 

@@ -41,6 +41,8 @@ mod cli_test;
 #[path = "modules/cli_uncovered_scenarios_test.rs"]
 mod cli_uncovered_scenarios_test;
 #[path = "modules/diff_cli_test.rs"]
+#[path = "modules/diff_e2e_test.rs"]
+mod diff_e2e_test;
 mod diff_cli_test;
 #[path = "modules/diff_functionality_missing_test.rs"]
 mod diff_functionality_missing_test;
