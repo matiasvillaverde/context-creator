@@ -16,6 +16,8 @@ mod binary_filtering_integration_test;
 mod binary_name_test;
 #[path = "modules/cache_integration_test.rs"]
 mod cache_integration_test;
+#[path = "modules/config_interactions_e2e_test.rs"]
+mod config_interactions_e2e_test;
 #[path = "modules/config_precedence_test.rs"]
 mod config_precedence_test;
 #[path = "modules/config_rename_test.rs"]
@@ -153,6 +155,8 @@ mod token_limits_integration_test;
 #[path = "modules/remote_parsing_test.rs"]
 mod remote_parsing_test;
 
+#[path = "modules/reliability_stress_subset_test.rs"]
+mod reliability_stress_subset_test;
 // Security tests
 #[path = "modules/security_vulnerability_test.rs"]
 mod security_vulnerability_test;
