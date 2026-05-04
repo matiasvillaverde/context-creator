@@ -80,6 +80,9 @@ LLM Integration:
 Remote Repositories:
   # Analyze GitHub repository
   context-creator --repo https://github.com/owner/repo
+
+  # Analyze a local bare repository
+  context-creator --repo file:///path/to/repo.git
   
   # With specific patterns
   context-creator --repo https://github.com/facebook/react --include \"**/*.js\"
@@ -345,8 +348,12 @@ pub struct Config {
     )]
     pub ignore: Option<Vec<String>>,
 
-    /// GitHub repository URL to analyze (e.g., <https://github.com/owner/repo>)
-    #[arg(long, visible_alias = "repo", help = "Process a GitHub repository")]
+    /// GitHub URL, file:// URL, or local Git repository path to analyze
+    #[arg(
+        long,
+        visible_alias = "repo",
+        help = "Process a GitHub URL, file:// URL, or local Git repository path"
+    )]
     pub remote: Option<String>,
 
     /// Read prompt from stdin
@@ -568,10 +575,11 @@ impl Config {
         if let Some(repo_url) = &self.remote {
             if !repo_url.starts_with("https://github.com/")
                 && !repo_url.starts_with("http://github.com/")
+                && !repo_url.starts_with("file://")
+                && !std::path::Path::new(repo_url).exists()
             {
                 return Err(ContextCreatorError::InvalidConfiguration(
-                    "Repository URL must be a GitHub URL (https://github.com/owner/repo)"
-                        .to_string(),
+                    "Repository URL must be a GitHub URL (https://github.com/owner/repo), file:// URL, or existing local Git path".to_string(),
                 ));
             }
         } else {

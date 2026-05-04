@@ -189,6 +189,70 @@ exit /b 1
 }
 
 #[test]
+#[cfg_attr(windows, ignore = "Uses Unix-style file:// paths")]
+fn test_remote_local_bare_git_repo_e2e() {
+    let temp_dir = TempDir::new().unwrap();
+    let worktree = temp_dir.path().join("local-remote-source");
+    let bare_repo = temp_dir.path().join("local-remote.git");
+
+    fs::create_dir(&worktree).unwrap();
+    Command::new("git")
+        .arg("init")
+        .current_dir(&worktree)
+        .status()
+        .expect("Failed to init source repo");
+    Command::new("git")
+        .args(["config", "user.name", "Test User"])
+        .current_dir(&worktree)
+        .status()
+        .expect("Failed to configure git user name");
+    Command::new("git")
+        .args(["config", "user.email", "test@example.com"])
+        .current_dir(&worktree)
+        .status()
+        .expect("Failed to configure git user email");
+
+    fs::create_dir(worktree.join("src")).unwrap();
+    fs::write(
+        worktree.join("src/main.rs"),
+        r#"fn main() {
+    println!("hello from local bare remote");
+}
+"#,
+    )
+    .unwrap();
+    fs::write(worktree.join("README.md"), "# Local Bare Remote\n").unwrap();
+
+    Command::new("git")
+        .args(["add", "."])
+        .current_dir(&worktree)
+        .status()
+        .expect("Failed to add source files");
+    Command::new("git")
+        .args(["commit", "-m", "Initial local remote fixture"])
+        .current_dir(&worktree)
+        .status()
+        .expect("Failed to commit source files");
+    Command::new("git")
+        .arg("clone")
+        .arg("--bare")
+        .arg(&worktree)
+        .arg(&bare_repo)
+        .status()
+        .expect("Failed to create bare repository");
+
+    let remote_url = format!("file://{}", bare_repo.display());
+    let mut cmd = Command::cargo_bin("context-creator").unwrap();
+    cmd.arg("--remote").arg(remote_url);
+
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("src/main.rs"))
+        .stdout(predicate::str::contains("README.md"))
+        .stdout(predicate::str::contains("hello from local bare remote"));
+}
+
+#[test]
 fn test_invalid_repo_url() {
     let mut cmd = Command::cargo_bin("context-creator").unwrap();
     cmd.arg("--remote").arg("https://gitlab.com/fake/repo");
