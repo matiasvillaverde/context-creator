@@ -8,55 +8,16 @@ use tempfile::TempDir;
 #[cfg(unix)]
 use std::fs;
 
+#[cfg(windows)]
 fn tool_command(tool: &str) -> Command {
-    let executable = resolve_tool_on_path(tool).unwrap_or_else(|| PathBuf::from(tool));
-
-    #[cfg(windows)]
-    {
-        if is_windows_script(&executable) {
-            let mut command = Command::new("cmd");
-            command.arg("/C").arg(executable);
-            return command;
-        }
-    }
-
-    Command::new(executable)
-}
-
-#[cfg(windows)]
-fn is_windows_script(path: &Path) -> bool {
-    path.extension()
-        .and_then(|extension| extension.to_str())
-        .map(|extension| {
-            extension.eq_ignore_ascii_case("bat") || extension.eq_ignore_ascii_case("cmd")
-        })
-        .unwrap_or(false)
-}
-
-#[cfg(windows)]
-fn resolve_tool_on_path(tool: &str) -> Option<PathBuf> {
-    let path_var = std::env::var_os("PATH")?;
-
-    for dir in std::env::split_paths(&path_var) {
-        for extension in ["exe", "cmd", "bat"] {
-            let candidate = dir.join(format!("{tool}.{extension}"));
-            if candidate.is_file() {
-                return Some(candidate);
-            }
-        }
-
-        let candidate = dir.join(tool);
-        if candidate.is_file() {
-            return Some(candidate);
-        }
-    }
-
-    None
+    let mut command = Command::new("cmd.exe");
+    command.arg("/C").arg(tool);
+    command
 }
 
 #[cfg(not(windows))]
-fn resolve_tool_on_path(_tool: &str) -> Option<PathBuf> {
-    None
+fn tool_command(tool: &str) -> Command {
+    Command::new(tool)
 }
 
 /// Check if gh CLI is available
