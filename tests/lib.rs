@@ -43,9 +43,9 @@ mod cli_test;
 #[path = "modules/cli_uncovered_scenarios_test.rs"]
 mod cli_uncovered_scenarios_test;
 #[path = "modules/diff_cli_test.rs"]
+mod diff_cli_test;
 #[path = "modules/diff_e2e_test.rs"]
 mod diff_e2e_test;
-mod diff_cli_test;
 #[path = "modules/diff_functionality_missing_test.rs"]
 mod diff_functionality_missing_test;
 #[path = "modules/diff_security_vulnerabilities_test.rs"]
@@ -53,9 +53,9 @@ mod diff_security_vulnerabilities_test;
 #[path = "modules/git_utilities_test.rs"]
 mod git_utilities_test;
 #[path = "modules/git_utilities_vulnerability_test.rs"]
+mod git_utilities_vulnerability_test;
 #[path = "modules/llm_tool_e2e_test.rs"]
 mod llm_tool_e2e_test;
-mod git_utilities_vulnerability_test;
 #[path = "modules/logging_test.rs"]
 mod logging_test;
 #[path = "modules/search_acceptance_test.rs"]
@@ -119,9 +119,9 @@ mod semantic_include_types_integration_test;
 #[path = "modules/semantic_include_types_simple_test.rs"]
 mod semantic_include_types_simple_test;
 #[path = "modules/semantic_include_types_test.rs"]
+mod semantic_include_types_test;
 #[path = "modules/semantic_language_support_test.rs"]
 mod semantic_language_support_test;
-mod semantic_include_types_test;
 #[path = "modules/semantic_markdown_test.rs"]
 mod semantic_markdown_test;
 #[path = "modules/semantic_output_test.rs"]
@@ -155,9 +155,9 @@ mod token_limits_integration_test;
 #[path = "modules/remote_parsing_test.rs"]
 mod remote_parsing_test;
 
+// Security tests
 #[path = "modules/reliability_stress_subset_test.rs"]
 mod reliability_stress_subset_test;
-// Security tests
 #[path = "modules/security_vulnerability_test.rs"]
 mod security_vulnerability_test;
 
