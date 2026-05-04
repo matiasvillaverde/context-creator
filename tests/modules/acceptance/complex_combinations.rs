@@ -481,8 +481,9 @@ exit /b 1
     }
 
     let mut cmd = Command::cargo_bin("context-creator").unwrap();
-    crate::test_env::prepend_to_command_path(&mut cmd, &mock_bin_dir);
-    cmd.arg("--remote")
+    cmd.env("CONTEXT_CREATOR_GH", mock_tool_path(&mock_gh_path))
+        .env("CONTEXT_CREATOR_GIT", mock_tool_path(&mock_git_path))
+        .arg("--remote")
         .arg("https://github.com/fake/repo")
         .arg("--include")
         .arg("src/lib.rs")
@@ -493,6 +494,18 @@ exit /b 1
         .stdout(predicate::str::contains("src/lib.rs"))
         .stdout(predicate::str::contains("src/config.rs"))
         .stdout(predicate::str::contains("README.md").not());
+}
+
+fn mock_tool_path(path: &std::path::Path) -> std::path::PathBuf {
+    #[cfg(windows)]
+    {
+        path.with_extension("cmd")
+    }
+
+    #[cfg(not(windows))]
+    {
+        path.to_path_buf()
+    }
 }
 
 #[test]

@@ -15,10 +15,10 @@ fn test_github_repo_parsing_with_gh() {
 
     // Create the mock gh script
     let _mock_repo_path = temp_dir.path().join("repo");
+    let mock_gh_path = mock_bin_dir.join("gh");
 
     #[cfg(unix)]
     {
-        let mock_gh_path = mock_bin_dir.join("gh");
         let script = r#"#!/bin/sh
 # Mock gh command
 if [ "$1" = "repo" ] && [ "$2" = "clone" ]; then
@@ -75,13 +75,12 @@ if "%1" == "repo" if "%2" == "clone" (
 echo Command not recognized >> gh_debug.log
 exit /b 1
 "#;
-        fs::write(mock_bin_dir.join("gh.cmd"), script).unwrap();
+        fs::write(mock_gh_path.with_extension("cmd"), script).unwrap();
     }
 
     let mut cmd = Command::cargo_bin("context-creator").unwrap();
 
-    // Prepend the mock bin directory to the PATH
-    crate::test_env::prepend_to_command_path(&mut cmd, &mock_bin_dir);
+    cmd.env("CONTEXT_CREATOR_GH", mock_tool_path(&mock_gh_path));
     cmd.arg("--remote").arg("https://github.com/fake/repo");
 
     cmd.assert()
@@ -173,13 +172,25 @@ exit /b 1
 
     let mut cmd = Command::cargo_bin("context-creator").unwrap();
 
-    // Put mocks first so gh is unavailable, but keep system utilities available to scripts.
-    crate::test_env::prepend_to_command_path(&mut cmd, &mock_bin_dir);
+    cmd.env("CONTEXT_CREATOR_GH", mock_tool_path(&mock_gh_path))
+        .env("CONTEXT_CREATOR_GIT", mock_tool_path(&mock_git_path));
     cmd.arg("--remote").arg("https://github.com/fake/repo");
 
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("main.rs"));
+}
+
+fn mock_tool_path(path: &std::path::Path) -> std::path::PathBuf {
+    #[cfg(windows)]
+    {
+        path.with_extension("cmd")
+    }
+
+    #[cfg(not(windows))]
+    {
+        path.to_path_buf()
+    }
 }
 
 #[test]

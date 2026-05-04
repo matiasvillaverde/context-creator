@@ -1,6 +1,7 @@
 //! Remote repository fetching functionality
 
 use crate::utils::error::ContextCreatorError;
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use tempfile::TempDir;
@@ -10,14 +11,37 @@ use std::fs;
 
 #[cfg(windows)]
 fn tool_command(tool: &str) -> Command {
+    let program = tool_override(tool).unwrap_or_else(|| OsString::from(tool));
+
+    let path = Path::new(&program);
+    if matches!(
+        path.extension().and_then(|extension| extension.to_str()),
+        Some(extension) if extension.eq_ignore_ascii_case("bat")
+            || extension.eq_ignore_ascii_case("cmd")
+    ) {
+        let mut command = Command::new("cmd.exe");
+        command.arg("/C").arg(program);
+        return command;
+    }
+
     let mut command = Command::new("cmd.exe");
-    command.arg("/C").arg(tool);
+    command.arg("/C").arg(program);
     command
 }
 
 #[cfg(not(windows))]
 fn tool_command(tool: &str) -> Command {
-    Command::new(tool)
+    Command::new(tool_override(tool).unwrap_or_else(|| OsString::from(tool)))
+}
+
+fn tool_override(tool: &str) -> Option<OsString> {
+    let env_var = match tool {
+        "gh" => "CONTEXT_CREATOR_GH",
+        "git" => "CONTEXT_CREATOR_GIT",
+        _ => return None,
+    };
+
+    std::env::var_os(env_var).filter(|value| !value.is_empty())
 }
 
 /// Check if gh CLI is available
