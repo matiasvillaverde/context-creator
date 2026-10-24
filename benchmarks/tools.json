@@ -4,9 +4,7 @@
     "version": "1.18.1",
     "artifact": "file",
     "command": [
-      "npx",
-      "--yes",
-      "repomix@1.18.1",
+      "repomix",
       "{root}",
       "--output",
       "{output}",
@@ -17,9 +15,7 @@
       "--no-git-sort-by-changes"
     ],
     "version_command": [
-      "npx",
-      "--yes",
-      "repomix@1.18.1",
+      "repomix",
       "--version"
     ]
   },

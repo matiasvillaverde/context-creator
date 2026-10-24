@@ -1,0 +1,769 @@
+{
+  "measured_at": "2026-10-24",
+  "comparison": {
+    "schema_version": 1,
+    "corpus": {
+      "generator_version": 1,
+      "files": 130,
+      "source_bytes": 154423,
+      "body_lines": 40,
+      "sha256": "1c5d53a5e5334373aba1ed2da8255c6cfc3ec0009f5782d9ab6302bb6a9fd38f"
+    },
+    "tokenizer": "o200k-base",
+    "source_commit": "4c1bfd977f5bbbd6557bc698a271f47398bb5af5",
+    "binary_sha256": "effc5d288e4f6ac64b99079402df2cdfc773b6a3e463e5e77b78793bae9abbc3",
+    "platform": "Linux-7.2.8-9-omarchy-x86_64-with-glibc2.44",
+    "processor": "AMD Ryzen 9 7950X3D 16-Core Processor",
+    "logical_cpus": 28,
+    "process_cache": "cold; fresh corpus copy per sample",
+    "filesystem_cache": "uncontrolled; OS caches are not flushed",
+    "quality_metric": "symbol + source-path recall on fixed navigation tasks; no LLM answers",
+    "tools": [
+      {
+        "tool": "context-creator/full",
+        "version": "context-creator 1.6.0",
+        "command": [
+          "{binary}",
+          "{root}",
+          "--quiet",
+          "--output",
+          "{output}",
+          "--report",
+          "{report}"
+        ],
+        "observed_version": "context-creator 1.6.0",
+        "samples": [
+          {
+            "wall_seconds": 0.19196553499205038,
+            "cpu_seconds": 0.19883599999999998,
+            "peak_rss_kib": 103152,
+            "output_bytes": 171740,
+            "navigation_tasks_passed": 130,
+            "navigation_tasks_total": 130,
+            "tokens": 64923,
+            "files_selected": 130,
+            "timings_ms": {
+              "scan_and_analysis": 10.34844,
+              "selection": 0.086252,
+              "rendering": 2.347592,
+              "native_counting": 0.006432,
+              "accounting": 167.433258,
+              "generation_total": 180.33741
+            }
+          },
+          {
+            "wall_seconds": 0.19301057000120636,
+            "cpu_seconds": 0.19602399999999998,
+            "peak_rss_kib": 105396,
+            "output_bytes": 171740,
+            "navigation_tasks_passed": 130,
+            "navigation_tasks_total": 130,
+            "tokens": 64923,
+            "files_selected": 130,
+            "timings_ms": {
+              "scan_and_analysis": 13.068850999999999,
+              "selection": 0.08942599999999999,
+              "rendering": 3.055537,
+              "native_counting": 0.006672,
+              "accounting": 166.14645,
+              "generation_total": 182.537968
+            }
+          },
+          {
+            "wall_seconds": 0.1994572120020166,
+            "cpu_seconds": 0.20513199999999998,
+            "peak_rss_kib": 105620,
+            "output_bytes": 171740,
+            "navigation_tasks_passed": 130,
+            "navigation_tasks_total": 130,
+            "tokens": 64923,
+            "files_selected": 130,
+            "timings_ms": {
+              "scan_and_analysis": 10.408183,
+              "selection": 0.075752,
+              "rendering": 3.072218,
+              "native_counting": 0.0074340000000000005,
+              "accounting": 175.122805,
+              "generation_total": 188.784654
+            }
+          },
+          {
+            "wall_seconds": 0.24149480799678713,
+            "cpu_seconds": 0.24512799999999998,
+            "peak_rss_kib": 105620,
+            "output_bytes": 171740,
+            "navigation_tasks_passed": 130,
+            "navigation_tasks_total": 130,
+            "tokens": 64923,
+            "files_selected": 130,
+            "timings_ms": {
+              "scan_and_analysis": 13.035077000000001,
+              "selection": 0.178474,
+              "rendering": 3.688451,
+              "native_counting": 0.007634,
+              "accounting": 212.935488,
+              "generation_total": 229.973414
+            }
+          },
+          {
+            "wall_seconds": 0.23125681398960296,
+            "cpu_seconds": 0.23910199999999998,
+            "peak_rss_kib": 105620,
+            "output_bytes": 171740,
+            "navigation_tasks_passed": 130,
+            "navigation_tasks_total": 130,
+            "tokens": 64923,
+            "files_selected": 130,
+            "timings_ms": {
+              "scan_and_analysis": 12.380001,
+              "selection": 0.09583,
+              "rendering": 3.4110519999999998,
+              "native_counting": 0.009738,
+              "accounting": 201.253922,
+              "generation_total": 217.302728
+            }
+          }
+        ],
+        "error": null,
+        "median_wall_seconds": 0.1994572120020166
+      },
+      {
+        "tool": "context-creator/map",
+        "version": "context-creator 1.6.0",
+        "command": [
+          "{binary}",
+          "{root}",
+          "--quiet",
+          "--style",
+          "map",
+          "--max-tokens",
+          "{tokens}",
+          "--output",
+          "{output}",
+          "--report",
+          "{report}"
+        ],
+        "observed_version": "context-creator 1.6.0",
+        "samples": [
+          {
+            "wall_seconds": 0.4665423260012176,
+            "cpu_seconds": 1.961458,
+            "peak_rss_kib": 160376,
+            "output_bytes": 9701,
+            "navigation_tasks_passed": 130,
+            "navigation_tasks_total": 130,
+            "tokens": 3064,
+            "files_selected": 130,
+            "timings_ms": {
+              "scan_and_analysis": 205.85283600000002,
+              "selection": 0.089588,
+              "rendering": 230.132431,
+              "native_counting": 0.0008719999999999999,
+              "accounting": 0.0036160000000000003,
+              "generation_total": 436.194708
+            }
+          },
+          {
+            "wall_seconds": 0.4873532210040139,
+            "cpu_seconds": 2.1461829999999997,
+            "peak_rss_kib": 170200,
+            "output_bytes": 9701,
+            "navigation_tasks_passed": 130,
+            "navigation_tasks_total": 130,
+            "tokens": 3064,
+            "files_selected": 130,
+            "timings_ms": {
+              "scan_and_analysis": 250.97402400000001,
+              "selection": 0.076763,
+              "rendering": 211.648239,
+              "native_counting": 0.009618,
+              "accounting": 0.005471,
+              "generation_total": 462.845249
+            }
+          },
+          {
+            "wall_seconds": 0.39326043300388847,
+            "cpu_seconds": 1.9503089999999998,
+            "peak_rss_kib": 168876,
+            "output_bytes": 9701,
+            "navigation_tasks_passed": 130,
+            "navigation_tasks_total": 130,
+            "tokens": 3064,
+            "files_selected": 130,
+            "timings_ms": {
+              "scan_and_analysis": 210.96453000000002,
+              "selection": 0.08784499999999999,
+              "rendering": 161.833432,
+              "native_counting": 0.007314,
+              "accounting": 0.0019939999999999997,
+              "generation_total": 373.00025999999997
+            }
+          },
+          {
+            "wall_seconds": 0.5753342140087625,
+            "cpu_seconds": 2.066026,
+            "peak_rss_kib": 165960,
+            "output_bytes": 9701,
+            "navigation_tasks_passed": 130,
+            "navigation_tasks_total": 130,
+            "tokens": 3064,
+            "files_selected": 130,
+            "timings_ms": {
+              "scan_and_analysis": 206.54804800000002,
+              "selection": 0.069438,
+              "rendering": 323.207172,
+              "native_counting": 0.010098999999999999,
+              "accounting": 0.004237,
+              "generation_total": 529.9540619999999
+            }
+          },
+          {
+            "wall_seconds": 0.46647794599994086,
+            "cpu_seconds": 1.820691,
+            "peak_rss_kib": 156184,
+            "output_bytes": 9701,
+            "navigation_tasks_passed": 130,
+            "navigation_tasks_total": 130,
+            "tokens": 3064,
+            "files_selected": 130,
+            "timings_ms": {
+              "scan_and_analysis": 237.159188,
+              "selection": 0.133329,
+              "rendering": 207.425829,
+              "native_counting": 0.008365000000000001,
+              "accounting": 0.002235,
+              "generation_total": 444.84856900000005
+            }
+          }
+        ],
+        "error": null,
+        "median_wall_seconds": 0.4665423260012176
+      },
+      {
+        "tool": "repomix/full",
+        "version": "1.18.1",
+        "command": [
+          "repomix",
+          "{root}",
+          "--output",
+          "{output}",
+          "--style",
+          "markdown",
+          "--quiet",
+          "--no-security-check",
+          "--no-git-sort-by-changes"
+        ],
+        "observed_version": "1.18.1",
+        "samples": [
+          {
+            "wall_seconds": 0.4706817789992783,
+            "cpu_seconds": 0.776022,
+            "peak_rss_kib": 240832,
+            "output_bytes": 164639,
+            "navigation_tasks_passed": 130,
+            "navigation_tasks_total": 130,
+            "tokens": 61832
+          },
+          {
+            "wall_seconds": 0.5163093040027888,
+            "cpu_seconds": 0.5925039999999999,
+            "peak_rss_kib": 167964,
+            "output_bytes": 164639,
+            "navigation_tasks_passed": 130,
+            "navigation_tasks_total": 130,
+            "tokens": 61832
+          },
+          {
+            "wall_seconds": 0.4759790110110771,
+            "cpu_seconds": 0.5564319999999999,
+            "peak_rss_kib": 165952,
+            "output_bytes": 164639,
+            "navigation_tasks_passed": 130,
+            "navigation_tasks_total": 130,
+            "tokens": 61832
+          },
+          {
+            "wall_seconds": 0.42521310300799087,
+            "cpu_seconds": 0.523009,
+            "peak_rss_kib": 165832,
+            "output_bytes": 164639,
+            "navigation_tasks_passed": 130,
+            "navigation_tasks_total": 130,
+            "tokens": 61832
+          },
+          {
+            "wall_seconds": 0.7975208679999923,
+            "cpu_seconds": 0.8860669999999999,
+            "peak_rss_kib": 165800,
+            "output_bytes": 164639,
+            "navigation_tasks_passed": 130,
+            "navigation_tasks_total": 130,
+            "tokens": 61832
+          }
+        ],
+        "error": null,
+        "median_wall_seconds": 0.4759790110110771
+      },
+      {
+        "tool": "gitingest/full",
+        "version": "0.3.1",
+        "command": [
+          "gitingest",
+          "{root}",
+          "--output",
+          "{output}"
+        ],
+        "observed_version": "0.3.1",
+        "samples": [
+          {
+            "wall_seconds": 0.869165978001547,
+            "cpu_seconds": 0.852362,
+            "peak_rss_kib": 132624,
+            "output_bytes": 176802,
+            "navigation_tasks_passed": 130,
+            "navigation_tasks_total": 130,
+            "tokens": 61903
+          },
+          {
+            "wall_seconds": 0.6502352019888349,
+            "cpu_seconds": 0.642942,
+            "peak_rss_kib": 132852,
+            "output_bytes": 176802,
+            "navigation_tasks_passed": 130,
+            "navigation_tasks_total": 130,
+            "tokens": 61903
+          },
+          {
+            "wall_seconds": 0.817056144005619,
+            "cpu_seconds": 0.802084,
+            "peak_rss_kib": 132992,
+            "output_bytes": 176802,
+            "navigation_tasks_passed": 130,
+            "navigation_tasks_total": 130,
+            "tokens": 61903
+          },
+          {
+            "wall_seconds": 0.6884340179967694,
+            "cpu_seconds": 0.683542,
+            "peak_rss_kib": 132912,
+            "output_bytes": 176802,
+            "navigation_tasks_passed": 130,
+            "navigation_tasks_total": 130,
+            "tokens": 61903
+          },
+          {
+            "wall_seconds": 0.641002048010705,
+            "cpu_seconds": 0.635315,
+            "peak_rss_kib": 133160,
+            "output_bytes": 176802,
+            "navigation_tasks_passed": 130,
+            "navigation_tasks_total": 130,
+            "tokens": 61903
+          }
+        ],
+        "error": null,
+        "median_wall_seconds": 0.6884340179967694
+      },
+      {
+        "tool": "code2prompt/full",
+        "version": "4.2.0",
+        "command": [
+          "code2prompt",
+          "{root}",
+          "--output-file",
+          "{output}",
+          "--output-format",
+          "markdown",
+          "--quiet",
+          "--token-format",
+          "raw",
+          "--encoding",
+          "cl100k"
+        ],
+        "observed_version": "code2prompt 4.2.0",
+        "samples": [
+          {
+            "wall_seconds": 0.12454932699620258,
+            "cpu_seconds": 0.166511,
+            "peak_rss_kib": 106068,
+            "output_bytes": 164465,
+            "navigation_tasks_passed": 130,
+            "navigation_tasks_total": 130,
+            "tokens": 62038
+          },
+          {
+            "wall_seconds": 0.14257382799405605,
+            "cpu_seconds": 0.181053,
+            "peak_rss_kib": 106068,
+            "output_bytes": 164465,
+            "navigation_tasks_passed": 130,
+            "navigation_tasks_total": 130,
+            "tokens": 62038
+          },
+          {
+            "wall_seconds": 0.12259779599844478,
+            "cpu_seconds": 0.166861,
+            "peak_rss_kib": 106068,
+            "output_bytes": 164465,
+            "navigation_tasks_passed": 130,
+            "navigation_tasks_total": 130,
+            "tokens": 62038
+          },
+          {
+            "wall_seconds": 0.1010865720018046,
+            "cpu_seconds": 0.149305,
+            "peak_rss_kib": 106068,
+            "output_bytes": 164465,
+            "navigation_tasks_passed": 130,
+            "navigation_tasks_total": 130,
+            "tokens": 62038
+          },
+          {
+            "wall_seconds": 0.1287910229875706,
+            "cpu_seconds": 0.175591,
+            "peak_rss_kib": 106068,
+            "output_bytes": 164465,
+            "navigation_tasks_passed": 130,
+            "navigation_tasks_total": 130,
+            "tokens": 62038
+          }
+        ],
+        "error": null,
+        "median_wall_seconds": 0.12454932699620258
+      },
+      {
+        "tool": "aider/map",
+        "version": "0.86.0",
+        "command": [
+          "python",
+          "{repo}/benchmarks/aider_map.py",
+          "{root}",
+          "{tokens}"
+        ],
+        "observed_version": "0.86.0",
+        "samples": [
+          {
+            "wall_seconds": 3.614809895007056,
+            "cpu_seconds": 5.186129,
+            "peak_rss_kib": 199380,
+            "output_bytes": 11682,
+            "navigation_tasks_passed": 40,
+            "navigation_tasks_total": 130,
+            "tokens": 4371
+          },
+          {
+            "wall_seconds": 3.495309392004856,
+            "cpu_seconds": 4.902755,
+            "peak_rss_kib": 200140,
+            "output_bytes": 11682,
+            "navigation_tasks_passed": 40,
+            "navigation_tasks_total": 130,
+            "tokens": 4371
+          },
+          {
+            "wall_seconds": 3.384866733002127,
+            "cpu_seconds": 4.839846,
+            "peak_rss_kib": 199636,
+            "output_bytes": 11682,
+            "navigation_tasks_passed": 40,
+            "navigation_tasks_total": 130,
+            "tokens": 4371
+          },
+          {
+            "wall_seconds": 3.57584728000802,
+            "cpu_seconds": 5.094054,
+            "peak_rss_kib": 200168,
+            "output_bytes": 11682,
+            "navigation_tasks_passed": 40,
+            "navigation_tasks_total": 130,
+            "tokens": 4371
+          },
+          {
+            "wall_seconds": 3.4893638280045707,
+            "cpu_seconds": 5.094222,
+            "peak_rss_kib": 199936,
+            "output_bytes": 11682,
+            "navigation_tasks_passed": 40,
+            "navigation_tasks_total": 130,
+            "tokens": 4371
+          }
+        ],
+        "error": null,
+        "median_wall_seconds": 3.495309392004856
+      }
+    ]
+  },
+  "scaling": {
+    "schema_version": 1,
+    "corpus": {
+      "generator_version": 1,
+      "files": 1300,
+      "source_bytes": 1544429,
+      "body_lines": 40,
+      "sha256": "2c5d3ffb5a725fe72f5deb9ab87ce0ce82c1f2043e767bea41de2ca89678ee04"
+    },
+    "tokenizer": "o200k-base",
+    "source_commit": "4c1bfd977f5bbbd6557bc698a271f47398bb5af5",
+    "binary_sha256": "effc5d288e4f6ac64b99079402df2cdfc773b6a3e463e5e77b78793bae9abbc3",
+    "platform": "Linux-7.2.8-9-omarchy-x86_64-with-glibc2.44",
+    "processor": "AMD Ryzen 9 7950X3D 16-Core Processor",
+    "logical_cpus": 28,
+    "process_cache": "cold; fresh corpus copy per sample",
+    "filesystem_cache": "uncontrolled; OS caches are not flushed",
+    "quality_metric": "symbol + source-path recall on fixed navigation tasks; no LLM answers",
+    "tools": [
+      {
+        "tool": "context-creator/full",
+        "version": "context-creator 1.6.0",
+        "command": [
+          "{binary}",
+          "{root}",
+          "--quiet",
+          "--output",
+          "{output}",
+          "--report",
+          "{report}"
+        ],
+        "observed_version": "context-creator 1.6.0",
+        "samples": [
+          {
+            "wall_seconds": 0.48671139699581545,
+            "cpu_seconds": 0.501065,
+            "peak_rss_kib": 104088,
+            "output_bytes": 1712148,
+            "navigation_tasks_passed": 1300,
+            "navigation_tasks_total": 1300,
+            "tokens": 647269,
+            "files_selected": 1300,
+            "timings_ms": {
+              "scan_and_analysis": 57.047729,
+              "selection": 0.386813,
+              "rendering": 23.036298,
+              "native_counting": 0.009368000000000001,
+              "accounting": 395.430682,
+              "generation_total": 476.01177900000005
+            }
+          },
+          {
+            "wall_seconds": 0.561156394003774,
+            "cpu_seconds": 0.518624,
+            "peak_rss_kib": 128952,
+            "output_bytes": 1712148,
+            "navigation_tasks_passed": 1300,
+            "navigation_tasks_total": 1300,
+            "tokens": 647269,
+            "files_selected": 1300,
+            "timings_ms": {
+              "scan_and_analysis": 68.17055900000001,
+              "selection": 0.397904,
+              "rendering": 23.272859999999998,
+              "native_counting": 0.007134,
+              "accounting": 442.606241,
+              "generation_total": 534.564464
+            }
+          },
+          {
+            "wall_seconds": 0.5202488310023909,
+            "cpu_seconds": 0.531002,
+            "peak_rss_kib": 132456,
+            "output_bytes": 1712148,
+            "navigation_tasks_passed": 1300,
+            "navigation_tasks_total": 1300,
+            "tokens": 647269,
+            "files_selected": 1300,
+            "timings_ms": {
+              "scan_and_analysis": 62.411736000000005,
+              "selection": 0.362508,
+              "rendering": 26.616916,
+              "native_counting": 0.007194,
+              "accounting": 409.994238,
+              "generation_total": 499.479465
+            }
+          }
+        ],
+        "error": null,
+        "median_wall_seconds": 0.5202488310023909
+      },
+      {
+        "tool": "context-creator/map",
+        "version": "context-creator 1.6.0",
+        "command": [
+          "{binary}",
+          "{root}",
+          "--quiet",
+          "--style",
+          "map",
+          "--max-tokens",
+          "{tokens}",
+          "--output",
+          "{output}",
+          "--report",
+          "{report}"
+        ],
+        "observed_version": "context-creator 1.6.0",
+        "samples": [
+          {
+            "wall_seconds": 2.3160822100035148,
+            "cpu_seconds": 16.379425,
+            "peak_rss_kib": 197628,
+            "output_bytes": 11874,
+            "navigation_tasks_passed": 156,
+            "navigation_tasks_total": 1300,
+            "tokens": 4092,
+            "files_selected": 156,
+            "timings_ms": {
+              "scan_and_analysis": 1806.646839,
+              "selection": 0.43664600000000003,
+              "rendering": 474.193778,
+              "native_counting": 0.000692,
+              "accounting": 0.001914,
+              "generation_total": 2281.372772
+            }
+          },
+          {
+            "wall_seconds": 1.827063566990546,
+            "cpu_seconds": 16.544868,
+            "peak_rss_kib": 203672,
+            "output_bytes": 11874,
+            "navigation_tasks_passed": 156,
+            "navigation_tasks_total": 1300,
+            "tokens": 4092,
+            "files_selected": 156,
+            "timings_ms": {
+              "scan_and_analysis": 1230.6592489999998,
+              "selection": 0.5877779999999999,
+              "rendering": 559.657018,
+              "native_counting": 0.0009620000000000001,
+              "accounting": 0.0036969999999999998,
+              "generation_total": 1791.0438179999999
+            }
+          },
+          {
+            "wall_seconds": 2.192139025006327,
+            "cpu_seconds": 16.172629,
+            "peak_rss_kib": 200752,
+            "output_bytes": 11874,
+            "navigation_tasks_passed": 156,
+            "navigation_tasks_total": 1300,
+            "tokens": 4092,
+            "files_selected": 156,
+            "timings_ms": {
+              "scan_and_analysis": 1409.4746200000002,
+              "selection": 0.340306,
+              "rendering": 750.452562,
+              "native_counting": 0.000791,
+              "accounting": 0.003567,
+              "generation_total": 2160.401779
+            }
+          }
+        ],
+        "error": null,
+        "median_wall_seconds": 2.192139025006327
+      }
+    ]
+  },
+  "declaration_cache": {
+    "command": "cargo bench --locked --bench benchmarks repository_map -- --sample-size 10 --measurement-time 2",
+    "files": 40,
+    "body_statements_per_file": 80,
+    "sample_size": 10,
+    "vocabulary": "warm for both cases",
+    "benchmark_binary_sha256": "8da34ceb274e7115bdfb3c6dd96a9d8afc5402c0332408ad9b7f9725e8740803",
+    "estimates_ns": {
+      "cold_symbols": {
+        "mean": {
+          "confidence_interval": {
+            "confidence_level": 0.95,
+            "lower_bound": 14737854.581904763,
+            "upper_bound": 16325115.45779299
+          },
+          "point_estimate": 15518284.06616402,
+          "standard_error": 409839.94175351964
+        },
+        "median": {
+          "confidence_interval": {
+            "confidence_level": 0.95,
+            "lower_bound": 14171956.0,
+            "upper_bound": 16732532.796296297
+          },
+          "point_estimate": 15532712.851190478,
+          "standard_error": 796147.1732343996
+        },
+        "median_abs_dev": {
+          "confidence_interval": {
+            "confidence_level": 0.95,
+            "lower_bound": 81519.77115273567,
+            "upper_bound": 2175706.4363401583
+          },
+          "point_estimate": 1942589.7382871401,
+          "standard_error": 663365.3401788153
+        },
+        "slope": {
+          "confidence_interval": {
+            "confidence_level": 0.95,
+            "lower_bound": 15551689.691297209,
+            "upper_bound": 16989050.526169773
+          },
+          "point_estimate": 16441252.116017316,
+          "standard_error": 361958.14223172405
+        },
+        "std_dev": {
+          "confidence_interval": {
+            "confidence_level": 0.95,
+            "lower_bound": 869294.6467766375,
+            "upper_bound": 1609665.1295867437
+          },
+          "point_estimate": 1362374.2754483717,
+          "standard_error": 191125.89792719955
+        }
+      },
+      "warm_symbols": {
+        "mean": {
+          "confidence_interval": {
+            "confidence_level": 0.95,
+            "lower_bound": 477099.0897376544,
+            "upper_bound": 549307.4071566358
+          },
+          "point_estimate": 510803.47389605374,
+          "standard_error": 18587.91894419306
+        },
+        "median": {
+          "confidence_interval": {
+            "confidence_level": 0.95,
+            "lower_bound": 453859.0361111111,
+            "upper_bound": 537186.1235119047
+          },
+          "point_estimate": 508608.6234567901,
+          "standard_error": 19539.573890858184
+        },
+        "median_abs_dev": {
+          "confidence_interval": {
+            "confidence_level": 0.95,
+            "lower_bound": 9962.431847205593,
+            "upper_bound": 101366.88006557488
+          },
+          "point_estimate": 53203.16283143888,
+          "standard_error": 24104.550903451043
+        },
+        "slope": {
+          "confidence_interval": {
+            "confidence_level": 0.95,
+            "lower_bound": 489663.7140003523,
+            "upper_bound": 536712.1411564935
+          },
+          "point_estimate": 518640.2917748918,
+          "standard_error": 12126.156010886321
+        },
+        "std_dev": {
+          "confidence_interval": {
+            "confidence_level": 0.95,
+            "lower_bound": 29307.665108252193,
+            "upper_bound": 85046.4336371486
+          },
+          "point_estimate": 61978.18833175272,
+          "standard_error": 15900.299958610942
+        }
+      }
+    }
+  }
+}

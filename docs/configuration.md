@@ -127,7 +127,7 @@ provider CLI aliases may not be accepted by an API.
 
 Local and native counts are reported separately. A native input count plus the
 response reservation must fit the declared budget before any output or LLM call.
-Native counting does not rerun automatic selection or retry paid API requests.
+Native counting does not rerun automatic selection after an overflow.
 It covers the supplied user text, excluding instructions, history, attachments,
 and tools added later by an installed CLI. It is not a forecast of the CLI's
 complete request or generated response. Ordinary tests use local HTTP fixtures;

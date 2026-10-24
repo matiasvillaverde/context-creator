@@ -106,6 +106,45 @@ comparable throughput or answer-quality benchmark was found in this review.
     CPU/memory/output accounting, fixed navigation tasks, and separate Criterion
     cold/warm declaration-cache measurements. See [the harness](../benchmarks/README.md).
 
+## Release measurements (2026-10-24)
+
+The [raw measurements](../benchmarks/results/2026-10-24.json) record the source
+commit, binary SHA-256, corpus hash, every sample, CPU/RSS, and generation stages.
+These local release-build results used an AMD Ryzen 9 7950X3D virtual machine
+with 28 visible logical CPUs. OS caches were not flushed. The thirteen-language
+corpus contains 130 files, 40 body statements per file, and 154,423 source bytes.
+Five fresh processes per tool received identical copies; table values are
+medians. Every output was recounted with `o200k_base`.
+
+| Command/mode and version | Wall s | CPU s | Peak RSS MiB | Output tokens | Navigation tasks |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| context-creator/full 1.6.0 | 0.199 | 0.205 | 103.1 | 64,923 | 130/130 |
+| context-creator/map 1.6.0 | 0.467 | 1.961 | 162.1 | 3,064 | 130/130 |
+| repomix/full 1.18.1 | 0.476 | 0.593 | 162.1 | 61,832 | 130/130 |
+| gitingest/full 0.3.1 | 0.688 | 0.684 | 129.8 | 61,903 | 130/130 |
+| code2prompt/full 4.2.0 | 0.125 | 0.167 | 103.6 | 62,038 | 130/130 |
+| aider/map 0.86.0 | 3.495 | 5.094 | 195.2 | 4,371 | 40/130 |
+
+The map uses 95.3% fewer tokens than this tool's full output while retaining
+all 130 symbol-plus-path navigation tasks on this corpus. Code2prompt is faster
+at full packing in this measurement. Aider's map includes different snippets
+and uses an estimated budget; its returned text exceeds the requested 4,096
+local tokens. The adapter runs Aider's actual RepoMap with local accounting,
+without an interactive model client. These are command-level measurements with
+different output envelopes, rather than proof of a universal speed or
+answer-quality ranking.
+
+A separate 1,300-file corpus contains 1,544,429 source bytes. Three-process
+medians were 0.520 s for full output and 2.192 s for a bounded map. Full
+output contains 647,269 local tokens. The map contains 4,092 tokens and retains
+156/1,300 tasks; broad repositories need narrower inputs, larger map budgets,
+or progressive search/file reads. A fixed-size map cannot retain every symbol.
+
+The forty-file Criterion cache experiment measured mean rendering times of
+15.52 ms with fresh declarations and 0.511 ms with cached declarations. Both reuse the
+BPE vocabulary. This isolates declaration-cache reuse, rather than measuring
+fresh CLI startup or end-to-end MCP requests.
+
 ## Historical tokenizer measurement
 
 This foundation experiment predates the change to a single combined-root budget;
@@ -141,7 +180,11 @@ the full Rust/MCP checks, and review before pushing to `main`):
 - [x] Add reproducible cold/warm performance and fixed-task relevance benchmarks.
 - [x] Add opt-in provider-native counting, without credentials in ordinary tests.
 - [x] Add explicit secret handling and bounded map/file reads to both MCP servers.
-- [ ] Validate the release binary, push tested commits to `main`, and inspect CI.
+- [x] Validate the optimized release binary, all five formats, and independent input repositories.
+
+Shipping gate: push reviewed commits to `main`, then inspect the
+[platform CI workflow](https://github.com/matiasvillaverde/context-creator/actions/workflows/ci.yml).
+Registry publication remains a separate tag-driven release step.
 
 | Priority | Work | Completion criterion |
 | --- | --- | --- |
@@ -152,6 +195,14 @@ the full Rust/MCP checks, and review before pushing to `main`):
 | 5 | Add reproducible cold/warm performance and relevance evaluation. | Record CPU, memory, files, output size, selected encoding, parsing versus cache time, and task outcomes. Compare release builds against the four tools above on identical pinned corpora. |
 | 6 | Optional provider-native counting and explicit output reservation. | Model-aware counts are opt-in, authenticated, tested without live credentials by default, and reported separately from local estimates. |
 | 7 | Evaluate secret-content scanning and progressive MCP reads. | Define scanning policy/false positives and bounded map → file → expansion workflows; preserve ignore/path protections. |
+
+Local validation passed 1,095 distinct tests across the full and final focused
+runs, with six existing ignored cases, plus 46 Criterion smoke checks. Formatting,
+strict Clippy, docs, the existing audit policy, and real Rust 1.89 all-target
+checks passed. The release binary passed combined budgets in all five formats
+and import expansion across independent repositories. CI also exercises the
+thirteen-language navigation smoke on Linux and library/MCP tests across its
+platform matrix.
 
 The implemented scope is tracked above. Passing the current suites does not prove
 the repository has no bugs, and language fixtures do not prove compiler-level

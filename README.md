@@ -34,8 +34,8 @@ context-creator --include "**/auth.py" --trace-imports --max-tokens 50000
 ## Key Advantages
 
 - **Dependency-aware**: Uses tree-sitter AST parsing to understand imports, not just file names
-- **Fast**: Rust-powered parallel processing handles massive codebases in seconds
-- **Smart selection**: Includes only files connected to your query through the dependency graph
+- **Predictable budgets**: Fits the complete rendered output across all input directories
+- **Focused selection**: Uses file filters, priority rules, and dependency relationships
 - **Multi-language**: Semantic extraction and local resolution for [13 language families](docs/languages.md), including C/C++, C#, Kotlin, Ruby, and PHP
 - **MCP integration**: Works as a server for AI assistants to query your codebase programmatically
 
@@ -120,7 +120,7 @@ Then in your AI assistant:
 
 ## Features
 
-- Tree-sitter AST parsing for true code understanding
+- Tree-sitter imports, declarations, calls, and type references
 - Import tracing and dependency resolution
 - Parallel processing with Rayon
 - Token budget management

@@ -14,6 +14,7 @@ from pathlib import Path
 import platform
 import re
 import shutil
+import signal
 import statistics
 import subprocess
 import tempfile
@@ -45,7 +46,7 @@ def corpus(root, count, body_lines):
         path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         body = "".join(statement.format(j=j) for j in range(body_lines))
-        path.write_text(template.format(name=name, body=body, i=i), encoding="utf-8")
+        path.write_bytes(template.format(name=name, body=body, i=i).encode("utf-8"))
         tasks.append({"symbol": name, "path": relative})
     digest = hashlib.sha256()
     size = 0
@@ -58,21 +59,39 @@ def corpus(root, count, body_lines):
             "body_lines": body_lines, "sha256": digest.hexdigest()}, tasks
 
 
-def measure(command, root, stdout, metrics, environment):
-    has_time = platform.system() == "Linux" and Path("/usr/bin/time").exists()
-    if has_time:
-        command = ["/usr/bin/time", "-f", "%U %S %M", "-o", str(metrics), *command]
+def measure(command, root, stdout, environment, timeout=180):
     start = time.perf_counter()
-    with stdout.open("wb") as output:
-        result = subprocess.run(command, cwd=root, stdout=output, stderr=subprocess.PIPE,
-                                env=environment, timeout=180, check=False)
+    usage = None
+    stderr = stdout.with_suffix(".stderr")
+    with stdout.open("wb") as output, stderr.open("wb") as errors:
+        process = subprocess.Popen(command, cwd=root, stdout=output, stderr=errors, env=environment)
+        try:
+            if hasattr(os, "wait4"):
+                # wait4 supplies per-process CPU/RSS without an external `time`
+                # executable or polling delay. The timer bounds a stuck tool.
+                def expired(_signum, _frame):
+                    raise subprocess.TimeoutExpired(command, timeout)
+                previous = signal.signal(signal.SIGALRM, expired)
+                signal.setitimer(signal.ITIMER_REAL, timeout)
+                try:
+                    _, status, usage = os.wait4(process.pid, 0)
+                    process.returncode = os.waitstatus_to_exitcode(status)
+                finally:
+                    signal.setitimer(signal.ITIMER_REAL, 0)
+                    signal.signal(signal.SIGALRM, previous)
+            else:
+                process.wait(timeout=timeout)
+        except BaseException:
+            process.kill()
+            process.wait()
+            raise
     wall = time.perf_counter() - start
-    if result.returncode:
-        raise RuntimeError(f"exit {result.returncode}: {result.stderr.decode(errors='replace')[-2000:]}")
-    cpu, rss = None, None
-    if has_time:
-        user, system, peak = metrics.read_text().strip().split()
-        cpu, rss = float(user) + float(system), int(peak)
+    if process.returncode:
+        raise RuntimeError(f"exit {process.returncode}: {stderr.read_text(errors='replace')[-2000:]}")
+    cpu = usage.ru_utime + usage.ru_stime if usage else None
+    rss = usage.ru_maxrss if usage else None
+    if rss is not None and platform.system() == "Darwin":
+        rss /= 1024  # macOS reports bytes; Linux reports KiB.
     return {"wall_seconds": wall, "cpu_seconds": cpu, "peak_rss_kib": rss}
 
 
@@ -104,13 +123,13 @@ def main():
     for key in list(environment):
         if key.endswith(("_API_KEY", "_TOKEN")):
             environment.pop(key)
-    environment.update({"LITELLM_LOCAL_MODEL_COST_MAP": "True", "AIDER_ANALYTICS": "false"})
+    environment.update({"LITELLM_LOCAL_MODEL_COST_MAP": "True", "AIDER_ANALYTICS": "false", "LC_ALL": "C"})
     repo = Path(__file__).resolve().parent.parent
     tools = [
         {"name": "context-creator/full", "version": version, "artifact": "file", "own": True,
-         "command": [binary, "{root}", "--quiet", "--output", "{output}", "--report", "{report}"]},
+         "command": ["{binary}", "{root}", "--quiet", "--output", "{output}", "--report", "{report}"]},
         {"name": "context-creator/map", "version": version, "artifact": "file", "own": True,
-         "command": [binary, "{root}", "--quiet", "--style", "map", "--max-tokens", "{tokens}",
+         "command": ["{binary}", "{root}", "--quiet", "--style", "map", "--max-tokens", "{tokens}",
                      "--output", "{output}", "--report", "{report}"]},
     ]
     if args.comparators:
@@ -138,12 +157,12 @@ def main():
                 shutil.copytree(original, root)
                 values = {"root": str(root), "output": str(run / "context.txt"),
                           "report": str(run / "report.json"), "tokens": str(args.map_tokens),
-                          "repo": str(repo)}
+                          "repo": str(repo), "binary": binary}
                 command = [argument.format(**values) for argument in tool["command"]]
                 try:
-                    sample = measure(command, root, run / "stdout.txt", run / "metrics", environment)
+                    sample = measure(command, root, run / "stdout.txt", environment)
                     artifact = run / ("stdout.txt" if tool["artifact"] == "stdout" else "context.txt")
-                    text = artifact.read_text(encoding="utf-8")
+                    text = artifact.read_bytes().decode("utf-8")
                     sample["output_bytes"] = len(text.encode())
                     sample["navigation_tasks_passed"] = sum(
                         task["symbol"] in text and task["path"] in text for task in tasks)
@@ -159,7 +178,7 @@ def main():
                         sample["tokens"] = len(encoding.encode_ordinary(text))
                     samples.append(sample)
                 except (OSError, RuntimeError, subprocess.TimeoutExpired, AssertionError) as failure:
-                    error = str(failure)
+                    error = str(failure) or type(failure).__name__
                     break
             row = {"tool": tool["name"], "version": tool["version"],
                    "command": tool["command"], "observed_version": observed_version,
@@ -168,15 +187,24 @@ def main():
                 row["median_wall_seconds"] = statistics.median(sample["wall_seconds"] for sample in samples)
             rows.append(row)
             print(f"{tool['name']}: {row.get('median_wall_seconds', 'failed')} s", flush=True)
+    revision = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"],
+                              capture_output=True, text=True, check=False).stdout.strip() or None
+    processor = platform.processor() or platform.machine()
+    if platform.system() == "Linux":
+        cpuinfo = Path("/proc/cpuinfo").read_text()
+        processor = next((line.partition(":")[2].strip() for line in cpuinfo.splitlines()
+                          if line.startswith("model name")), processor)
     result = {"schema_version": 1, "corpus": manifest, "tokenizer": "o200k-base",
-              "platform": platform.platform(), "processor": platform.processor(),
+              "source_commit": revision,
+              "binary_sha256": hashlib.sha256(Path(binary).read_bytes()).hexdigest(),
+              "platform": platform.platform(), "processor": processor,
               "logical_cpus": os.cpu_count(), "process_cache": "cold; fresh corpus copy per sample",
               "filesystem_cache": "uncontrolled; OS caches are not flushed",
               "quality_metric": "symbol + source-path recall on fixed navigation tasks; no LLM answers",
               "tools": rows}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2) + "\n")
-    if any(row["error"] for row in rows):
+    if any(row["error"] is not None for row in rows):
         raise SystemExit("One or more measurements failed; see the JSON report")
 
 
