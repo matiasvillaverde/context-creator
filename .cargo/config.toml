@@ -7,3 +7,7 @@ rustflags = ["-C", "split-debuginfo=unpacked"]
 
 [target.aarch64-apple-darwin]
 rustflags = ["-C", "split-debuginfo=unpacked"]
+
+[resolver]
+# Keep fresh resolutions compatible with the declared minimum Rust version.
+incompatible-rust-versions = "fallback"

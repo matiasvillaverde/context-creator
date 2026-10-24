@@ -17,6 +17,8 @@ use tracing::warn;
 pub struct ContextOptions {
     /// Maximum tokens allowed in the output
     pub max_tokens: Option<usize>,
+    /// Encoding used for local token estimates.
+    pub tokenizer: crate::core::token::TokenEncoding,
     /// Include file tree in output
     pub include_tree: bool,
     /// Include token count statistics
@@ -44,6 +46,7 @@ impl ContextOptions {
     pub fn from_config(config: &crate::cli::Config) -> Result<Self> {
         Ok(ContextOptions {
             max_tokens: config.get_effective_context_tokens(),
+            tokenizer: config.get_tokenizer(),
             include_tree: true,
             include_stats: true,
             group_by_type: false,
@@ -62,6 +65,7 @@ impl Default for ContextOptions {
     fn default() -> Self {
         ContextOptions {
             max_tokens: None,
+            tokenizer: crate::core::token::TokenEncoding::default(),
             include_tree: true,
             include_stats: true,
             group_by_type: false,
@@ -127,15 +131,34 @@ pub fn generate_markdown(
     options: ContextOptions,
     cache: Arc<FileCache>,
 ) -> Result<String> {
-    let mut output = create_output_buffer(&files, &options, &cache);
+    Ok(generate_markdown_with_report(files, options, cache)?.text)
+}
 
-    add_document_header(&mut output, &options);
-    add_statistics_section(&mut output, &files, &options);
-    add_file_tree_section(&mut output, &files, &options);
+pub fn generate_markdown_with_report(
+    files: Vec<FileInfo>,
+    options: ContextOptions,
+    cache: Arc<FileCache>,
+) -> Result<crate::core::budget::RenderedContext> {
+    let files = sort_files_by_priority(files, &options);
+    crate::core::budget::fit_rendered(&files, options.max_tokens, options.tokenizer, |files| {
+        render_markdown(files.to_vec(), &options, &cache)
+    })
+}
 
-    let sorted_files = sort_files_by_priority(files, &options);
-    add_table_of_contents(&mut output, &sorted_files, &options);
-    add_file_contents(&mut output, sorted_files, &options, &cache)?;
+fn render_markdown(
+    files: Vec<FileInfo>,
+    options: &ContextOptions,
+    cache: &Arc<FileCache>,
+) -> Result<String> {
+    let mut output = create_output_buffer(&files, options, cache);
+
+    add_document_header(&mut output, options);
+    add_statistics_section(&mut output, &files, options);
+    add_file_tree_section(&mut output, &files, options);
+
+    let sorted_files = files;
+    add_table_of_contents(&mut output, &sorted_files, options);
+    add_file_contents(&mut output, sorted_files, options, cache)?;
 
     Ok(output)
 }
@@ -257,14 +280,37 @@ pub fn generate_digest(
     output_format: OutputFormat,
     base_directory: &str,
 ) -> Result<String> {
+    Ok(generate_digest_with_report(files, options, cache, output_format, base_directory)?.text)
+}
+
+pub fn generate_digest_with_report(
+    files: Vec<FileInfo>,
+    options: ContextOptions,
+    cache: Arc<FileCache>,
+    output_format: OutputFormat,
+    base_directory: &str,
+) -> Result<crate::core::budget::RenderedContext> {
+    let files = sort_files_by_priority(files, &options);
+    crate::core::budget::fit_rendered(&files, options.max_tokens, options.tokenizer, |files| {
+        render_digest(files, &options, &cache, output_format, base_directory)
+    })
+}
+
+fn render_digest(
+    files: &[FileInfo],
+    options: &ContextOptions,
+    cache: &Arc<FileCache>,
+    output_format: OutputFormat,
+    base_directory: &str,
+) -> Result<String> {
     // Create formatter based on output format
     let mut formatter = create_formatter(output_format);
 
     // Create digest data
     let data = DigestData {
-        files: &files,
-        options: &options,
-        cache: &cache,
+        files,
+        options,
+        cache,
         base_directory,
     };
 
@@ -275,7 +321,7 @@ pub fn generate_digest(
     formatter.render_toc(&data)?;
 
     // Render file details
-    for file in &files {
+    for file in files {
         formatter.render_file_details(file, &data)?;
     }
 
@@ -462,12 +508,7 @@ fn add_type_references_info(
 
 fn add_file_body(output: &mut String, content: &str, file_type: &FileType) {
     let language = get_language_hint(file_type);
-    output.push_str(&format!("```{language}\n"));
-    output.push_str(content);
-    if !content.ends_with('\n') {
-        output.push('\n');
-    }
-    output.push_str("```\n\n");
+    crate::formatters::markdown::append_fenced_content(output, content, language);
 }
 
 /// Generate statistics about the files
@@ -980,6 +1021,7 @@ mod tests {
             include_stats: true,
             group_by_type: true,
             sort_by_priority: true,
+            tokenizer: Default::default(),
             file_header_template: "## {path}".to_string(),
             doc_header_template: "# Code Context".to_string(),
             include_toc: true,
@@ -1035,6 +1077,7 @@ mod tests {
             include_stats: true,
             group_by_type: false,
             sort_by_priority: true,
+            tokenizer: Default::default(),
             file_header_template: "## {path}".to_string(),
             doc_header_template: "# Code Context".to_string(),
             include_toc: true,
@@ -1076,6 +1119,7 @@ mod tests {
             include_stats: true,
             group_by_type: false,
             sort_by_priority: true,
+            tokenizer: Default::default(),
             file_header_template: "## {path}".to_string(),
             doc_header_template: "# Code Context".to_string(),
             include_toc: true,
@@ -1116,6 +1160,7 @@ mod tests {
             include_stats: true,
             group_by_type: false,
             sort_by_priority: true,
+            tokenizer: Default::default(),
             file_header_template: "## {path}".to_string(),
             doc_header_template: "# Code Context".to_string(),
             include_toc: true,

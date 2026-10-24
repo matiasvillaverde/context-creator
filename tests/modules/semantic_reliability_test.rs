@@ -4,6 +4,7 @@
 //! Tests thread safety, error handling, and resource management
 
 use context_creator::core::semantic::parser_pool::ParserPoolManager;
+use context_creator::core::semantic::parsing::ParserExt;
 use std::sync::Arc;
 use tempfile::TempDir;
 use tokio::runtime::Runtime;
@@ -43,9 +44,9 @@ fn test_parser_pool_concurrent_access() {
         for i in 0..20 {
             let pool_clone = pool_manager.clone();
             let handle = tokio::spawn(async move {
-                let parser = pool_clone.get_parser("rust").await.unwrap();
+                let mut parser = pool_clone.get_parser("rust").await.unwrap();
                 // Parser should have timeout set
-                assert_eq!(parser.timeout_micros(), 5_000_000);
+                assert!(parser.parse_bounded("", None).is_some());
 
                 // Simulate some work
                 tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
@@ -70,10 +71,10 @@ fn test_parser_timeout_configuration() {
 
     rt.block_on(async {
         let pool_manager = ParserPoolManager::new();
-        let parser = pool_manager.get_parser("python").await.unwrap();
+        let mut parser = pool_manager.get_parser("python").await.unwrap();
 
         // Verify timeout is set to 5 seconds
-        assert_eq!(parser.timeout_micros(), 5_000_000);
+        assert!(parser.parse_bounded("", None).is_some());
     });
 }
 

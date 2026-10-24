@@ -15,8 +15,24 @@ use std::net::SocketAddr;
 
 pub mod cache;
 pub mod handlers;
+pub mod progressive;
+pub use progressive::{
+    ReadFileRequest, ReadFileResponse, RepositoryMapRequest, RepositoryMapResponse,
+};
 pub mod rmcp_handlers;
 pub mod rmcp_server;
+
+/// Check path syntax without rejecting legitimate dots or Windows short names.
+pub(crate) fn has_path_traversal(path: &std::path::Path) -> bool {
+    path.components().any(|component| match component {
+        std::path::Component::ParentDir => true,
+        std::path::Component::Normal(name) => {
+            let name = name.to_string_lossy();
+            name.starts_with('~') || name.trim_end_matches(' ') == ".."
+        }
+        _ => false,
+    })
+}
 
 /// Health check response structure
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
@@ -55,6 +71,12 @@ pub struct ProcessLocalRequest {
     pub max_tokens: Option<u32>,
     /// Optional: LLM tool to use (default: gemini)
     pub llm_tool: Option<String>,
+    /// Optional model name or alias passed to the LLM CLI.
+    pub model: Option<String>,
+    /// Local tokenizer for budget estimates (default: o200k-base).
+    pub tokenizer: Option<crate::core::token::TokenEncoding>,
+    pub output_reserve: Option<usize>,
+    pub secret_scan: Option<crate::core::secrets::SecretPolicy>,
     /// Optional: return markdown context along with answer
     pub include_context: Option<bool>,
 }
@@ -100,6 +122,12 @@ pub struct ProcessRemoteRequest {
     pub max_tokens: Option<u32>,
     /// Optional: LLM tool to use (default: gemini)
     pub llm_tool: Option<String>,
+    /// Optional model name or alias passed to the LLM CLI.
+    pub model: Option<String>,
+    /// Local tokenizer for budget estimates (default: o200k-base).
+    pub tokenizer: Option<crate::core::token::TokenEncoding>,
+    pub output_reserve: Option<usize>,
+    pub secret_scan: Option<crate::core::secrets::SecretPolicy>,
     /// Optional: return markdown context along with answer
     pub include_context: Option<bool>,
 }
@@ -243,6 +271,17 @@ pub struct SemanticSearchResponse {
 /// RPC trait for codebase processing
 #[rpc(server)]
 pub trait CodebaseRpc {
+    /// Compact map for progressive exploration without an LLM call.
+    #[method(name = "repository_map")]
+    async fn repository_map(
+        &self,
+        request: RepositoryMapRequest,
+    ) -> RpcResult<RepositoryMapResponse>;
+
+    /// Read a bounded, root-confined source range without an LLM call.
+    #[method(name = "read_file")]
+    async fn read_file(&self, request: ReadFileRequest) -> RpcResult<ReadFileResponse>;
+
     /// Process a local codebase directory
     #[method(name = "process_local_codebase")]
     async fn process_local_codebase(
@@ -330,4 +369,34 @@ pub async fn start_server(addr: &str) -> Result<ServerHandle> {
         inner: handle,
         local_addr,
     })
+}
+
+#[cfg(test)]
+mod path_syntax_tests {
+    use super::has_path_traversal;
+    use std::path::{Path, PathBuf};
+
+    #[test]
+    fn valid_short_names_and_embedded_dots_preserve_traversal_checks() {
+        for path in [
+            Path::new("RUNNER~1").join("project"),
+            Path::new("version..archive").join("main.rs"),
+        ] {
+            assert!(!has_path_traversal(&path), "{}", path.display());
+        }
+        for path in [
+            PathBuf::from(".."),
+            Path::new("project").join("..").join("private"),
+            Path::new(".. ").join("private"),
+            Path::new("~").join("private"),
+            Path::new("~user").join("private"),
+        ] {
+            assert!(has_path_traversal(&path), "{}", path.display());
+        }
+        #[cfg(windows)]
+        {
+            assert!(!has_path_traversal(Path::new(r"C:\Users\RUNNER~1\project")));
+            assert!(has_path_traversal(Path::new(r"C:\Users\..\private")));
+        }
+    }
 }

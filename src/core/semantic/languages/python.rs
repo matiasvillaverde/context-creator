@@ -17,7 +17,7 @@ pub struct PythonAnalyzer {
 
 impl PythonAnalyzer {
     pub fn new() -> Self {
-        let language = tree_sitter_python::language();
+        let language = tree_sitter_python::LANGUAGE.into();
         let query_engine =
             QueryEngine::new(language, "python").expect("Failed to create Python query engine");
         Self { query_engine }
@@ -37,7 +37,7 @@ impl LanguageAnalyzer for PythonAnalyzer {
     ) -> SemanticResult<AnalysisResult> {
         let mut parser = Parser::new();
         parser
-            .set_language(tree_sitter_python::language())
+            .set_language(&tree_sitter_python::LANGUAGE.into())
             .map_err(|e| ContextCreatorError::ParseError(format!("Failed to set language: {e}")))?;
 
         let mut result = self

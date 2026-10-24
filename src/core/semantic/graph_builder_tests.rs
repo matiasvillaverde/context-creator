@@ -27,6 +27,76 @@ fn create_test_file_info(path: &str, size: u64) -> FileInfo {
 }
 
 #[test]
+fn analysis_edges_do_not_match_path_substrings() {
+    use crate::core::semantic::dependency_types::FileAnalysisResult;
+    let files = vec![
+        create_test_file_info("src/main.rs", 1),
+        create_test_file_info("src/utils.rs.backup", 1),
+    ];
+    let builder = GraphBuilder::new();
+    let (mut graph, nodes) = builder.build(&files).unwrap();
+    let indices = files
+        .iter()
+        .enumerate()
+        .map(|(index, file)| (file.path.clone(), index))
+        .collect();
+    let results = [FileAnalysisResult {
+        file_index: 0,
+        imports: vec![(
+            "src/utils.rs".into(),
+            DependencyEdgeType::Import { symbols: vec![] },
+        )],
+        function_calls: vec![],
+        type_references: vec![],
+        exported_functions: vec![],
+        content_hash: Some(42),
+        error: None,
+    }];
+    builder.build_edges_from_analysis(&mut graph, &results, &indices, &nodes);
+    assert_eq!(graph.edge_count(), 0);
+    assert_eq!(
+        graph[nodes[&PathBuf::from("src/main.rs")]].content_hash,
+        Some(42)
+    );
+}
+
+#[test]
+fn analysis_edges_resolve_canonical_path_aliases() {
+    use crate::core::semantic::dependency_types::FileAnalysisResult;
+    let project = tempfile::TempDir::new().unwrap();
+    std::fs::create_dir(project.path().join("nested")).unwrap();
+    std::fs::write(project.path().join("main.rs"), "fn main() {}").unwrap();
+    std::fs::write(project.path().join("utils.rs"), "pub fn helper() {}").unwrap();
+    let source = project.path().join("main.rs");
+    let target = project.path().join("nested/../utils.rs");
+    let files = vec![
+        create_test_file_info(source.to_str().unwrap(), 1),
+        create_test_file_info(target.to_str().unwrap(), 1),
+    ];
+    let builder = GraphBuilder::new();
+    let (mut graph, nodes) = builder.build(&files).unwrap();
+    let indices = files
+        .iter()
+        .enumerate()
+        .map(|(index, file)| (file.path.clone(), index))
+        .collect();
+    let results = [FileAnalysisResult {
+        file_index: 0,
+        imports: vec![(
+            target.canonicalize().unwrap(),
+            DependencyEdgeType::Import { symbols: vec![] },
+        )],
+        function_calls: vec![],
+        type_references: vec![],
+        exported_functions: vec![],
+        content_hash: None,
+        error: None,
+    }];
+    builder.build_edges_from_analysis(&mut graph, &results, &indices, &nodes);
+    assert!(graph.find_edge(nodes[&source], nodes[&target]).is_some());
+}
+
+#[test]
 fn test_build_graph_from_files() {
     let files = vec![
         create_test_file_info("src/main.rs", 1000),

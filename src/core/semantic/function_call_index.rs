@@ -160,9 +160,23 @@ impl FunctionCallIndex {
     }
 
     fn call_site_matches_target(&self, call_site: &FunctionCallSite, target_path: &Path) -> bool {
+        if language_family(&call_site.file) != language_family(target_path) {
+            return false;
+        }
         match target_path.extension().and_then(|ext| ext.to_str()) {
             Some("go") => {}
             Some("swift") => return self.swift_call_site_matches_target(call_site, target_path),
+            Some("java") => {
+                return same_directory(&call_site.file, target_path)
+                    || self
+                        .file_to_imports
+                        .get(&call_site.file)
+                        .is_some_and(|imports| {
+                            imports
+                                .iter()
+                                .any(|import| paths_equivalent(import, target_path))
+                        });
+            }
             _ => return true,
         }
 
@@ -233,6 +247,19 @@ impl FunctionCallIndex {
                 .sum(),
         }
     }
+}
+
+fn language_family(path: &Path) -> Option<&str> {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .map(|extension| match extension {
+            // JavaScript and TypeScript can call each other's exported functions.
+            "js" | "jsx" | "mjs" | "cjs" | "ts" | "tsx" | "mts" | "cts" => "javascript",
+            "py" | "pyi" => "python",
+            "c" | "h" | "cpp" | "cc" | "cxx" | "hpp" | "hxx" | "hh" | "c++" | "h++" => "c-family",
+            "kt" | "kts" => "kotlin",
+            other => other,
+        })
 }
 
 fn same_directory(left: &Path, right: &Path) -> bool {

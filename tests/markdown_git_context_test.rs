@@ -88,6 +88,7 @@ fn test_markdown_with_git_context_enabled() {
     };
 
     let options = ContextOptions {
+        tokenizer: Default::default(),
         max_tokens: None,
         include_tree: false,
         include_stats: false,
@@ -136,6 +137,7 @@ fn test_markdown_without_git_context() {
     };
 
     let options = ContextOptions {
+        tokenizer: Default::default(),
         max_tokens: None,
         include_tree: false,
         include_stats: false,
@@ -183,6 +185,7 @@ fn test_markdown_with_git_context_and_enhanced_context() {
     };
 
     let options = ContextOptions {
+        tokenizer: Default::default(),
         max_tokens: None,
         include_tree: false,
         include_stats: false,
@@ -231,6 +234,7 @@ fn test_markdown_git_context_non_git_directory() {
     };
 
     let options = ContextOptions {
+        tokenizer: Default::default(),
         max_tokens: None,
         include_tree: false,
         include_stats: false,

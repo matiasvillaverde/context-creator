@@ -1,5 +1,6 @@
 //! Semantic analyzer for Swift and Swift Package Manager projects.
 
+use crate::core::semantic::parsing::ParserExt;
 use crate::core::semantic::{
     analyzer::{
         AnalysisResult, FunctionCall, Import, LanguageAnalyzer, SemanticContext, SemanticResult,
@@ -14,6 +15,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
+use tree_sitter::StreamingIterator;
 use tree_sitter::{Node, Parser, Query, QueryCursor};
 
 #[allow(clippy::new_without_default)]
@@ -28,7 +30,7 @@ impl SwiftAnalyzer {
 fn swift_query_engine() -> &'static QueryEngine {
     static ENGINE: OnceLock<QueryEngine> = OnceLock::new();
     ENGINE.get_or_init(|| {
-        QueryEngine::new(tree_sitter_swift::language(), "swift")
+        QueryEngine::new(tree_sitter_swift::LANGUAGE.into(), "swift")
             .expect("Failed to create Swift query engine")
     })
 }
@@ -84,7 +86,7 @@ impl LanguageAnalyzer for SwiftAnalyzer {
 
         let mut parser = Parser::new();
         parser
-            .set_language(tree_sitter_swift::language())
+            .set_language(&tree_sitter_swift::LANGUAGE.into())
             .map_err(|e| {
                 ContextCreatorError::ParseError(format!("Failed to set Swift language: {e}"))
             })?;
@@ -520,24 +522,25 @@ fn extract_swift_user_type_references(
 ) -> Result<Vec<TypeReference>, ContextCreatorError> {
     let mut parser = Parser::new();
     parser
-        .set_language(tree_sitter_swift::language())
+        .set_language(&tree_sitter_swift::LANGUAGE.into())
         .map_err(|e| {
             ContextCreatorError::ParseError(format!("Failed to set Swift language: {e}"))
         })?;
 
-    let Some(tree) = parser.parse(content, None) else {
+    let Some(tree) = parser.parse_bounded(content, None) else {
         return Ok(Vec::new());
     };
 
-    let query = Query::new(tree_sitter_swift::language(), "(user_type) @type").map_err(|e| {
-        ContextCreatorError::ParseError(format!("Failed to create Swift type query: {e}"))
-    })?;
+    let query =
+        Query::new(&tree_sitter_swift::LANGUAGE.into(), "(user_type) @type").map_err(|e| {
+            ContextCreatorError::ParseError(format!("Failed to create Swift type query: {e}"))
+        })?;
     let mut cursor = QueryCursor::new();
-    let matches = cursor.matches(&query, tree.root_node(), content.as_bytes());
+    let mut matches = cursor.matches(&query, tree.root_node(), content.as_bytes());
 
     let mut refs = Vec::new();
     let mut seen = HashSet::new();
-    for match_ in matches {
+    while let Some(match_) = matches.next() {
         for capture in match_.captures {
             let node = capture.node;
             let type_identifiers = direct_child_type_identifiers(node, content);
@@ -575,25 +578,28 @@ fn extract_swift_user_type_references(
 fn extract_swift_function_calls(content: &str) -> Result<Vec<FunctionCall>, ContextCreatorError> {
     let mut parser = Parser::new();
     parser
-        .set_language(tree_sitter_swift::language())
+        .set_language(&tree_sitter_swift::LANGUAGE.into())
         .map_err(|e| {
             ContextCreatorError::ParseError(format!("Failed to set Swift language: {e}"))
         })?;
 
-    let Some(tree) = parser.parse(content, None) else {
+    let Some(tree) = parser.parse_bounded(content, None) else {
         return Ok(Vec::new());
     };
 
-    let query =
-        Query::new(tree_sitter_swift::language(), "(call_expression) @call").map_err(|e| {
-            ContextCreatorError::ParseError(format!("Failed to create Swift call query: {e}"))
-        })?;
+    let query = Query::new(
+        &tree_sitter_swift::LANGUAGE.into(),
+        "(call_expression) @call",
+    )
+    .map_err(|e| {
+        ContextCreatorError::ParseError(format!("Failed to create Swift call query: {e}"))
+    })?;
     let mut cursor = QueryCursor::new();
-    let matches = cursor.matches(&query, tree.root_node(), content.as_bytes());
+    let mut matches = cursor.matches(&query, tree.root_node(), content.as_bytes());
 
     let mut calls = Vec::new();
     let mut seen = HashSet::new();
-    for match_ in matches {
+    while let Some(match_) = matches.next() {
         for capture in match_.captures {
             if let Some(call) = swift_call_from_node(capture.node, content) {
                 let key = (call.name.clone(), call.module.clone(), call.line);
@@ -806,12 +812,12 @@ fn swift_file_contains_type_definition(
 fn swift_type_definitions_in_content(content: &str) -> Result<Vec<String>, ContextCreatorError> {
     let mut parser = Parser::new();
     parser
-        .set_language(tree_sitter_swift::language())
+        .set_language(&tree_sitter_swift::LANGUAGE.into())
         .map_err(|e| {
             ContextCreatorError::ParseError(format!("Failed to set Swift language: {e}"))
         })?;
 
-    let Some(tree) = parser.parse(content, None) else {
+    let Some(tree) = parser.parse_bounded(content, None) else {
         return Ok(Vec::new());
     };
 
@@ -822,15 +828,15 @@ fn swift_type_definitions_in_content(content: &str) -> Result<Vec<String>, Conte
           (typealias_declaration name: (type_identifier) @name)
         ]
     "#;
-    let query = Query::new(tree_sitter_swift::language(), query_text).map_err(|e| {
+    let query = Query::new(&tree_sitter_swift::LANGUAGE.into(), query_text).map_err(|e| {
         ContextCreatorError::ParseError(format!("Failed to create Swift definition query: {e}"))
     })?;
     let mut cursor = QueryCursor::new();
-    let matches = cursor.matches(&query, tree.root_node(), content.as_bytes());
+    let mut matches = cursor.matches(&query, tree.root_node(), content.as_bytes());
 
     let mut definitions = Vec::new();
     let mut seen = HashSet::new();
-    for match_ in matches {
+    while let Some(match_) = matches.next() {
         for capture in match_.captures {
             if let Ok(captured_text) = capture.node.utf8_text(content.as_bytes()) {
                 let name = captured_text.to_string();

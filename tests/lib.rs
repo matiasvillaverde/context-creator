@@ -87,6 +87,8 @@ mod formatters_test;
 mod output_format_test;
 
 // Semantic analysis tests
+#[path = "modules/budget_test.rs"]
+mod budget_test;
 #[path = "integration/cli_include_callers_simple_test.rs"]
 mod cli_include_callers_simple_test;
 #[path = "integration/cli_include_callers_test.rs"]
@@ -99,14 +101,20 @@ mod cycle_detection_test;
 mod cycle_detection_warning_test;
 #[path = "modules/edge_typing_test.rs"]
 mod edge_typing_test;
+#[path = "modules/expanded_languages_test.rs"]
+mod expanded_languages_test;
 #[path = "integration/include_callers_real_repos_test.rs"]
 mod include_callers_real_repos_test;
 #[path = "modules/integration_trace_imports_test.rs"]
 mod integration_trace_imports_test;
+#[path = "modules/modernization_test.rs"]
+mod modernization_test;
 #[path = "modules/parallel_semantic_test.rs"]
 mod parallel_semantic_test;
 #[path = "modules/parallel_workflow_test.rs"]
 mod parallel_workflow_test;
+#[path = "modules/repository_map_test.rs"]
+mod repository_map_test;
 #[path = "modules/semantic_analysis_test.rs"]
 mod semantic_analysis_test;
 #[path = "modules/semantic_comprehensive_test.rs"]
@@ -181,3 +189,6 @@ mod telemetry_acceptance;
 // Edge case tests
 #[path = "modules/edge_cases/mod.rs"]
 mod edge_cases;
+
+#[path = "modules/product_workflows_test.rs"]
+mod product_workflows_test;

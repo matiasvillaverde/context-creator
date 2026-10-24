@@ -107,7 +107,7 @@ pub fn file_{index:03}() -> &'static str {{
         .unwrap()
         .arg(&src_dir)
         .arg("--max-tokens")
-        .arg("12000")
+        .arg("400")
         .arg("--style")
         .arg("paths")
         .assert()
@@ -117,6 +117,13 @@ pub fn file_{index:03}() -> &'static str {{
         .clone();
 
     let output = String::from_utf8(output).unwrap();
+    assert!(
+        context_creator::core::token::TokenCounter::new()
+            .unwrap()
+            .count_tokens(&output)
+            .unwrap()
+            <= 400
+    );
     let selected_file_count = output
         .lines()
         .filter(|line| line.starts_with("file_") && line.ends_with(".rs"))

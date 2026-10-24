@@ -10,6 +10,7 @@ Welcome to the context-creator documentation! This high-performance CLI tool con
 - [API Reference](api.md)
 - [Examples](examples.md)
 - [Troubleshooting](troubleshooting.md)
+- [Modernization research and roadmap](modernization.md)
 - [Contributing](../CONTRIBUTING.md)
 
 ## What is Code context?
@@ -19,7 +20,7 @@ Code context is a Rust-based CLI tool that:
 - **Converts** entire codebases to structured Markdown
 - **Prioritizes** files based on importance and token limits
 - **Optimizes** output for LLM context windows
-- **Supports** 20+ programming languages
+- **Reads** source text in many languages, with semantic expansion for Rust, Python, JavaScript/JSX, TypeScript/TSX, Go, Swift, and Java
 - **Integrates** with LLM CLI tools (gemini, codex)
 - **Processes** projects in parallel for maximum performance
 

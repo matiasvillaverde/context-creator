@@ -6,7 +6,9 @@
 //! - Markdown generation
 //! - End-to-end processing performance
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{
+    black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion, Throughput,
+};
 use std::fs;
 use std::path::Path;
 use tempfile::TempDir;
@@ -118,23 +120,53 @@ fn bench_token_counting(c: &mut Criterion) {
         let walk_options = WalkOptions::default();
         let files = walk_directory(&project_dir, walk_options).unwrap();
 
-        group.throughput(Throughput::Bytes(file_size as u64 * 10));
+        let contents: Vec<String> = files
+            .iter()
+            .map(|file| fs::read_to_string(&file.path).unwrap())
+            .collect();
+        group.throughput(Throughput::Bytes(
+            contents.iter().map(|text| text.len() as u64).sum(),
+        ));
+        for content in &contents {
+            token_counter.count_tokens(content).unwrap();
+        }
         group.bench_with_input(
-            BenchmarkId::new("count_tokens", file_size),
-            &files,
-            |b, files| {
+            BenchmarkId::new("cached", file_size),
+            &contents,
+            |b, contents| {
                 b.iter(|| {
-                    for file in files {
-                        if let Ok(content) = fs::read_to_string(&file.path) {
-                            black_box(token_counter.count_tokens(black_box(&content)).unwrap());
-                        }
+                    for content in contents {
+                        black_box(token_counter.count_tokens(black_box(content)).unwrap());
                     }
                 });
+            },
+        );
+        group.bench_with_input(
+            BenchmarkId::new("uncached", file_size),
+            &contents,
+            |b, contents| {
+                b.iter_batched(
+                    || TokenCounter::new().unwrap(),
+                    |counter| {
+                        for content in contents {
+                            black_box(counter.count_tokens(black_box(content)).unwrap());
+                        }
+                    },
+                    BatchSize::SmallInput,
+                );
             },
         );
     }
 
     group.finish();
+}
+
+fn bench_token_counter_construction(c: &mut Criterion) {
+    // Initialize the vocabulary before measuring request-level construction.
+    TokenCounter::new().unwrap();
+    c.bench_function("token_counter_construction", |b| {
+        b.iter(|| black_box(TokenCounter::new().unwrap()));
+    });
 }
 
 /// Benchmark file prioritization performance
@@ -148,6 +180,7 @@ fn bench_file_prioritization(c: &mut Criterion) {
         let files = walk_directory(&project_dir, walk_options).unwrap();
 
         let context_options = ContextOptions {
+            tokenizer: Default::default(),
             max_tokens: Some(50000),
             include_tree: true,
             include_stats: true,
@@ -190,6 +223,7 @@ fn bench_markdown_generation(c: &mut Criterion) {
         let files = walk_directory(&project_dir, walk_options).unwrap();
 
         let context_options = ContextOptions {
+            tokenizer: Default::default(),
             max_tokens: None,
             include_tree: true,
             include_stats: true,
@@ -244,6 +278,7 @@ fn bench_end_to_end_processing(c: &mut Criterion) {
                     let files = walk_directory(black_box(path), walk_options).unwrap();
 
                     let context_options = ContextOptions {
+                        tokenizer: Default::default(),
                         max_tokens: Some(100000),
                         include_tree: true,
                         include_stats: true,
@@ -378,16 +413,81 @@ fn bench_file_type_processing(c: &mut Criterion) {
     group.finish();
 }
 
+/// Separate declaration parsing from reuse of the immutable source/tag cache.
+fn bench_repository_map(c: &mut Criterion) {
+    use context_creator::cli::OutputFormat;
+    use context_creator::core::context_builder::generate_digest_with_report;
+    let project = TempDir::new().unwrap();
+    for index in 0..40 {
+        fs::write(
+            project.path().join(format!("module_{index}.rs")),
+            format!(
+                "pub fn lookup_customer_{index}(value: u64) -> u64 {{\n{}    value\n}}\n",
+                "    let _detail = value.saturating_add(1);\n".repeat(80)
+            ),
+        )
+        .unwrap();
+    }
+    let files = walk_directory(project.path(), WalkOptions::default()).unwrap();
+    let options = ContextOptions {
+        max_tokens: Some(4096),
+        ..ContextOptions::default()
+    };
+    let warm = Arc::new(FileCache::new());
+    for file in &files {
+        warm.get_symbols(&file.path).unwrap();
+    }
+    // Vocabulary initialization is outside both measurements.
+    TokenCounter::new().unwrap();
+    let mut group = c.benchmark_group("repository_map");
+    group.throughput(Throughput::Elements(files.len() as u64));
+    group.bench_function("cold_symbols", |b| {
+        b.iter_batched(
+            || Arc::new(FileCache::new()),
+            |cache| {
+                black_box(
+                    generate_digest_with_report(
+                        files.clone(),
+                        options.clone(),
+                        cache,
+                        OutputFormat::Map,
+                        "benchmark",
+                    )
+                    .unwrap(),
+                )
+            },
+            BatchSize::SmallInput,
+        )
+    });
+    group.bench_function("warm_symbols", |b| {
+        b.iter(|| {
+            black_box(
+                generate_digest_with_report(
+                    files.clone(),
+                    options.clone(),
+                    warm.clone(),
+                    OutputFormat::Map,
+                    "benchmark",
+                )
+                .unwrap(),
+            )
+        })
+    });
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_directory_walking,
     bench_token_counting,
+    bench_token_counter_construction,
     bench_file_prioritization,
     bench_markdown_generation,
     bench_end_to_end_processing,
     bench_memory_efficiency,
     bench_parallel_processing,
-    bench_file_type_processing
+    bench_file_type_processing,
+    bench_repository_map
 );
 
 criterion_main!(benches);

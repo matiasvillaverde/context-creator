@@ -6,6 +6,8 @@
 use crate::cli::Config;
 use crate::core::cache::FileCache;
 use crate::core::semantic::function_call_index::FunctionCallIndex;
+#[cfg(test)]
+use crate::core::semantic::parsing::ParserExt;
 use crate::core::semantic::path_validator::validate_import_path;
 use crate::core::semantic::type_resolver::{ResolutionLimits, TypeResolver};
 use crate::core::walker::{walk_directory, FileInfo};
@@ -14,6 +16,8 @@ use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+#[cfg(test)]
+use tree_sitter::StreamingIterator;
 
 /// Build an efficient gitignore matcher from walk options
 fn build_ignore_matcher(
@@ -78,6 +82,23 @@ pub fn detect_project_root(start_path: &Path) -> PathBuf {
         }
         // Check for Swift Package Manager project markers
         if current.join("Package.swift").exists() {
+            return absolute_project_root(current);
+        }
+
+        if [
+            "CMakeLists.txt",
+            "composer.json",
+            "Gemfile",
+            "global.json",
+            "pom.xml",
+            "build.gradle",
+            "build.gradle.kts",
+            "settings.gradle",
+            "settings.gradle.kts",
+        ]
+        .iter()
+        .any(|marker| current.join(marker).exists())
+        {
             return absolute_project_root(current);
         }
         // Check for generic project markers
@@ -1487,102 +1508,8 @@ fn common_ancestor(path1: &Path, path2: &Path) -> PathBuf {
 
 /// Check if a file contains a definition for a given type name using AST parsing.
 fn file_contains_definition(path: &Path, content: &str, type_name: &str) -> bool {
-    // Determine the language from the file extension.
-    let language = match path.extension().and_then(|s| s.to_str()) {
-        Some("rs") => Some(tree_sitter_rust::language()),
-        Some("py") => Some(tree_sitter_python::language()),
-        Some("ts") | Some("tsx") => Some(tree_sitter_typescript::language_typescript()),
-        Some("js") | Some("jsx") => Some(tree_sitter_javascript::language()),
-        Some("go") => Some(tree_sitter_go::language()),
-        Some("swift") => Some(tree_sitter_swift::language()),
-        _ => None,
-    };
-
-    if let Some(language) = language {
-        let mut parser = tree_sitter::Parser::new();
-        if parser.set_language(language).is_err() {
-            return false;
-        }
-
-        if let Some(tree) = parser.parse(content, None) {
-            // Language-specific queries for type definitions (without predicates)
-            let query_text = match path.extension().and_then(|s| s.to_str()) {
-                Some("rs") => {
-                    r#"
-                    [
-                      (struct_item name: (type_identifier) @name)
-                      (enum_item name: (type_identifier) @name)
-                      (trait_item name: (type_identifier) @name)
-                      (type_item name: (type_identifier) @name)
-                      (union_item name: (type_identifier) @name)
-                    ]
-                "#
-                }
-                Some("py") => {
-                    r#"
-                    [
-                      (class_definition name: (identifier) @name)
-                      (function_definition name: (identifier) @name)
-                    ]
-                "#
-                }
-                Some("ts") | Some("tsx") => {
-                    r#"
-                    [
-                      (interface_declaration name: (type_identifier) @name)
-                      (type_alias_declaration name: (type_identifier) @name)
-                      (class_declaration name: (type_identifier) @name)
-                      (enum_declaration name: (identifier) @name)
-                    ]
-                "#
-                }
-                Some("js") | Some("jsx") => {
-                    r#"
-                    [
-                      (class_declaration name: (identifier) @name)
-                      (function_declaration name: (identifier) @name)
-                    ]
-                "#
-                }
-                Some("go") => {
-                    r#"
-                    [
-                      (type_spec name: (type_identifier) @name)
-                      (type_alias name: (type_identifier) @name)
-                    ]
-                "#
-                }
-                Some("swift") => {
-                    r#"
-                    [
-                      (class_declaration name: (type_identifier) @name)
-                      (protocol_declaration name: (type_identifier) @name)
-                      (typealias_declaration name: (type_identifier) @name)
-                    ]
-                "#
-                }
-                _ => return false,
-            };
-
-            if let Ok(query) = tree_sitter::Query::new(language, query_text) {
-                let mut cursor = tree_sitter::QueryCursor::new();
-                let matches = cursor.matches(&query, tree.root_node(), content.as_bytes());
-
-                // Check each match to see if the captured name matches our target type
-                for m in matches {
-                    for capture in m.captures {
-                        if let Ok(captured_text) = capture.node.utf8_text(content.as_bytes()) {
-                            if captured_text == type_name {
-                                return true;
-                            }
-                        }
-                    }
-                }
-                return false;
-            }
-        }
-    }
-    false
+    crate::core::semantic::symbols::extract_symbols(path, content)
+        .is_ok_and(|symbols| symbols.iter().any(|symbol| symbol.name == type_name))
 }
 
 /// Find a type definition file by searching nearby paths
@@ -2113,7 +2040,7 @@ fn first_go_package_file(path: &Path) -> Option<PathBuf> {
         && direct_file
             .file_name()
             .and_then(|name| name.to_str())
-            .map_or(true, |name| !name.ends_with("_test.go"))
+            .is_none_or(|name| !name.ends_with("_test.go"))
     {
         return Some(direct_file);
     }
@@ -2400,8 +2327,10 @@ mod tests {
         "#;
 
         let mut parser = tree_sitter::Parser::new();
-        parser.set_language(tree_sitter_rust::language()).unwrap();
-        let tree = parser.parse(rust_content, None).unwrap();
+        parser
+            .set_language(&tree_sitter_rust::LANGUAGE.into())
+            .unwrap();
+        let tree = parser.parse_bounded(rust_content, None).unwrap();
 
         // Test simple query without predicate first
         let simple_query = r#"
@@ -2412,14 +2341,15 @@ mod tests {
             ]
         "#;
 
-        let query = tree_sitter::Query::new(tree_sitter_rust::language(), simple_query).unwrap();
+        let query =
+            tree_sitter::Query::new(&tree_sitter_rust::LANGUAGE.into(), simple_query).unwrap();
         let mut cursor = tree_sitter::QueryCursor::new();
-        let matches: Vec<_> = cursor
+        let match_count = cursor
             .matches(&query, tree.root_node(), rust_content.as_bytes())
-            .collect();
+            .count();
 
         // Should find 3 definitions: MyStruct, MyEnum, MyTrait
-        assert_eq!(matches.len(), 3, "Should find exactly 3 type definitions");
+        assert_eq!(match_count, 3, "Should find exactly 3 type definitions");
 
         // Test the actual function with a simpler approach
         let rust_path = PathBuf::from("test.rs");
@@ -2521,11 +2451,13 @@ mod tests {
             }
         "#;
 
-        let language = tree_sitter_rust::language();
+        let language = tree_sitter_rust::LANGUAGE.into();
         let query_engine = QueryEngine::new(language, "rust").unwrap();
 
         let mut parser = Parser::new();
-        parser.set_language(tree_sitter_rust::language()).unwrap();
+        parser
+            .set_language(&tree_sitter_rust::LANGUAGE.into())
+            .unwrap();
 
         let result = query_engine
             .analyze_with_parser(&mut parser, rust_content)

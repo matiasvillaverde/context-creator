@@ -181,6 +181,46 @@ exit /b 0
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("main.rs"));
+
+    // An installed gh can pass its version probe but fail before authentication.
+    #[cfg(unix)]
+    fs::write(
+        &mock_gh_path,
+        r#"#!/bin/sh
+if [ "$1" = "--version" ]; then
+    echo "gh version fixture"
+    exit 0
+fi
+mkdir -p "$4"
+echo 'failed clone residue' > "$4/partial.txt"
+exit 1
+"#,
+    )
+    .unwrap();
+    #[cfg(windows)]
+    fs::write(
+        mock_gh_path.with_extension("cmd"),
+        r#"@echo off
+if "%~1" == "--version" (
+    echo gh version fixture
+    exit /b 0
+)
+mkdir "%~4" 2>nul
+echo failed clone residue > "%~4\partial.txt"
+exit /b 1
+"#,
+    )
+    .unwrap();
+    let mut retry = Command::cargo_bin("context-creator").unwrap();
+    retry
+        .env("CONTEXT_CREATOR_GH", mock_tool_path(&mock_gh_path))
+        .env("CONTEXT_CREATOR_GIT", mock_tool_path(&mock_git_path))
+        .args(["--remote", "https://github.com/fake/repo"]);
+    retry
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("main.rs"))
+        .stdout(predicate::str::contains("failed clone residue").not());
 }
 
 fn mock_tool_path(path: &std::path::Path) -> std::path::PathBuf {

@@ -16,14 +16,14 @@ Main user-facing surfaces:
 
 - CLI context generation from local paths or GitHub repositories.
 - Subcommands: `search`, `diff`, `telemetry`, and `examples`.
-- Output styles: markdown, XML, plain text, and paths-only.
+- Output styles: markdown, XML, plain text, paths-only, and repository maps.
 - MCP server implementations: legacy jsonrpsee and RMCP.
 - LLM tool integration for Gemini, Codex, Claude, and Ollama.
 
 ## Toolchain
 
 - Rust edition: 2021.
-- MSRV: 1.74.0, as configured in `clippy.toml`.
+- MSRV: 1.89.0, as configured in `clippy.toml`.
 - CI uses stable Rust with `rustfmt` and `clippy`.
 - Optional tools: `make`, `cargo-audit`, `cargo-tarpaulin`, `cargo-watch`, Node.js for the generated npm package workflow.
 
@@ -150,7 +150,7 @@ Notes:
 
 - Language analyzers live in `src/core/semantic/languages/`.
 - `get_analyzer_for_file()` controls which files get semantic extraction.
-- `get_resolver_for_file()` currently provides module resolution for Rust, Python, JavaScript, TypeScript, Go, and Swift.
+- `get_resolver_for_file()` currently provides module resolution for Rust, Python, JavaScript, TypeScript, Go, Swift, Java, C/C++, C#, Kotlin, Ruby, and PHP.
 - Adding or expanding language support usually requires:
   - Updating `src/utils/file_ext.rs` if file type or fence-language behavior changes.
   - Updating `src/core/semantic/languages/mod.rs` and the language file.

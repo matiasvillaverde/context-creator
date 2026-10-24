@@ -164,6 +164,8 @@ pub enum OutputFormat {
     /// List of file paths only
     #[value(name = "paths")]
     Paths,
+    /// Compact repository map with declaration signatures and line numbers
+    Map,
 }
 
 impl LlmTool {
@@ -180,15 +182,17 @@ impl LlmTool {
     /// Get the installation instructions for the tool
     pub fn install_instructions(&self) -> &'static str {
         match self {
-            LlmTool::Gemini => "Please install gemini with: pip install gemini",
+            LlmTool::Gemini => {
+                "Please install Gemini CLI with: npm install -g @google/gemini-cli"
+            }
             LlmTool::Codex => {
-                "Please install codex CLI from: https://github.com/microsoft/codex-cli"
+                "Please install Codex CLI with: npm install -g @openai/codex (https://github.com/openai/codex)"
             }
             LlmTool::Claude => {
                 "Please install Claude Code with: npm install -g @anthropic-ai/claude-code"
             }
             LlmTool::Ollama => {
-                "Please install Ollama from: https://ollama.ai or with: brew install ollama"
+                "Please install Ollama from: https://ollama.com or with: brew install ollama"
             }
         }
     }
@@ -229,10 +233,24 @@ impl LlmTool {
         use std::process::Command;
 
         match self {
-            LlmTool::Gemini | LlmTool::Codex => {
-                // Simple tools that just need the command name
-                let cmd = Command::new(self.command());
-                Ok((cmd, true)) // true = combined prompt+context to stdin
+            LlmTool::Gemini => {
+                let mut cmd = Command::new(self.command());
+                cmd.arg("--prompt")
+                    .arg(config.get_prompt().unwrap_or_default());
+                if let Some(model) = &config.model {
+                    cmd.arg("--model").arg(model);
+                }
+                Ok((cmd, false))
+            }
+            LlmTool::Codex => {
+                let mut cmd = Command::new(self.command());
+                // Context generation also supports directories outside Git repositories.
+                cmd.args(["exec", "--skip-git-repo-check"]);
+                if let Some(model) = &config.model {
+                    cmd.arg("--model").arg(model);
+                }
+                cmd.arg("-");
+                Ok((cmd, true))
             }
             LlmTool::Claude => {
                 // Claude uses -p flag for prompt
@@ -240,15 +258,23 @@ impl LlmTool {
                 if let Some(prompt) = config.get_prompt() {
                     cmd.arg("-p").arg(prompt);
                 }
+                if let Some(model) = &config.model {
+                    cmd.arg("--model").arg(model);
+                }
                 Ok((cmd, false)) // false = context only to stdin
             }
             LlmTool::Ollama => {
                 // Ollama requires model specification
-                let model = config.ollama_model.as_ref().ok_or_else(|| {
-                    crate::utils::error::ContextCreatorError::InvalidConfiguration(
-                        "--ollama-model is required when using --tool ollama".to_string(),
-                    )
-                })?;
+                let model = config
+                    .model
+                    .as_ref()
+                    .or(config.ollama_model.as_ref())
+                    .ok_or_else(|| {
+                        crate::utils::error::ContextCreatorError::InvalidConfiguration(
+                            "--model or --ollama-model is required when using --tool ollama"
+                                .to_string(),
+                        )
+                    })?;
                 let mut cmd = Command::new(self.command());
                 cmd.arg("run").arg(model);
                 Ok((cmd, true)) // true = combined prompt+context to stdin
@@ -361,18 +387,42 @@ pub struct Config {
     pub read_stdin: bool,
 
     /// The path to the output Markdown file. If used, won't call the LLM CLI
-    #[arg(short = 'o', long)]
+    #[arg(short = 'o', long, visible_alias = "output")]
     pub output_file: Option<PathBuf>,
+
+    /// Write a JSON accounting and timing report alongside the generated context
+    #[arg(long, value_name = "PATH")]
+    pub report: Option<PathBuf>,
+
+    /// Count supplied text with the selected provider API (requires --model and API credentials)
+    #[arg(long)]
+    pub native_token_count: bool,
+
+    /// Secret-content policy for source files (default: off)
+    #[arg(long, value_enum)]
+    pub secret_scan: Option<crate::core::secrets::SecretPolicy>,
 
     /// Maximum number of tokens for the generated codebase context
     #[arg(long)]
     pub max_tokens: Option<usize>,
 
+    /// Tokens reserved for the model response when a prompt is present (default: 1000)
+    #[arg(long)]
+    pub output_reserve: Option<usize>,
+
+    /// Local tokenizer used for context and prompt token estimates
+    #[arg(long, value_enum)]
+    pub tokenizer: Option<crate::core::token::TokenEncoding>,
+
     /// LLM CLI tool to use for processing
     #[arg(long = "tool", default_value = "gemini")]
     pub llm_tool: LlmTool,
 
-    /// Model to use with Ollama (required when using --tool ollama)
+    /// Model name or alias passed to the selected LLM CLI; uses its default when omitted
+    #[arg(long)]
+    pub model: Option<String>,
+
+    /// Model to use with Ollama (also accepts --model)
     #[arg(
         long = "ollama-model",
         help = "Ollama model to use (e.g., llama3, codellama)"
@@ -488,9 +538,15 @@ impl Default for Config {
             remote: None,
             read_stdin: false,
             output_file: None,
+            report: None,
+            native_token_count: false,
+            secret_scan: None,
             max_tokens: None,
+            output_reserve: None,
+            tokenizer: None,
             llm_tool: LlmTool::default(),
             ollama_model: None,
+            model: None,
             quiet: false,
             verbose: 0,
             log_format: LogFormat::default(),
@@ -520,6 +576,23 @@ impl Config {
     /// Validate the configuration
     pub fn validate(&self) -> Result<(), crate::utils::error::ContextCreatorError> {
         use crate::utils::error::ContextCreatorError;
+
+        crate::core::native_tokens::validate_config(self)
+            .map_err(|error| ContextCreatorError::InvalidConfiguration(error.to_string()))?;
+        crate::core::report::validate_paths(self)
+            .map_err(|error| ContextCreatorError::InvalidConfiguration(error.to_string()))?;
+
+        if (self.command.is_some() || self.mcp || self.rmcp)
+            && (self.report.is_some()
+                || self.native_token_count
+                || self
+                    .secret_scan
+                    .is_some_and(|policy| policy != crate::core::secrets::SecretPolicy::Off))
+        {
+            return Err(ContextCreatorError::InvalidConfiguration(
+                "--report, --native-token-count, and --secret-scan apply to context generation; use MCP request parameters for server tools".into()
+            ));
+        }
 
         // If MCP server mode is enabled, validate conflicts
         if self.mcp || self.rmcp {
@@ -645,11 +718,33 @@ impl Config {
         // Validate Ollama model requirement
         if self.llm_tool == LlmTool::Ollama
             && self.ollama_model.is_none()
+            && self.model.is_none()
             && self.get_prompt().is_some()
         {
             return Err(ContextCreatorError::InvalidConfiguration(
-                "--ollama-model is required when using --tool ollama".to_string(),
+                "--model or --ollama-model is required when using --tool ollama".to_string(),
             ));
+        }
+
+        if self.llm_tool == LlmTool::Ollama
+            && self.model.is_some()
+            && self.ollama_model.is_some()
+            && self.model != self.ollama_model
+        {
+            return Err(ContextCreatorError::InvalidConfiguration(
+                "--model and --ollama-model must agree when both are provided".to_string(),
+            ));
+        }
+
+        for model in [&self.model, &self.ollama_model].into_iter().flatten() {
+            if model.trim().is_empty()
+                || model.starts_with('-')
+                || model.chars().any(char::is_control)
+            {
+                return Err(ContextCreatorError::InvalidConfiguration(
+                    "Model must be a nonempty name or alias without control characters or a leading '-'".to_string(),
+                ));
+            }
         }
 
         Ok(())
@@ -770,8 +865,12 @@ impl Config {
             return Some(defaults_tokens);
         }
 
-        // 6. No automatic token limits for non-prompt usage
-        None
+        // Repository maps are bounded by default, including context-only use.
+        if self.output_format == OutputFormat::Map {
+            Some(4096)
+        } else {
+            None
+        }
     }
 
     /// Get effective context tokens with prompt reservation
@@ -780,28 +879,44 @@ impl Config {
         if let Some(max_tokens) = self.get_effective_max_tokens() {
             if let Some(prompt) = self.get_prompt() {
                 // Create token counter to measure prompt
-                if let Ok(counter) = crate::core::token::TokenCounter::new() {
+                if let Ok(counter) =
+                    crate::core::token::TokenCounter::with_encoding(self.get_tokenizer())
+                {
                     if let Ok(prompt_tokens) = counter.count_tokens(&prompt) {
                         // Reserve space for prompt + safety buffer for response
-                        let safety_buffer = 1000; // Reserve for LLM response
-                        let reserved = prompt_tokens + safety_buffer;
+                        let reserved = prompt_tokens.saturating_add(self.get_output_reserve());
                         let available = max_tokens.saturating_sub(reserved);
                         return Some(available);
                     }
                 }
                 // Fallback: rough estimation if tiktoken fails
                 let estimated_prompt_tokens = prompt.len().div_ceil(4); // ~4 chars per token
-                let safety_buffer = 1000;
-                let reserved = estimated_prompt_tokens + safety_buffer;
+                let reserved = estimated_prompt_tokens.saturating_add(self.get_output_reserve());
                 let available = max_tokens.saturating_sub(reserved);
                 Some(available)
             } else {
-                // No prompt, use full token budget
-                Some(max_tokens)
+                Some(if self.native_token_count {
+                    max_tokens.saturating_sub(self.get_output_reserve())
+                } else {
+                    max_tokens
+                })
             }
         } else {
             None
         }
+    }
+
+    /// Resolve the local tokenizer, preserving explicit CLI/config choices.
+    pub fn get_tokenizer(&self) -> crate::core::token::TokenEncoding {
+        self.tokenizer.unwrap_or_default()
+    }
+
+    pub fn get_secret_policy(&self) -> crate::core::secrets::SecretPolicy {
+        self.secret_scan.unwrap_or_default()
+    }
+
+    pub fn get_output_reserve(&self) -> usize {
+        self.output_reserve.unwrap_or(1000)
     }
 
     /// Check if we should read from stdin
@@ -918,7 +1033,7 @@ mod tests {
 
         assert!(LlmTool::Gemini
             .install_instructions()
-            .contains("pip install"));
+            .contains("@google/gemini-cli"));
         assert!(LlmTool::Codex.install_instructions().contains("github.com"));
 
         assert_eq!(LlmTool::default(), LlmTool::Gemini);

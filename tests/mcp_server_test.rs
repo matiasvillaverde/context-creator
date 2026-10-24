@@ -396,8 +396,9 @@ async fn test_get_file_metadata_non_existent() -> Result<()> {
         file_path: PathBuf,
     }
 
+    let project = tempfile::TempDir::new()?;
     let request = GetFileMetadataRequest {
-        file_path: PathBuf::from("/non/existent/file.rs"),
+        file_path: project.path().join("nonexistent.rs"),
     };
 
     // When: We request metadata for a non-existent file

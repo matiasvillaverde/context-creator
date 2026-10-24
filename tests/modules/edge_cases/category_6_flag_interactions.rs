@@ -394,10 +394,11 @@ fn test_99_extreme_token_limits() {
     // Test with very small token limit
     let output = run_context_creator(&["--max-tokens", "1", temp_dir.path().to_str().unwrap()]);
 
-    assert!(output.status.success());
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    // Should include minimal output with such a small limit
-    assert!(stdout.contains("# Code Context"));
+    // A one-token budget cannot contain the format header. Fail before output
+    // instead of silently returning an oversized document.
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Token limit exceeded"));
+    assert!(output.stdout.is_empty());
 
     // Test with very large token limit
     let output = run_context_creator(&[

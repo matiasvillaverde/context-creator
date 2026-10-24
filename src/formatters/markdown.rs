@@ -112,12 +112,7 @@ impl DigestFormatter for MarkdownFormatter {
         // Add file content
         if let Ok(content) = data.cache.get_or_load(&file.path) {
             let language = get_language_hint(&file.file_type);
-            self.buffer.push_str(&format!("```{language}\n"));
-            self.buffer.push_str(&content);
-            if !content.ends_with('\n') {
-                self.buffer.push('\n');
-            }
-            self.buffer.push_str("```\n\n");
+            append_fenced_content(&mut self.buffer, &content, language);
         }
 
         Ok(())
@@ -130,6 +125,25 @@ impl DigestFormatter for MarkdownFormatter {
     fn format_name(&self) -> &'static str {
         "markdown"
     }
+}
+
+/// A fence must be longer than any backtick run in the source it encloses.
+pub(crate) fn append_fenced_content(output: &mut String, content: &str, language: &str) {
+    let longest_run = content
+        .split(|ch| ch != '`')
+        .map(str::len)
+        .max()
+        .unwrap_or(0);
+    let fence = "`".repeat(3.max(longest_run.saturating_add(1)));
+    output.push_str(&fence);
+    output.push_str(language);
+    output.push('\n');
+    output.push_str(content);
+    if !content.ends_with('\n') {
+        output.push('\n');
+    }
+    output.push_str(&fence);
+    output.push_str("\n\n");
 }
 
 fn add_markdown_semantic_info(output: &mut String, file: &FileInfo) {

@@ -1,5 +1,6 @@
 //! Semantic analyzer for Go
 
+use crate::core::semantic::parsing::ParserExt;
 use crate::core::semantic::{
     analyzer::{
         AnalysisResult, Import, LanguageAnalyzer, SemanticContext, SemanticResult, TypeReference,
@@ -12,6 +13,7 @@ use crate::utils::error::ContextCreatorError;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
+use tree_sitter::StreamingIterator;
 use tree_sitter::{Parser, Query, QueryCursor};
 
 #[allow(clippy::new_without_default)]
@@ -21,7 +23,7 @@ pub struct GoAnalyzer {
 
 impl GoAnalyzer {
     pub fn new() -> Self {
-        let language = tree_sitter_go::language();
+        let language = tree_sitter_go::LANGUAGE.into();
         let query_engine =
             QueryEngine::new(language, "go").expect("Failed to create Go query engine");
         Self { query_engine }
@@ -41,7 +43,7 @@ impl LanguageAnalyzer for GoAnalyzer {
     ) -> SemanticResult<AnalysisResult> {
         let mut parser = Parser::new();
         parser
-            .set_language(tree_sitter_go::language())
+            .set_language(&tree_sitter_go::LANGUAGE.into())
             .map_err(|e| ContextCreatorError::ParseError(format!("Failed to set language: {e}")))?;
 
         let mut result = self
@@ -446,10 +448,10 @@ fn go_file_contains_type_definition(
 ) -> Result<bool, ContextCreatorError> {
     let mut parser = Parser::new();
     parser
-        .set_language(tree_sitter_go::language())
+        .set_language(&tree_sitter_go::LANGUAGE.into())
         .map_err(|e| ContextCreatorError::ParseError(format!("Failed to set language: {e}")))?;
 
-    let Some(tree) = parser.parse(content, None) else {
+    let Some(tree) = parser.parse_bounded(content, None) else {
         return Ok(false);
     };
 
@@ -459,13 +461,13 @@ fn go_file_contains_type_definition(
           (type_alias name: (type_identifier) @name)
         ]
     "#;
-    let query = Query::new(tree_sitter_go::language(), query_text).map_err(|e| {
+    let query = Query::new(&tree_sitter_go::LANGUAGE.into(), query_text).map_err(|e| {
         ContextCreatorError::ParseError(format!("Failed to create Go type query: {e}"))
     })?;
     let mut cursor = QueryCursor::new();
-    let matches = cursor.matches(&query, tree.root_node(), content.as_bytes());
+    let mut matches = cursor.matches(&query, tree.root_node(), content.as_bytes());
 
-    for match_ in matches {
+    while let Some(match_) = matches.next() {
         for capture in match_.captures {
             if let Ok(captured_text) = capture.node.utf8_text(content.as_bytes()) {
                 if captured_text == type_name {

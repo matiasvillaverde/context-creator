@@ -135,8 +135,7 @@ pub fn parse_github_url(url: &str) -> Result<(String, String), ContextCreatorErr
     Ok((parts[0].to_string(), repo_dir_name(parts[1])))
 }
 
-/// Fetch a repository from GitHub
-pub fn fetch_repository(repo_url: &str, verbose: bool) -> Result<TempDir, ContextCreatorError> {
+fn new_clone_directory() -> Result<TempDir, ContextCreatorError> {
     let temp_dir = TempDir::new().map_err(|e| {
         ContextCreatorError::RemoteFetchError(format!("Failed to create temp directory: {e}"))
     })?;
@@ -159,6 +158,13 @@ pub fn fetch_repository(repo_url: &str, verbose: bool) -> Result<TempDir, Contex
         })?;
     }
 
+    Ok(temp_dir)
+}
+
+/// Fetch a repository from GitHub, falling back when gh is unauthenticated.
+pub fn fetch_repository(repo_url: &str, verbose: bool) -> Result<TempDir, ContextCreatorError> {
+    let mut temp_dir = new_clone_directory()?;
+
     let success = if let Ok((owner, repo)) = parse_github_url(repo_url) {
         if verbose {
             eprintln!("📥 Fetching repository: {owner}/{repo}");
@@ -170,7 +176,20 @@ pub fn fetch_repository(repo_url: &str, verbose: bool) -> Result<TempDir, Contex
             if verbose {
                 eprintln!("🔧 Using gh CLI for optimal performance");
             }
-            clone_with_gh(&owner, &repo, temp_dir.path(), verbose)?
+            if matches!(
+                clone_with_gh(&owner, &repo, temp_dir.path(), verbose),
+                Ok(true)
+            ) {
+                true
+            } else {
+                if verbose {
+                    eprintln!("GitHub CLI clone failed; retrying with git");
+                }
+                // A failed clone may leave files behind. Retry in a new owned
+                // directory, preserving the same permissions and cleanup policy.
+                temp_dir = new_clone_directory()?;
+                clone_with_git(repo_url, temp_dir.path(), verbose)?
+            }
         } else {
             let git_status = tool_available("git");
             if git_status.is_ok() {

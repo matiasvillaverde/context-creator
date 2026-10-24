@@ -47,9 +47,20 @@ impl ProjectAnalysis {
             info!("Analyzing project from: {}", project_root.display());
         }
 
-        let mut all_files = walk_directory(&project_root, project_walk_options)
+        let all_files = walk_directory(&project_root, project_walk_options)
             .map_err(|e| ContextCreatorError::ContextGenerationError(e.to_string()))?;
 
+        Self::from_files(all_files, &project_root, config, cache)
+    }
+
+    /// Reuse an existing walk when only the selected source scope is needed.
+    pub fn from_files(
+        mut all_files: Vec<FileInfo>,
+        project_root: &Path,
+        config: &Config,
+        cache: &Arc<FileCache>,
+    ) -> Result<Self, ContextCreatorError> {
+        let project_root = project_root.to_path_buf();
         // Perform semantic analysis once
         if config.trace_imports || config.include_callers || config.include_types {
             super::semantic_graph::perform_semantic_analysis_graph_with_root(

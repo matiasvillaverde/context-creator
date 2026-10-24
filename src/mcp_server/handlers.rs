@@ -43,14 +43,66 @@ impl CodebaseRpcImpl {
 
 #[jsonrpsee::core::async_trait]
 impl CodebaseRpcServer for CodebaseRpcImpl {
+    async fn repository_map(
+        &self,
+        request: super::RepositoryMapRequest,
+    ) -> RpcResult<super::RepositoryMapResponse> {
+        tokio::task::spawn_blocking(move || super::progressive::repository_map_sync(request))
+            .await
+            .map_err(|error| {
+                jsonrpsee::types::ErrorObject::owned(
+                    -32603,
+                    "Worker failed",
+                    Some(error.to_string()),
+                )
+            })?
+            .map_err(|error| {
+                jsonrpsee::types::ErrorObject::owned(
+                    -32602,
+                    "Invalid map request",
+                    Some(error.to_string()),
+                )
+            })
+    }
+
+    async fn read_file(
+        &self,
+        request: super::ReadFileRequest,
+    ) -> RpcResult<super::ReadFileResponse> {
+        tokio::task::spawn_blocking(move || super::progressive::read_file_sync(request))
+            .await
+            .map_err(|error| {
+                jsonrpsee::types::ErrorObject::owned(
+                    -32603,
+                    "Worker failed",
+                    Some(error.to_string()),
+                )
+            })?
+            .map_err(|error| {
+                jsonrpsee::types::ErrorObject::owned(
+                    -32602,
+                    "Invalid file request",
+                    Some(error.to_string()),
+                )
+            })
+    }
+
     async fn process_local_codebase(
         &self,
         request: ProcessLocalRequest,
     ) -> RpcResult<ProcessLocalResponse> {
         let start = Instant::now();
 
-        // Validate path security
-        validate_path(&request.path)?;
+        let path = request.path.clone();
+        tokio::task::spawn_blocking(move || validate_path(&path))
+            .await
+            .map_err(|error| {
+                jsonrpsee::types::ErrorObject::owned(
+                    -32603,
+                    "Validation worker failed",
+                    Some(error.to_string()),
+                )
+            })??;
 
         // Check cache first
         let cache_key = crate::mcp_server::cache::ProcessLocalCacheKey::from_request(&request);
@@ -227,8 +279,7 @@ impl CodebaseRpcServer for CodebaseRpcImpl {
 /// Validate path for security issues
 pub(super) fn validate_path(path: &Path) -> RpcResult<()> {
     // Check for path traversal attempts
-    let path_str = path.to_string_lossy();
-    if path_str.contains("..") || path_str.contains('~') {
+    if super::has_path_traversal(path) {
         return Err(jsonrpsee::types::ErrorObject::owned(
             -32602,
             "Invalid path: potential security risk",
@@ -289,10 +340,9 @@ pub(super) fn process_codebase_sync(
 ) -> Result<ProcessLocalResponse> {
     use crate::cli::Config;
     use crate::core::cache::FileCache;
-    use crate::core::context_builder::{generate_markdown, ContextOptions};
+    use crate::core::context_builder::{generate_markdown_with_report, ContextOptions};
     use crate::core::prioritizer::prioritize_files;
-    use crate::core::token::TokenCounter;
-    use crate::core::walker::{walk_directory, WalkOptions};
+    use crate::core::walker::WalkOptions;
     use std::sync::Arc;
 
     let (llm_tool, llm_tool_name) = resolve_llm_tool(request.llm_tool.as_deref());
@@ -305,18 +355,6 @@ pub(super) fn process_codebase_sync(
         // Use LLM default if not specified
         llm_tool.default_max_tokens()
     };
-
-    // Reserve tokens for prompt and response
-    let prompt_tokens = if let Ok(counter) = TokenCounter::new() {
-        counter
-            .count_tokens(&request.prompt)
-            .unwrap_or(request.prompt.len() / 4)
-    } else {
-        request.prompt.len() / 4 // Rough estimate
-    };
-
-    let safety_buffer = 1000; // For LLM response
-    let context_tokens = effective_max_tokens.saturating_sub(prompt_tokens + safety_buffer);
 
     // Create a Config from the request
     let config = Config {
@@ -332,7 +370,11 @@ pub(super) fn process_codebase_sync(
             Some(request.ignore_patterns.clone())
         },
         trace_imports: request.include_imports,
-        max_tokens: Some(context_tokens),
+        max_tokens: Some(effective_max_tokens),
+        model: request.model.clone(),
+        tokenizer: request.tokenizer,
+        output_reserve: request.output_reserve,
+        secret_scan: request.secret_scan,
         llm_tool,
         prompt: if has_prompt {
             Some(request.prompt.clone())
@@ -347,6 +389,8 @@ pub(super) fn process_codebase_sync(
         ..Default::default()
     };
 
+    config.validate()?;
+
     // Create walker options
     let walk_options = WalkOptions::from_config(&config)?;
 
@@ -354,10 +398,16 @@ pub(super) fn process_codebase_sync(
     let context_options = ContextOptions::from_config(&config)?;
 
     // Create file cache
-    let cache = Arc::new(FileCache::new());
+    let cache = Arc::new(FileCache::with_secret_policy(config.get_secret_policy()));
 
     // Walk the directory
-    let files = walk_directory(&request.path, walk_options)?;
+    let files = crate::collect_directory_files(
+        &request.path,
+        walk_options,
+        context_options.clone(),
+        cache.clone(),
+        &config,
+    )?;
 
     // Prioritize files if max tokens is set
     let prioritized_files = if context_options.max_tokens.is_some() {
@@ -366,26 +416,18 @@ pub(super) fn process_codebase_sync(
         files
     };
 
-    // Generate markdown
-    let output = generate_markdown(prioritized_files, context_options, cache)?;
+    // Count selected files before rendering arbitrary source headings.
+    let rendered = generate_markdown_with_report(prioritized_files, context_options, cache)?;
+    let file_count = rendered.file_count;
+    let output = rendered.text;
+    crate::core::budget::check_prompt_budget(&config, &output)?;
 
     // Count tokens
-    let token_counter = crate::core::token::TokenCounter::new()?;
+    let token_counter = crate::core::token::TokenCounter::with_encoding(config.get_tokenizer())?;
     let token_count = token_counter.count_tokens(&output)?;
 
-    // Count files (count markdown headers starting with ##)
-    let file_count = output
-        .lines()
-        .filter(|line| {
-            line.starts_with("## ")
-                && !line.starts_with("## Table of")
-                && !line.starts_with("## Statistics")
-                && !line.starts_with("## File Structure")
-        })
-        .count();
-
     let answer = if has_prompt {
-        execute_llm_sync(&request.prompt, &output, Some(&llm_tool_name))?
+        execute_llm_sync(&request.prompt, &output, &config)?
     } else {
         String::new()
     };
@@ -415,9 +457,9 @@ pub(super) fn process_remote_sync(
 ) -> Result<ProcessRemoteResponse> {
     use crate::cli::Config;
     use crate::core::cache::FileCache;
-    use crate::core::context_builder::{generate_markdown, ContextOptions};
+    use crate::core::context_builder::{generate_markdown_with_report, ContextOptions};
     use crate::core::prioritizer::prioritize_files;
-    use crate::core::walker::{walk_directory, WalkOptions};
+    use crate::core::walker::WalkOptions;
     use crate::remote;
     use std::sync::Arc;
 
@@ -444,18 +486,6 @@ pub(super) fn process_remote_sync(
         llm_tool.default_max_tokens()
     };
 
-    // Reserve tokens for prompt and response
-    let prompt_tokens = if let Ok(counter) = crate::core::token::TokenCounter::new() {
-        counter
-            .count_tokens(&request.prompt)
-            .unwrap_or(request.prompt.len() / 4)
-    } else {
-        request.prompt.len() / 4
-    };
-
-    let safety_buffer = 1000;
-    let context_tokens = effective_max_tokens.saturating_sub(prompt_tokens + safety_buffer);
-
     // Create a Config from the request
     let config = Config {
         paths: Some(vec![repo_path.clone()]),
@@ -470,7 +500,11 @@ pub(super) fn process_remote_sync(
             Some(request.ignore_patterns.clone())
         },
         trace_imports: request.include_imports,
-        max_tokens: Some(context_tokens),
+        max_tokens: Some(effective_max_tokens),
+        model: request.model.clone(),
+        tokenizer: request.tokenizer,
+        output_reserve: request.output_reserve,
+        secret_scan: request.secret_scan,
         llm_tool,
         prompt: if has_prompt {
             Some(request.prompt.clone())
@@ -485,6 +519,8 @@ pub(super) fn process_remote_sync(
         ..Default::default()
     };
 
+    config.validate()?;
+
     // Create walker options
     let walk_options = WalkOptions::from_config(&config)?;
 
@@ -492,10 +528,16 @@ pub(super) fn process_remote_sync(
     let context_options = ContextOptions::from_config(&config)?;
 
     // Create file cache
-    let cache = Arc::new(FileCache::new());
+    let cache = Arc::new(FileCache::with_secret_policy(config.get_secret_policy()));
 
     // Walk the directory
-    let files = walk_directory(&repo_path, walk_options)?;
+    let files = crate::collect_directory_files(
+        &repo_path,
+        walk_options,
+        context_options.clone(),
+        cache.clone(),
+        &config,
+    )?;
 
     // Prioritize files if max tokens is set
     let prioritized_files = if context_options.max_tokens.is_some() {
@@ -504,26 +546,18 @@ pub(super) fn process_remote_sync(
         files
     };
 
-    // Generate markdown
-    let output = generate_markdown(prioritized_files, context_options, cache)?;
+    // Count selected files before rendering arbitrary source headings.
+    let rendered = generate_markdown_with_report(prioritized_files, context_options, cache)?;
+    let file_count = rendered.file_count;
+    let output = rendered.text;
+    crate::core::budget::check_prompt_budget(&config, &output)?;
 
     // Count tokens
-    let token_counter = crate::core::token::TokenCounter::new()?;
+    let token_counter = crate::core::token::TokenCounter::with_encoding(config.get_tokenizer())?;
     let token_count = token_counter.count_tokens(&output)?;
 
-    // Count files (count markdown headers starting with ##)
-    let file_count = output
-        .lines()
-        .filter(|line| {
-            line.starts_with("## ")
-                && !line.starts_with("## Table of")
-                && !line.starts_with("## Statistics")
-                && !line.starts_with("## File Structure")
-        })
-        .count();
-
     let answer = if has_prompt {
-        execute_llm_sync(&request.prompt, &output, Some(&llm_tool_name))?
+        execute_llm_sync(&request.prompt, &output, &config)?
     } else {
         String::new()
     };
@@ -1206,23 +1240,25 @@ pub(super) fn semantic_search_sync(
 
 /// Check if file extension is a supported language
 fn is_supported_language_file(ext: &str) -> bool {
-    matches!(
-        ext,
-        "rs" | "py" | "js" | "jsx" | "ts" | "tsx" | "go" | "swift"
-    )
+    crate::core::semantic::grammar_for_file(Path::new(&format!("file.{ext}"))).is_some()
 }
 
 /// Execute LLM with prompt and context
-fn execute_llm_sync(prompt: &str, context: &str, llm_tool: Option<&str>) -> Result<String> {
+fn execute_llm_sync(prompt: &str, context: &str, config: &crate::cli::Config) -> Result<String> {
     use crate::utils::error::ContextCreatorError;
     use std::io::Write;
-    use std::process::{Command, Stdio};
+    use std::process::Stdio;
 
-    let (tool, _) = resolve_llm_tool(llm_tool);
-    let full_input = format!("{prompt}\n\n{context}");
+    let tool = config.llm_tool;
+    let (mut command, combined_input) = tool.prepare_command(config)?;
+    let full_input = if combined_input {
+        format!("{prompt}\n\n{context}")
+    } else {
+        context.to_string()
+    };
     let tool_command = tool.command();
 
-    let mut child = Command::new(tool_command)
+    let mut child = command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

@@ -11,6 +11,8 @@ use std::sync::Arc;
 /// Thread-safe file content cache
 pub struct FileCache {
     cache: DashMap<PathBuf, Arc<str>>,
+    secret_policy: super::secrets::SecretPolicy,
+    symbols: DashMap<PathBuf, Arc<Vec<crate::core::semantic::symbols::CodeSymbol>>>,
 }
 
 impl FileCache {
@@ -18,6 +20,15 @@ impl FileCache {
     pub fn new() -> Self {
         FileCache {
             cache: DashMap::new(),
+            secret_policy: super::secrets::SecretPolicy::Off,
+            symbols: DashMap::new(),
+        }
+    }
+
+    pub fn with_secret_policy(secret_policy: super::secrets::SecretPolicy) -> Self {
+        Self {
+            secret_policy,
+            ..Self::new()
         }
     }
 
@@ -33,6 +44,11 @@ impl FileCache {
 
         // Load from disk
         let content = std::fs::read_to_string(&canonical_path)?;
+        let content = if self.secret_policy == super::secrets::SecretPolicy::Off {
+            content
+        } else {
+            super::secrets::apply_policy(&canonical_path, &content, self.secret_policy)?
+        };
         let arc_content: Arc<str> = Arc::from(content.as_str());
 
         // Store in cache
@@ -46,6 +62,23 @@ impl FileCache {
         CacheStats {
             entries: self.cache.len(),
         }
+    }
+
+    /// Cache declarations from the same immutable content snapshot as rendering.
+    pub fn get_symbols(
+        &self,
+        path: &Path,
+    ) -> Result<Arc<Vec<crate::core::semantic::symbols::CodeSymbol>>> {
+        let canonical = path.canonicalize()?;
+        if let Some(symbols) = self.symbols.get(&canonical) {
+            return Ok(Arc::clone(&symbols));
+        }
+        let content = self.get_or_load(&canonical)?;
+        let symbols = Arc::new(crate::core::semantic::symbols::extract_symbols(
+            &canonical, &content,
+        )?);
+        self.symbols.insert(canonical, Arc::clone(&symbols));
+        Ok(symbols)
     }
 }
 

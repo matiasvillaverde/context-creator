@@ -2,6 +2,7 @@
 //! Provides bounded memory usage and timeout protection
 
 use crate::core::semantic::parser_pool::ParserPoolManager;
+use crate::core::semantic::parsing::{parse_with_timeout, DEFAULT_PARSE_TIMEOUT};
 use crate::utils::error::ContextCreatorError;
 use moka::future::Cache;
 use std::collections::hash_map::DefaultHasher;
@@ -106,34 +107,35 @@ impl AstCacheV2 {
         let entry = self
             .cache
             .try_get_with(key, async move {
-                // Parse with timeout protection
-                let parse_result = timeout(timeout_duration, async {
-                    let mut parser = parser_pool.get_parser(&language_clone).await?;
-
-                    let tree = parser.parse(&content_clone, None).ok_or_else(|| {
+                let mut parser = timeout(timeout_duration, parser_pool.get_parser(&language_clone))
+                    .await
+                    .map_err(|_| {
+                        ContextCreatorError::ParseError("Parser pool acquisition timed out".into())
+                    })??;
+                // Parsing is CPU work. A cooperative deadline bounds the blocking
+                // worker too; timing out an async wrapper would not stop it.
+                tokio::task::spawn_blocking(move || {
+                    let tree = parse_with_timeout(
+                        &mut parser,
+                        content_clone.as_bytes(),
+                        None,
+                        timeout_duration.min(DEFAULT_PARSE_TIMEOUT),
+                    )
+                    .ok_or_else(|| {
                         ContextCreatorError::ParseError(format!(
-                            "Failed to parse {} file: {}",
-                            language_clone,
+                            "Parsing timed out for {}",
                             path_clone.display()
                         ))
                     })?;
-
-                    Ok::<Tree, ContextCreatorError>(tree)
-                })
-                .await;
-
-                match parse_result {
-                    Ok(Ok(tree)) => Ok(CacheEntry {
+                    Ok::<_, ContextCreatorError>(CacheEntry {
                         tree: Arc::new(tree),
                         content: Arc::new(content_clone),
-                    }),
-                    Ok(Err(e)) => Err(e),
-                    Err(_) => Err(ContextCreatorError::ParseError(format!(
-                        "Parsing timed out after {:?} for file: {}",
-                        timeout_duration,
-                        path_clone.display()
-                    ))),
-                }
+                    })
+                })
+                .await
+                .map_err(|error| {
+                    ContextCreatorError::ParseError(format!("Parser worker failed: {error}"))
+                })?
             })
             .await
             .map_err(|e| {

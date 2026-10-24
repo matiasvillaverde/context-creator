@@ -20,3 +20,5 @@ pub mod rust;
 pub mod scala;
 pub mod swift;
 pub mod typescript;
+
+pub mod structural;

@@ -38,7 +38,7 @@ fn test_llm_tool_command_names() {
 fn test_llm_tool_install_instructions() {
     assert!(LlmTool::Gemini
         .install_instructions()
-        .contains("pip install"));
+        .contains("@google/gemini-cli"));
     assert!(LlmTool::Codex.install_instructions().contains("github.com"));
 }
 
@@ -820,14 +820,14 @@ fn test_prepare_command_gemini() {
     let (cmd, combined_input) = LlmTool::Gemini.prepare_command(&config).unwrap();
 
     // Gemini should use stdin for combined prompt+context
-    assert!(combined_input);
+    assert!(!combined_input);
 
     // Verify command setup
     assert_eq!(cmd.get_program(), "gemini");
 
-    // Check that no args are passed
+    // An explicit prompt flag selects headless mode even with empty input.
     let args: Vec<_> = cmd.get_args().collect();
-    assert_eq!(args.len(), 0);
+    assert_eq!(args, ["--prompt", ""]);
 }
 
 #[test]
@@ -841,9 +841,8 @@ fn test_prepare_command_codex() {
     // Verify command setup
     assert_eq!(cmd.get_program(), "codex");
 
-    // Check that no args are passed
     let args: Vec<_> = cmd.get_args().collect();
-    assert_eq!(args.len(), 0);
+    assert_eq!(args, ["exec", "--skip-git-repo-check", "-"]);
 }
 
 #[test]

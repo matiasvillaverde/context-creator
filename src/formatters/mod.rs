@@ -7,6 +7,7 @@ use crate::core::walker::FileInfo;
 use anyhow::Result;
 use std::sync::Arc;
 
+pub mod map;
 pub mod markdown;
 pub mod paths;
 pub mod plain;
@@ -51,5 +52,6 @@ pub fn create_formatter(format: OutputFormat) -> Box<dyn DigestFormatter> {
         OutputFormat::Xml => Box::new(xml::XmlFormatter::new()),
         OutputFormat::Plain => Box::new(plain::PlainFormatter::new()),
         OutputFormat::Paths => Box::new(paths::PathsFormatter::new()),
+        OutputFormat::Map => Box::new(map::MapFormatter::default()),
     }
 }
