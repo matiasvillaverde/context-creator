@@ -37,7 +37,9 @@ fn fixture(language: &str) -> Fixture {
     }
     Fixture {
         entry: project.path().join(entry),
-        dependency: project.path().join(dependency),
+        // TempDir may use Windows short names or macOS /var aliases;
+        // resolver results and expected identities use canonical paths.
+        dependency: project.path().join(dependency).canonicalize().unwrap(),
         project,
     }
 }
@@ -239,7 +241,11 @@ fn javascript_module_variants_resolve_extensionless_imports() {
         let resolved = resolver
             .resolve_import("./helper", &entry, project.path())
             .unwrap();
-        assert_eq!(resolved.path, dependency, "{extension}");
+        assert_eq!(
+            resolved.path,
+            dependency.canonicalize().unwrap(),
+            "{extension}"
+        );
         assert!(!resolved.is_external);
     }
 }
