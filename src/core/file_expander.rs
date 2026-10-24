@@ -80,6 +80,19 @@ pub fn detect_project_root(start_path: &Path) -> PathBuf {
         if current.join("Package.swift").exists() {
             return absolute_project_root(current);
         }
+
+        if [
+            "pom.xml",
+            "build.gradle",
+            "build.gradle.kts",
+            "settings.gradle",
+            "settings.gradle.kts",
+        ]
+        .iter()
+        .any(|marker| current.join(marker).exists())
+        {
+            return absolute_project_root(current);
+        }
         // Check for generic project markers
         if current.join("README.md").exists() || current.join("readme.md").exists() {
             return absolute_project_root(current);
@@ -1495,6 +1508,7 @@ fn file_contains_definition(path: &Path, content: &str, type_name: &str) -> bool
         Some("js") | Some("jsx") => Some(tree_sitter_javascript::language()),
         Some("go") => Some(tree_sitter_go::language()),
         Some("swift") => Some(tree_sitter_swift::language()),
+        Some("java") => Some(tree_sitter_java::language()),
         _ => None,
     };
 
@@ -1560,6 +1574,17 @@ fn file_contains_definition(path: &Path, content: &str, type_name: &str) -> bool
                       (typealias_declaration name: (type_identifier) @name)
                     ]
                 "#
+                }
+                Some("java") => {
+                    r#"
+                    [
+                      (class_declaration name: (identifier) @name)
+                      (interface_declaration name: (identifier) @name)
+                      (enum_declaration name: (identifier) @name)
+                      (record_declaration name: (identifier) @name)
+                      (annotation_type_declaration name: (identifier) @name)
+                    ]
+                    "#
                 }
                 _ => return false,
             };
@@ -2113,7 +2138,7 @@ fn first_go_package_file(path: &Path) -> Option<PathBuf> {
         && direct_file
             .file_name()
             .and_then(|name| name.to_str())
-            .map_or(true, |name| !name.ends_with("_test.go"))
+            .is_none_or(|name| !name.ends_with("_test.go"))
     {
         return Some(direct_file);
     }

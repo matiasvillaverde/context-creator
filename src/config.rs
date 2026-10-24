@@ -43,6 +43,12 @@ pub struct Defaults {
     #[serde(default)]
     pub llm_tool: Option<String>,
 
+    /// Model name or alias passed to the selected LLM CLI.
+    pub model: Option<String>,
+
+    /// Local tokenizer for context budget estimates.
+    pub tokenizer: Option<crate::core::token::TokenEncoding>,
+
     /// Default to show progress
     #[serde(default)]
     pub progress: bool,
@@ -140,6 +146,9 @@ impl ConfigFile {
 
     /// Apply configuration defaults to CLI config
     pub fn apply_to_cli_config(&self, cli_config: &mut CliConfig) {
+        if cli_config.tokenizer.is_none() {
+            cli_config.tokenizer = self.defaults.tokenizer;
+        }
         // Apply custom priorities from config file
         cli_config.custom_priorities = self.priorities.clone();
 
@@ -164,16 +173,24 @@ impl ConfigFile {
             }
         }
 
+        // The legacy Ollama flag is also an explicit CLI model choice.
+        if cli_config.model.is_none()
+            && (cli_config.llm_tool != LlmTool::Ollama || cli_config.ollama_model.is_none())
+        {
+            cli_config.model = self.defaults.model.clone();
+        }
+
         // Apply boolean defaults only if they weren't explicitly set
         if !cli_config.progress && self.defaults.progress {
             cli_config.progress = self.defaults.progress;
         }
 
-        if cli_config.verbose == 0 && self.defaults.verbose {
+        let explicit_logging = cli_config.quiet || cli_config.verbose > 0;
+        if !explicit_logging && self.defaults.verbose {
             cli_config.verbose = 1; // Convert bool true to verbose level 1
         }
 
-        if !cli_config.quiet && self.defaults.quiet {
+        if !explicit_logging && self.defaults.quiet {
             cli_config.quiet = self.defaults.quiet;
         }
 
@@ -213,6 +230,8 @@ pub fn create_example_config() -> String {
         defaults: Defaults {
             max_tokens: Some(150000),
             llm_tool: Some("gemini".to_string()),
+            model: None,
+            tokenizer: None,
             progress: true,
             verbose: false,
             quiet: false,
@@ -330,6 +349,8 @@ progress = true
     fn test_apply_to_cli_config() {
         let config_file = ConfigFile {
             defaults: Defaults {
+                model: Default::default(),
+                tokenizer: Default::default(),
                 max_tokens: Some(75000),
                 llm_tool: Some("codex".to_string()),
                 progress: true,
@@ -425,6 +446,8 @@ max_tokens = 200000
     fn test_apply_to_cli_config_with_token_limits() {
         let config_file = ConfigFile {
             defaults: Defaults {
+                model: Default::default(),
+                tokenizer: Default::default(),
                 max_tokens: Some(75000),
                 llm_tool: Some("gemini".to_string()),
                 progress: true,

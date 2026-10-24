@@ -5,7 +5,7 @@ This guide covers the actual installation methods supported by context-creator.
 ## Prerequisites
 
 - **For npm package**: Node.js >= 16.0.0
-- **For building from source**: Rust >= 1.70.0
+- **For building from source**: Rust >= 1.89.0
 
 ## Quick Install
 
@@ -107,10 +107,10 @@ git clone https://github.com/matiasvillaverde/context-creator.git
 cd context-creator
 
 # Build release version
-cargo build --release
+cargo build --release --locked
 
 # Install globally
-cargo install --path .
+cargo install --path . --locked
 
 # Or run directly
 ./target/release/context-creator --version

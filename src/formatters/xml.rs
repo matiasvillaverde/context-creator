@@ -65,9 +65,14 @@ impl DigestFormatter for XmlFormatter {
             self.buffer.push_str(&format!(
                 "    <file path=\"{}\">\n",
                 format_path_for_output(&file.relative_path)
+                    .replace('&', "&amp;")
+                    .replace('"', "&quot;")
+                    .replace('<', "&lt;")
+                    .replace('>', "&gt;")
             ));
             self.buffer.push_str("      <![CDATA[");
-            self.buffer.push_str(&content);
+            self.buffer
+                .push_str(&content.replace("]]>", "]]]]><![CDATA[>"));
             self.buffer.push_str("]]>\n");
             self.buffer.push_str("    </file>\n");
         }

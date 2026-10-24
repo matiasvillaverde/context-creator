@@ -96,35 +96,36 @@ impl GraphBuilder {
         path_to_index: &HashMap<PathBuf, usize>,
         node_map: &HashMap<PathBuf, NodeIndex>,
     ) {
+        let nodes_by_file_index: HashMap<_, _> = path_to_index
+            .iter()
+            .filter_map(|(path, index)| node_map.get(path).map(|node| (*index, *node)))
+            .collect();
+        let canonical_nodes: HashMap<_, _> = node_map
+            .iter()
+            .filter_map(|(path, node)| path.canonicalize().ok().map(|path| (path, *node)))
+            .collect();
         for result in analysis_results {
-            let file_index = result.file_index;
-
-            // Find the source node
-            let source_path = path_to_index
-                .iter()
-                .find(|(_, &idx)| idx == file_index)
-                .map(|(path, _)| path.clone());
-
-            if let Some(source_path) = source_path {
-                if let Some(&from_idx) = node_map.get(&source_path) {
-                    // Update node with content hash
-                    if let Some(hash) = result.content_hash {
-                        graph[from_idx].content_hash = Some(hash);
-                    }
-
-                    // Add import edges
-                    for (import_path, edge_type) in &result.imports {
-                        // Try to find the target in our node map
-                        for (path, &to_idx) in node_map {
-                            if path
-                                .to_string_lossy()
-                                .contains(&import_path.to_string_lossy().to_string())
-                            {
-                                self.add_edge(graph, from_idx, to_idx, edge_type.clone());
-                                break;
-                            }
-                        }
-                    }
+            let Some(&from_idx) = nodes_by_file_index.get(&result.file_index) else {
+                continue;
+            };
+            if let Some(hash) = result.content_hash {
+                graph[from_idx].content_hash = Some(hash);
+            }
+            for (import_path, edge_type) in &result.imports {
+                // Match complete paths; substring matches can select unrelated files
+                // and depended on HashMap iteration order.
+                let target = node_map
+                    .get(import_path)
+                    .or_else(|| canonical_nodes.get(import_path))
+                    .copied()
+                    .or_else(|| {
+                        import_path
+                            .canonicalize()
+                            .ok()
+                            .and_then(|canonical| canonical_nodes.get(&canonical).copied())
+                    });
+                if let Some(to_idx) = target {
+                    self.add_edge(graph, from_idx, to_idx, edge_type.clone());
                 }
             }
         }

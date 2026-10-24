@@ -16,7 +16,7 @@ fn run_main() -> Result<()> {
     let mut config = Config::parse();
 
     // Load configuration from file if specified (but not in MCP mode)
-    if !config.mcp {
+    if !config.mcp && !config.rmcp {
         config.load_from_file()?;
     }
 
@@ -78,7 +78,7 @@ async fn run_mcp_server(config: Config) -> Result<()> {
             }
             "http" => {
                 let addr = format!("127.0.0.1:{}", config.mcp_port);
-                eprintln!("Starting RMCP MCP server (HTTP/SSE transport) on {addr}");
+                eprintln!("Starting RMCP MCP server (Streamable HTTP transport) on {addr}/mcp");
                 mcp_server::rmcp_server::transport::start_http(&addr).await?;
             }
             _ => {

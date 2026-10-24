@@ -17,6 +17,8 @@ use tracing::warn;
 pub struct ContextOptions {
     /// Maximum tokens allowed in the output
     pub max_tokens: Option<usize>,
+    /// Encoding used for local token estimates.
+    pub tokenizer: crate::core::token::TokenEncoding,
     /// Include file tree in output
     pub include_tree: bool,
     /// Include token count statistics
@@ -44,6 +46,7 @@ impl ContextOptions {
     pub fn from_config(config: &crate::cli::Config) -> Result<Self> {
         Ok(ContextOptions {
             max_tokens: config.get_effective_context_tokens(),
+            tokenizer: config.get_tokenizer(),
             include_tree: true,
             include_stats: true,
             group_by_type: false,
@@ -62,6 +65,7 @@ impl Default for ContextOptions {
     fn default() -> Self {
         ContextOptions {
             max_tokens: None,
+            tokenizer: crate::core::token::TokenEncoding::default(),
             include_tree: true,
             include_stats: true,
             group_by_type: false,
@@ -462,12 +466,7 @@ fn add_type_references_info(
 
 fn add_file_body(output: &mut String, content: &str, file_type: &FileType) {
     let language = get_language_hint(file_type);
-    output.push_str(&format!("```{language}\n"));
-    output.push_str(content);
-    if !content.ends_with('\n') {
-        output.push('\n');
-    }
-    output.push_str("```\n\n");
+    crate::formatters::markdown::append_fenced_content(output, content, language);
 }
 
 /// Generate statistics about the files
@@ -980,6 +979,7 @@ mod tests {
             include_stats: true,
             group_by_type: true,
             sort_by_priority: true,
+            tokenizer: Default::default(),
             file_header_template: "## {path}".to_string(),
             doc_header_template: "# Code Context".to_string(),
             include_toc: true,
@@ -1035,6 +1035,7 @@ mod tests {
             include_stats: true,
             group_by_type: false,
             sort_by_priority: true,
+            tokenizer: Default::default(),
             file_header_template: "## {path}".to_string(),
             doc_header_template: "# Code Context".to_string(),
             include_toc: true,
@@ -1076,6 +1077,7 @@ mod tests {
             include_stats: true,
             group_by_type: false,
             sort_by_priority: true,
+            tokenizer: Default::default(),
             file_header_template: "## {path}".to_string(),
             doc_header_template: "# Code Context".to_string(),
             include_toc: true,
@@ -1116,6 +1118,7 @@ mod tests {
             include_stats: true,
             group_by_type: false,
             sort_by_priority: true,
+            tokenizer: Default::default(),
             file_header_template: "## {path}".to_string(),
             doc_header_template: "# Code Context".to_string(),
             include_toc: true,

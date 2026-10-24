@@ -180,15 +180,17 @@ impl LlmTool {
     /// Get the installation instructions for the tool
     pub fn install_instructions(&self) -> &'static str {
         match self {
-            LlmTool::Gemini => "Please install gemini with: pip install gemini",
+            LlmTool::Gemini => {
+                "Please install Gemini CLI with: npm install -g @google/gemini-cli"
+            }
             LlmTool::Codex => {
-                "Please install codex CLI from: https://github.com/microsoft/codex-cli"
+                "Please install Codex CLI with: npm install -g @openai/codex (https://github.com/openai/codex)"
             }
             LlmTool::Claude => {
                 "Please install Claude Code with: npm install -g @anthropic-ai/claude-code"
             }
             LlmTool::Ollama => {
-                "Please install Ollama from: https://ollama.ai or with: brew install ollama"
+                "Please install Ollama from: https://ollama.com or with: brew install ollama"
             }
         }
     }
@@ -229,10 +231,24 @@ impl LlmTool {
         use std::process::Command;
 
         match self {
-            LlmTool::Gemini | LlmTool::Codex => {
-                // Simple tools that just need the command name
-                let cmd = Command::new(self.command());
-                Ok((cmd, true)) // true = combined prompt+context to stdin
+            LlmTool::Gemini => {
+                let mut cmd = Command::new(self.command());
+                cmd.arg("--prompt")
+                    .arg(config.get_prompt().unwrap_or_default());
+                if let Some(model) = &config.model {
+                    cmd.arg("--model").arg(model);
+                }
+                Ok((cmd, false))
+            }
+            LlmTool::Codex => {
+                let mut cmd = Command::new(self.command());
+                // Context generation also supports directories outside Git repositories.
+                cmd.args(["exec", "--skip-git-repo-check"]);
+                if let Some(model) = &config.model {
+                    cmd.arg("--model").arg(model);
+                }
+                cmd.arg("-");
+                Ok((cmd, true))
             }
             LlmTool::Claude => {
                 // Claude uses -p flag for prompt
@@ -240,15 +256,23 @@ impl LlmTool {
                 if let Some(prompt) = config.get_prompt() {
                     cmd.arg("-p").arg(prompt);
                 }
+                if let Some(model) = &config.model {
+                    cmd.arg("--model").arg(model);
+                }
                 Ok((cmd, false)) // false = context only to stdin
             }
             LlmTool::Ollama => {
                 // Ollama requires model specification
-                let model = config.ollama_model.as_ref().ok_or_else(|| {
-                    crate::utils::error::ContextCreatorError::InvalidConfiguration(
-                        "--ollama-model is required when using --tool ollama".to_string(),
-                    )
-                })?;
+                let model = config
+                    .model
+                    .as_ref()
+                    .or(config.ollama_model.as_ref())
+                    .ok_or_else(|| {
+                        crate::utils::error::ContextCreatorError::InvalidConfiguration(
+                            "--model or --ollama-model is required when using --tool ollama"
+                                .to_string(),
+                        )
+                    })?;
                 let mut cmd = Command::new(self.command());
                 cmd.arg("run").arg(model);
                 Ok((cmd, true)) // true = combined prompt+context to stdin
@@ -368,11 +392,19 @@ pub struct Config {
     #[arg(long)]
     pub max_tokens: Option<usize>,
 
+    /// Local tokenizer used for context and prompt token estimates
+    #[arg(long, value_enum)]
+    pub tokenizer: Option<crate::core::token::TokenEncoding>,
+
     /// LLM CLI tool to use for processing
     #[arg(long = "tool", default_value = "gemini")]
     pub llm_tool: LlmTool,
 
-    /// Model to use with Ollama (required when using --tool ollama)
+    /// Model name or alias passed to the selected LLM CLI; uses its default when omitted
+    #[arg(long)]
+    pub model: Option<String>,
+
+    /// Model to use with Ollama (also accepts --model)
     #[arg(
         long = "ollama-model",
         help = "Ollama model to use (e.g., llama3, codellama)"
@@ -489,8 +521,10 @@ impl Default for Config {
             read_stdin: false,
             output_file: None,
             max_tokens: None,
+            tokenizer: None,
             llm_tool: LlmTool::default(),
             ollama_model: None,
+            model: None,
             quiet: false,
             verbose: 0,
             log_format: LogFormat::default(),
@@ -645,11 +679,33 @@ impl Config {
         // Validate Ollama model requirement
         if self.llm_tool == LlmTool::Ollama
             && self.ollama_model.is_none()
+            && self.model.is_none()
             && self.get_prompt().is_some()
         {
             return Err(ContextCreatorError::InvalidConfiguration(
-                "--ollama-model is required when using --tool ollama".to_string(),
+                "--model or --ollama-model is required when using --tool ollama".to_string(),
             ));
+        }
+
+        if self.llm_tool == LlmTool::Ollama
+            && self.model.is_some()
+            && self.ollama_model.is_some()
+            && self.model != self.ollama_model
+        {
+            return Err(ContextCreatorError::InvalidConfiguration(
+                "--model and --ollama-model must agree when both are provided".to_string(),
+            ));
+        }
+
+        for model in [&self.model, &self.ollama_model].into_iter().flatten() {
+            if model.trim().is_empty()
+                || model.starts_with('-')
+                || model.chars().any(char::is_control)
+            {
+                return Err(ContextCreatorError::InvalidConfiguration(
+                    "Model must be a nonempty name or alias without control characters or a leading '-'".to_string(),
+                ));
+            }
         }
 
         Ok(())
@@ -780,7 +836,9 @@ impl Config {
         if let Some(max_tokens) = self.get_effective_max_tokens() {
             if let Some(prompt) = self.get_prompt() {
                 // Create token counter to measure prompt
-                if let Ok(counter) = crate::core::token::TokenCounter::new() {
+                if let Ok(counter) =
+                    crate::core::token::TokenCounter::with_encoding(self.get_tokenizer())
+                {
                     if let Ok(prompt_tokens) = counter.count_tokens(&prompt) {
                         // Reserve space for prompt + safety buffer for response
                         let safety_buffer = 1000; // Reserve for LLM response
@@ -802,6 +860,11 @@ impl Config {
         } else {
             None
         }
+    }
+
+    /// Resolve the local tokenizer, preserving explicit CLI/config choices.
+    pub fn get_tokenizer(&self) -> crate::core::token::TokenEncoding {
+        self.tokenizer.unwrap_or_default()
     }
 
     /// Check if we should read from stdin
@@ -918,7 +981,7 @@ mod tests {
 
         assert!(LlmTool::Gemini
             .install_instructions()
-            .contains("pip install"));
+            .contains("@google/gemini-cli"));
         assert!(LlmTool::Codex.install_instructions().contains("github.com"));
 
         assert_eq!(LlmTool::default(), LlmTool::Gemini);

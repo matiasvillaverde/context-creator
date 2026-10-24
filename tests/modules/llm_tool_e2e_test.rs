@@ -57,7 +57,7 @@ fn path_with_mock_tools(mock_dir: &Path) -> OsString {
 }
 
 #[test]
-fn test_prompt_executes_gemini_with_combined_prompt_and_context() {
+fn test_prompt_executes_gemini_headless_with_context_on_stdin() {
     let project = setup_project();
     let mock_tools = setup_mock_tools();
     let log_dir = TempDir::new().unwrap();
@@ -73,13 +73,13 @@ fn test_prompt_executes_gemini_with_combined_prompt_and_context() {
         .stdout(predicate::str::contains("gemini ok"));
 
     let stdin = fs::read_to_string(log_dir.path().join("gemini.stdin")).unwrap();
-    assert!(stdin.contains("Explain the project"));
+    assert!(!stdin.contains("Explain the project"));
     assert!(stdin.contains("hello from the mock tool e2e project"));
 
     let args = fs::read_to_string(log_dir.path().join("gemini.args")).unwrap();
-    assert!(
-        args.trim().is_empty(),
-        "gemini should not receive argv: {args}"
+    assert_eq!(
+        args.lines().collect::<Vec<_>>(),
+        ["--prompt", "Explain the project"]
     );
 }
 
@@ -104,9 +104,9 @@ fn test_prompt_executes_codex_with_combined_prompt_and_context() {
     assert!(stdin.contains("hello from the mock tool e2e project"));
 
     let args = fs::read_to_string(log_dir.path().join("codex.args")).unwrap();
-    assert!(
-        args.trim().is_empty(),
-        "codex should not receive argv: {args}"
+    assert_eq!(
+        args.lines().collect::<Vec<_>>(),
+        ["exec", "--skip-git-repo-check", "-"]
     );
 }
 
@@ -166,4 +166,38 @@ fn test_prompt_executes_ollama_with_model_and_combined_input() {
     let stdin = fs::read_to_string(log_dir.path().join("ollama.stdin")).unwrap();
     assert!(stdin.contains("Summarize the project"));
     assert!(stdin.contains("hello from the mock tool e2e project"));
+}
+
+#[test]
+fn test_generic_model_is_forwarded_to_every_provider() {
+    let project = setup_project();
+    let mock_tools = setup_mock_tools();
+    let log_dir = TempDir::new().unwrap();
+    for tool in ["gemini", "codex", "claude", "ollama"] {
+        Command::cargo_bin("context-creator")
+            .unwrap()
+            .current_dir(project.path())
+            .env("PATH", path_with_mock_tools(mock_tools.path()))
+            .env("CONTEXT_CREATOR_MOCK_LOG_DIR", log_dir.path())
+            .args([
+                "--tool",
+                tool,
+                "--model",
+                "my-current-model",
+                "--prompt",
+                "Explain this code",
+                "--quiet",
+            ])
+            .assert()
+            .success();
+        let args = fs::read_to_string(log_dir.path().join(format!("{tool}.args"))).unwrap();
+        let args = args.lines().collect::<Vec<_>>();
+        if tool == "ollama" {
+            assert_eq!(args, ["run", "my-current-model"]);
+        } else {
+            assert!(args
+                .windows(2)
+                .any(|pair| pair == ["--model", "my-current-model"]));
+        }
+    }
 }

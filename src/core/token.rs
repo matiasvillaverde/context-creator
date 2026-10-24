@@ -1,10 +1,37 @@
 //! Token counting functionality using tiktoken-rs
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
+use clap::ValueEnum;
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use tiktoken_rs::{cl100k_base, CoreBPE};
+use std::sync::{Arc, Mutex, OnceLock};
+use tiktoken_rs::{cl100k_base, o200k_base, CoreBPE};
+
+/// Local text encodings. Counts for other providers are estimates.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    Hash,
+    ValueEnum,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "kebab-case")]
+pub enum TokenEncoding {
+    #[default]
+    O200kBase,
+    Cl100kBase,
+}
+
+type SharedEncoder = std::result::Result<Arc<CoreBPE>, String>;
+static O200K_ENCODER: OnceLock<SharedEncoder> = OnceLock::new();
+static CL100K_ENCODER: OnceLock<SharedEncoder> = OnceLock::new();
 
 /// Token counter with caching support
 pub struct TokenCounter {
@@ -15,11 +42,23 @@ pub struct TokenCounter {
 }
 
 impl TokenCounter {
-    /// Create a new token counter with cl100k_base encoding (GPT-4)
+    /// Create a counter with the modern o200k_base text encoding.
     pub fn new() -> Result<Self> {
-        let encoder = cl100k_base()?;
+        Self::with_encoding(TokenEncoding::default())
+    }
+
+    /// Reuse immutable vocabularies across requests without sharing text caches.
+    pub fn with_encoding(encoding: TokenEncoding) -> Result<Self> {
+        let (cell, build): (&OnceLock<SharedEncoder>, fn() -> Result<CoreBPE>) = match encoding {
+            TokenEncoding::O200kBase => (&O200K_ENCODER, o200k_base),
+            TokenEncoding::Cl100kBase => (&CL100K_ENCODER, cl100k_base),
+        };
+        let encoder = cell
+            .get_or_init(|| build().map(Arc::new).map_err(|e| e.to_string()))
+            .as_ref()
+            .map_err(|e| anyhow!("Failed to initialize tokenizer: {e}"))?;
         Ok(TokenCounter {
-            encoder: Arc::new(encoder),
+            encoder: Arc::clone(encoder),
             cache: Arc::new(Mutex::new(HashMap::new())),
         })
     }
@@ -37,7 +76,8 @@ impl TokenCounter {
         }
 
         // Count tokens
-        let tokens = self.encoder.encode_with_special_tokens(text);
+        // Source files can contain literal special-token delimiters.
+        let tokens = self.encoder.encode_ordinary(text);
         let count = tokens.len();
 
         // Store in cache
@@ -137,7 +177,7 @@ fn calculate_hash(text: &str) -> u64 {
 
 /// Check if adding a file would exceed token limit
 pub fn would_exceed_limit(current_tokens: usize, file_tokens: usize, max_tokens: usize) -> bool {
-    current_tokens + file_tokens > max_tokens
+    current_tokens > max_tokens || file_tokens > max_tokens.saturating_sub(current_tokens)
 }
 
 /// Calculate remaining token budget
@@ -148,6 +188,43 @@ pub fn remaining_tokens(current_tokens: usize, max_tokens: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn counters_share_vocabularies_but_keep_independent_caches() {
+        let first = TokenCounter::new().unwrap();
+        let second = TokenCounter::new().unwrap();
+        assert!(Arc::ptr_eq(&first.encoder, &second.encoder));
+        assert!(!Arc::ptr_eq(&first.cache, &second.cache));
+        let legacy = TokenCounter::with_encoding(TokenEncoding::Cl100kBase).unwrap();
+        assert!(!Arc::ptr_eq(&first.encoder, &legacy.encoder));
+    }
+
+    #[test]
+    fn special_token_literals_are_counted_as_source_text() {
+        for encoding in [TokenEncoding::O200kBase, TokenEncoding::Cl100kBase] {
+            let counter = TokenCounter::with_encoding(encoding).unwrap();
+            assert!(counter.count_tokens("<|endoftext|>").unwrap() > 1);
+            assert!(counter.count_tokens("<|fim_prefix|>").unwrap() > 1);
+        }
+    }
+
+    #[test]
+    fn multilingual_text_uses_the_selected_encoding() {
+        let text = "こんにちは世界。 Привет мир. مرحبا بالعالم. 🚀";
+        let modern = TokenCounter::new().unwrap().count_tokens(text).unwrap();
+        let legacy = TokenCounter::with_encoding(TokenEncoding::Cl100kBase)
+            .unwrap()
+            .count_tokens(text)
+            .unwrap();
+        assert!(modern < legacy);
+    }
+
+    #[test]
+    fn budget_checks_do_not_overflow() {
+        assert!(would_exceed_limit(usize::MAX, 1, usize::MAX));
+        assert!(!would_exceed_limit(usize::MAX - 1, 1, usize::MAX));
+        assert!(would_exceed_limit(1, 0, 0));
+    }
 
     #[test]
     fn test_token_counting() {

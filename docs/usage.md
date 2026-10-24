@@ -22,17 +22,22 @@ context-creator -d /path/to/project -o project.md --progress
 
 ### LLM Integration
 
+Use `--model NAME` with any provider, or omit it to keep the provider CLI's
+configured model. `--tokenizer o200k-base` (default) and `--tokenizer cl100k-base`
+control local context estimates. Set `--max-tokens` for your selected model;
+OpenAI tokenizers do not provide exact Claude or Gemini accounting.
+
 ```bash
 # Direct LLM interaction (requires gemini or codex)
-context-creator -d /path/to/project "Explain the architecture"
+context-creator -d /path/to/project --prompt "Explain the architecture"
 
 # With specific LLM tool
-context-creator -d /path/to/project --tool gemini "Review this code"
-context-creator -d /path/to/project --tool codex "Find potential bugs"
+context-creator -d /path/to/project --tool gemini --prompt "Review this code"
+context-creator -d /path/to/project --tool codex --prompt "Find potential bugs"
 
 # Analyze specific aspects
-context-creator -d /path/to/project "What are the main security concerns?"
-context-creator -d /path/to/project "How can we improve performance?"
+context-creator -d /path/to/project --prompt "What are the main security concerns?"
+context-creator -d /path/to/project --prompt "How can we improve performance?"
 ```
 
 ## Command Line Options
@@ -53,7 +58,7 @@ context-creator --max-tokens 50000
 context-creator --max-tokens 100000
 
 # LLM tool selection
-context-creator -t gemini
+context-creator --tool gemini
 context-creator --tool codex
 
 # Configuration file

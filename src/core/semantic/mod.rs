@@ -87,6 +87,7 @@ pub fn get_analyzer_for_file(
         "ts" | "tsx" => Some(Box::new(languages::typescript::TypeScriptAnalyzer::new())),
         "go" => Some(Box::new(languages::go::GoAnalyzer::new())),
         "swift" => Some(Box::new(languages::swift::SwiftAnalyzer::new())),
+        "java" => Some(Box::new(languages::java::JavaAnalyzer::new())),
         _ => None,
     };
 
@@ -106,6 +107,7 @@ pub fn get_resolver_for_file(
         "ts" | "tsx" => Some(Box::new(languages::typescript::TypeScriptModuleResolver)),
         "go" => Some(Box::new(languages::go::GoModuleResolver)),
         "swift" => Some(Box::new(languages::swift::SwiftModuleResolver)),
+        "java" => Some(Box::new(languages::java::JavaModuleResolver)),
         _ => None,
     };
 

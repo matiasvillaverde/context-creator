@@ -457,6 +457,10 @@ fn test_clipboard_copy() {
         eprintln!("Skipping clipboard test in CI environment");
         return;
     }
+    if let Err(error) = arboard::Clipboard::new() {
+        eprintln!("Skipping clipboard test: clipboard is unavailable ({error})");
+        return;
+    }
 
     let temp_dir = TempDir::new().unwrap();
     let project_dir = temp_dir.path().join("test_project");

@@ -8,6 +8,7 @@ This directory contains example projects and configuration files to demonstrate 
 examples/
 ├── sample-rust-project/    # Pure Rust project example
 ├── sample-mixed-project/   # Mixed-language project (JS, Python)
+├── sample-java-project/    # Java packages and transitive imports
 ├── config-examples/        # Configuration file examples
 └── README.md              # This file
 ```
@@ -33,6 +34,15 @@ A mixed-language project showing:
 
 ## Configuration Examples
 
+### sample-java-project
+
+Java package imports, methods, and types can be expanded with:
+
+```bash
+context-creator examples/sample-java-project --include "**/Main.java" --trace-imports
+context-creator examples/sample-java-project --include "**/CustomerService.java" --include-types
+```
+
 ### minimal.toml
 
 Shows the bare minimum configuration needed:
@@ -44,9 +54,9 @@ Shows the bare minimum configuration needed:
 Demonstrates all available configuration options:
 - Detailed priority weights
 - Custom ignore patterns
-- Output formatting options
-- Performance tuning
-- Logging configuration
+- Model/provider and local tokenizer defaults
+- Tool-specific token budgets
+- Logging defaults
 
 ## Testing the Tool
 

@@ -17,6 +17,32 @@ When connected to an MCP client, you'll have access to these tools:
 
 ## Installation and Setup
 
+### Local binary and Streamable HTTP
+
+```bash
+# Stdio: configure the client to launch this command
+context-creator --rmcp
+
+# HTTP: configure the client with http://127.0.0.1:9090/mcp
+context-creator --rmcp --rmcp-transport http --mcp-port 9090
+```
+
+RMCP 3.7 supports MCP `2026-07-28` discovery and stateless requests, alongside
+older protocol negotiation. HTTP uses `/mcp`; the former `/sse` and message
+endpoints have been replaced. The HTTP server binds to loopback, validates Host,
+and accepts browser Origins only from `localhost` or `127.0.0.1` on its own port.
+Stdio remains the simplest local client configuration.
+
+Both `analyze_local` and `analyze_remote` accept optional `model` and `tokenizer`
+fields. Model names pass through to the selected CLI; `tokenizer` accepts
+`o200k-base` (default) or `cl100k-base`. Cache keys include both fields. For Ollama,
+provide a model when sending a prompt. Omit `prompt` to build context without an
+LLM call. `token_count` measures the returned context with the selected local
+encoding, excluding provider instructions, tool schemas, and response tokens.
+
+Existing npm releases follow their packaged version; build this checkout to use
+these changes before the next release.
+
 ### Quick Install via NPM
 
 The easiest way to use context-creator as an MCP server is through npm:

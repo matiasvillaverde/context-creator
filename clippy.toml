@@ -1,4 +1,4 @@
-msrv = "1.74.0"
+msrv = "1.89.0"
 
 allow-unwrap-in-tests = true
 allow-expect-in-tests = true

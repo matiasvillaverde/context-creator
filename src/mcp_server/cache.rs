@@ -16,6 +16,8 @@ pub struct ProcessLocalCacheKey {
     pub include_imports: bool,
     pub max_tokens: Option<u32>,
     pub llm_tool: Option<String>,
+    pub model: Option<String>,
+    pub tokenizer: Option<crate::core::token::TokenEncoding>,
 }
 
 impl ProcessLocalCacheKey {
@@ -28,6 +30,8 @@ impl ProcessLocalCacheKey {
             include_imports: request.include_imports,
             max_tokens: request.max_tokens,
             llm_tool: request.llm_tool.clone(),
+            model: request.model.clone(),
+            tokenizer: request.tokenizer,
         }
     }
 }
@@ -52,6 +56,8 @@ pub struct ProcessRemoteCacheKey {
     pub include_imports: bool,
     pub max_tokens: Option<u32>,
     pub llm_tool: Option<String>,
+    pub model: Option<String>,
+    pub tokenizer: Option<crate::core::token::TokenEncoding>,
 }
 
 impl ProcessRemoteCacheKey {
@@ -64,6 +70,8 @@ impl ProcessRemoteCacheKey {
             include_imports: request.include_imports,
             max_tokens: request.max_tokens,
             llm_tool: request.llm_tool.clone(),
+            model: request.model.clone(),
+            tokenizer: request.tokenizer,
         }
     }
 }

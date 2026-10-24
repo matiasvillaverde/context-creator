@@ -23,7 +23,7 @@ Main user-facing surfaces:
 ## Toolchain
 
 - Rust edition: 2021.
-- MSRV: 1.74.0, as configured in `clippy.toml`.
+- MSRV: 1.89.0, as configured in `clippy.toml`.
 - CI uses stable Rust with `rustfmt` and `clippy`.
 - Optional tools: `make`, `cargo-audit`, `cargo-tarpaulin`, `cargo-watch`, Node.js for the generated npm package workflow.
 

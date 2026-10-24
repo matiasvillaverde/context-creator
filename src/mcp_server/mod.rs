@@ -55,6 +55,10 @@ pub struct ProcessLocalRequest {
     pub max_tokens: Option<u32>,
     /// Optional: LLM tool to use (default: gemini)
     pub llm_tool: Option<String>,
+    /// Optional model name or alias passed to the LLM CLI.
+    pub model: Option<String>,
+    /// Local tokenizer for budget estimates (default: o200k-base).
+    pub tokenizer: Option<crate::core::token::TokenEncoding>,
     /// Optional: return markdown context along with answer
     pub include_context: Option<bool>,
 }
@@ -100,6 +104,10 @@ pub struct ProcessRemoteRequest {
     pub max_tokens: Option<u32>,
     /// Optional: LLM tool to use (default: gemini)
     pub llm_tool: Option<String>,
+    /// Optional model name or alias passed to the LLM CLI.
+    pub model: Option<String>,
+    /// Local tokenizer for budget estimates (default: o200k-base).
+    pub tokenizer: Option<crate::core::token::TokenEncoding>,
     /// Optional: return markdown context along with answer
     pub include_context: Option<bool>,
 }

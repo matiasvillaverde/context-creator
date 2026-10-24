@@ -103,6 +103,8 @@ mod edge_typing_test;
 mod include_callers_real_repos_test;
 #[path = "modules/integration_trace_imports_test.rs"]
 mod integration_trace_imports_test;
+#[path = "modules/modernization_test.rs"]
+mod modernization_test;
 #[path = "modules/parallel_semantic_test.rs"]
 mod parallel_semantic_test;
 #[path = "modules/parallel_workflow_test.rs"]

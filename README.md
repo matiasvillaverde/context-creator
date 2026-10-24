@@ -17,7 +17,7 @@ AI coding assistants are only as good as the context you provide. Most tools sim
 
 ## The Solution
 
-context-creator uses tree-sitter to build a dependency graph of your codebase, selecting only the files relevant to your task. It's like repomix, but faster and smarter.
+context-creator combines file filters, priorities, token budgets, and optional tree-sitter dependency expansion to build focused context. You choose the seed files; import, caller, and type analysis can add related source.
 
 ### Without context-creator
 ```bash
@@ -27,9 +27,8 @@ cat src/**/*.ts > context.txt  # 500K tokens of mostly noise
 
 ### With context-creator
 ```bash
-# Intelligent context that follows your code's actual dependencies
-context-creator --prompt "How does the authentication work?"
-# Returns: auth files + their actual dependencies + related tests = 50K relevant tokens
+# Start with authentication files and include their local dependencies
+context-creator --include "**/auth.py" --trace-imports --max-tokens 50000
 ```
 
 ## Key Advantages
@@ -37,7 +36,7 @@ context-creator --prompt "How does the authentication work?"
 - **Dependency-aware**: Uses tree-sitter AST parsing to understand imports, not just file names
 - **Fast**: Rust-powered parallel processing handles massive codebases in seconds
 - **Smart selection**: Includes only files connected to your query through the dependency graph
-- **Multi-language**: Semantic dependency expansion for Rust, Python, JavaScript, TypeScript, Go, and Swift
+- **Multi-language**: Semantic dependency expansion for Rust, Python, JavaScript/JSX, TypeScript/TSX, Go, Swift, and Java
 - **MCP integration**: Works as a server for AI assistants to query your codebase programmatically
 
 ## Installation
@@ -59,6 +58,12 @@ context-creator
 # Build focused context for specific task
 context-creator --prompt "Find security vulnerabilities in the auth system"
 
+# Select a model available in your installed provider CLI
+context-creator --tool codex --model YOUR_MODEL --max-tokens 100000 --prompt "Explain the architecture"
+
+# Select the local tokenizer (o200k-base is the default)
+context-creator --tokenizer cl100k-base --max-tokens 50000
+
 # Trace dependencies of specific files
 context-creator --trace-imports --include "**/auth.py"
 
@@ -68,6 +73,12 @@ context-creator diff HEAD~1 HEAD
 # Enrich code with OpenTelemetry runtime metrics
 context-creator telemetry -t traces.json
 ```
+
+Model selection is passed through to Gemini CLI, Codex, Claude Code, or Ollama. Omit
+`--model` to use the provider CLI's configured default. `--ollama-model` remains
+supported. Set a budget appropriate to your model; tool defaults are working
+budgets, not discovered model limits. Local token counts are estimates for Claude
+and Gemini, and file selection estimates formatting overhead.
 
 ### MCP Server
 
@@ -99,6 +110,8 @@ Then in your AI assistant:
 - Git history integration
 - MCP server with programmatic access
 - OpenTelemetry integration for runtime metrics
+- Shared tokenizer vocabularies with selectable `o200k-base` and `cl100k-base`
+- RMCP 3.7 with stdio and Streamable HTTP at `/mcp`
 
 ## MCP Tools
 
@@ -145,18 +158,19 @@ weight = 100
 - [Configuration](docs/configuration.md) - Advanced configuration
 - [MCP Server Guide](docs/mcp-server.md) - MCP integration details
 - [Architecture](docs/architecture.md) - Technical implementation
+- [Modernization research and roadmap](docs/modernization.md) - Tool comparison, measured improvements, and remaining work
 
 ## Requirements
 
 - Node.js >= v18.0.0 (for npm package)
-- or Rust >= 1.70.0 (for building from source)
+- or Rust >= 1.89.0 (for building from source)
 
 ## Building from Source
 
 ```bash
 git clone https://github.com/matiasvillaverde/context-creator
 cd context-creator
-cargo build --release
+cargo build --release --locked
 ```
 
 ## Contributing

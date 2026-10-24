@@ -83,7 +83,7 @@ pub fn perform_semantic_analysis_graph_with_root(
     let mut cycle_detector = TarjanCycleDetector::new();
     let cycle_result = cycle_detector.detect_cycles(&graph);
 
-    if cycle_result.has_cycles {
+    if cycle_result.has_cycles && !config.quiet {
         // Report all detected cycles
         eprintln!(
             "Warning: {} circular dependencies detected:",
@@ -173,6 +173,9 @@ fn detect_project_root(start_path: &std::path::Path) -> PathBuf {
             || current.join("setup.py").exists()
             || current.join("go.mod").exists()
             || current.join("Package.swift").exists()
+            || current.join("pom.xml").exists()
+            || current.join("build.gradle").exists()
+            || current.join("build.gradle.kts").exists()
         {
             return absolute_project_root(current);
         }

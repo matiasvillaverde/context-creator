@@ -22,7 +22,11 @@ impl RmcpTestClient {
         let binary = std::env::var("CARGO_BIN_EXE_context-creator")
             .unwrap_or_else(|_| "./target/debug/context-creator".to_string());
 
-        let mut child = Command::new(binary)
+        Self::spawn_command(Command::new(binary)).await
+    }
+
+    async fn spawn_command(mut command: Command) -> Result<Self> {
+        let mut child = command
             .arg("--rmcp")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -151,9 +155,9 @@ impl RmcpHttpServer {
             .spawn()
             .context("failed to spawn RMCP HTTP server")?;
 
+        let server = Self { child, port };
         wait_for_port(port).await?;
-
-        Ok(Self { child, port })
+        Ok(server)
     }
 
     async fn shutdown(mut self) -> Result<()> {
@@ -186,109 +190,56 @@ async fn wait_for_port(port: u16) -> Result<()> {
     bail!("RMCP HTTP server did not listen on port {port}");
 }
 
-async fn open_sse(port: u16) -> Result<(BufReader<TcpStream>, String)> {
-    let mut stream = TcpStream::connect(("127.0.0.1", port))
-        .await
-        .context("failed to connect to RMCP SSE endpoint")?;
-    let request = format!(
-        "GET /sse HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nAccept: text/event-stream\r\nConnection: keep-alive\r\n\r\n"
-    );
-    stream.write_all(request.as_bytes()).await?;
-    stream.flush().await?;
-
-    let mut reader = BufReader::new(stream);
-    let status = read_http_headers(&mut reader).await?;
-    if !status.starts_with("HTTP/1.1 200") {
-        bail!("unexpected SSE status line: {status}");
-    }
-
-    let endpoint = read_sse_endpoint(&mut reader).await?;
-    Ok((reader, endpoint))
+fn modern_params(mut params: Value) -> Value {
+    params["_meta"] = json!({
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+        "io.modelcontextprotocol/clientCapabilities": {}
+    });
+    params
 }
 
-async fn read_http_headers(reader: &mut BufReader<TcpStream>) -> Result<String> {
-    let mut status = String::new();
-    reader.read_line(&mut status).await?;
-
-    let mut line = String::new();
-    loop {
-        line.clear();
-        let bytes = reader.read_line(&mut line).await?;
-        if bytes == 0 || line == "\r\n" {
-            break;
-        }
+async fn post_json_rpc(
+    port: u16,
+    message: Value,
+    host: Option<&str>,
+    origin: Option<&str>,
+) -> Result<(u16, String)> {
+    let stream = TcpStream::connect(("127.0.0.1", port)).await?;
+    let (mut sender, connection) =
+        hyper::client::conn::http1::handshake(hyper_util::rt::TokioIo::new(stream)).await?;
+    tokio::spawn(async move {
+        let _ = connection.await;
+    });
+    let mut request = hyper::Request::builder()
+        .method("POST")
+        .uri("/mcp")
+        .header(
+            "Host",
+            host.map(str::to_string)
+                .unwrap_or_else(|| format!("127.0.0.1:{port}")),
+        )
+        .header("Accept", "application/json, text/event-stream")
+        .header("Content-Type", "application/json")
+        .header("Mcp-Protocol-Version", "2026-07-28")
+        .header("Mcp-Method", message["method"].as_str().unwrap_or_default());
+    if let Some(name) = message["params"]["name"].as_str() {
+        request = request.header("Mcp-Name", name);
     }
-
-    Ok(status)
-}
-
-async fn read_sse_endpoint(reader: &mut BufReader<TcpStream>) -> Result<String> {
-    loop {
-        let (event, data) = read_sse_event(reader).await?;
-        if event.as_deref() == Some("endpoint") {
-            return Ok(data);
-        }
+    if let Some(origin) = origin {
+        request = request.header("Origin", origin);
     }
-}
-
-async fn read_sse_message(reader: &mut BufReader<TcpStream>) -> Result<Value> {
-    loop {
-        let (event, data) = read_sse_event(reader).await?;
-        if event.as_deref() == Some("message") {
-            return serde_json::from_str(&data).context("invalid SSE JSON-RPC message");
-        }
-    }
-}
-
-async fn read_sse_event(reader: &mut BufReader<TcpStream>) -> Result<(Option<String>, String)> {
-    let mut event = None;
-    let mut data_lines = Vec::new();
-    let mut line = String::new();
-
-    loop {
-        line.clear();
-        let bytes = tokio::time::timeout(Duration::from_secs(30), reader.read_line(&mut line))
-            .await
-            .context("timed out waiting for SSE event")??;
-        if bytes == 0 {
-            bail!("SSE stream closed before an event was received");
-        }
-
-        let trimmed = line.trim_end_matches(['\r', '\n']);
-        if trimmed.is_empty() {
-            if event.is_some() || !data_lines.is_empty() {
-                return Ok((event, data_lines.join("\n")));
-            }
-            continue;
-        }
-
-        if let Some(value) = trimmed.strip_prefix("event:") {
-            event = Some(value.trim().to_string());
-        } else if let Some(value) = trimmed.strip_prefix("data:") {
-            data_lines.push(value.trim().to_string());
-        }
-    }
-}
-
-async fn post_json_rpc(port: u16, endpoint: &str, message: &Value) -> Result<()> {
-    let body = message.to_string();
-    let mut stream = TcpStream::connect(("127.0.0.1", port))
-        .await
-        .context("failed to connect to RMCP message endpoint")?;
-    let request = format!(
-        "POST {endpoint} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-        body.len()
-    );
-    stream.write_all(request.as_bytes()).await?;
-    stream.flush().await?;
-
-    let mut reader = BufReader::new(stream);
-    let status = read_http_headers(&mut reader).await?;
-    if !status.starts_with("HTTP/1.1 202") {
-        bail!("unexpected RMCP POST status line: {status}");
-    }
-
-    Ok(())
+    let response = tokio::time::timeout(
+        Duration::from_secs(30),
+        sender.send_request(request.body(axum::body::Body::from(message.to_string()))?),
+    )
+    .await??;
+    let status = response.status().as_u16();
+    let body = tokio::time::timeout(
+        Duration::from_secs(30),
+        axum::body::to_bytes(axum::body::Body::new(response.into_body()), 4 * 1024 * 1024),
+    )
+    .await??;
+    Ok((status, String::from_utf8(body.to_vec())?))
 }
 
 #[tokio::test]
@@ -399,36 +350,180 @@ async fn test_list_tools() -> Result<()> {
 }
 
 #[tokio::test]
-async fn test_rmcp_http_sse_list_tools() -> Result<()> {
+async fn test_rmcp_http_streamable_list_tools_and_call() -> Result<()> {
     let server = RmcpHttpServer::spawn().await?;
-    let (mut sse_reader, endpoint) = open_sse(server.port).await?;
-
-    post_json_rpc(
+    let (status, body) = post_json_rpc(
         server.port,
-        &endpoint,
-        &json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "tools/list",
-            "params": {}
+        json!({
+            "jsonrpc": "2.0", "id": 1, "method": "tools/list",
+            "params": modern_params(json!({}))
         }),
+        None,
+        None,
     )
     .await?;
-
-    let response = read_sse_message(&mut sse_reader).await?;
-    assert_eq!(response["jsonrpc"], "2.0");
-    assert_eq!(response["id"], 1);
-
+    assert_eq!(status, 200, "{body}");
+    let response: Value = serde_json::from_str(&body)?;
+    assert_eq!(response["result"]["resultType"], "complete");
     let tools = response["result"]["tools"]
         .as_array()
-        .context("tools/list HTTP/SSE response did not include tools")?;
-    let tool_names: Vec<&str> = tools.iter().map(|t| t["name"].as_str().unwrap()).collect();
+        .context("missing tools")?;
+    assert!(tools.iter().any(|tool| tool["name"] == "analyze_local"));
+    assert!(tools.iter().any(|tool| tool["name"] == "semantic_search"));
 
-    assert!(tool_names.contains(&"analyze_local"));
-    assert!(tool_names.contains(&"search"));
-    assert!(tool_names.contains(&"semantic_search"));
-
+    let project = TempDir::new()?;
+    std::fs::write(
+        project.path().join("main.rs"),
+        "fn main() { println!(\"HTTP context\"); }",
+    )?;
+    let (status, body) = post_json_rpc(
+        server.port,
+        json!({
+            "jsonrpc": "2.0", "id": 2, "method": "tools/call",
+            "params": modern_params(json!({ "name": "analyze_local", "arguments": {
+                "path": project.path(), "prompt": "", "include_context": true
+            }}))
+        }),
+        None,
+        None,
+    )
+    .await?;
+    assert_eq!(status, 200, "{body}");
+    let response: Value = serde_json::from_str(&body)?;
+    assert!(response.get("error").is_none(), "{response}");
+    assert!(body.contains("HTTP context"), "{body}");
     server.shutdown().await?;
+    Ok(())
+}
 
+#[tokio::test]
+async fn test_rmcp_http_rejects_untrusted_hosts_and_origins() -> Result<()> {
+    let server = RmcpHttpServer::spawn().await?;
+    for (host, origin) in [
+        (Some("attacker.example"), None),
+        (None, Some("https://attacker.example")),
+    ] {
+        let (status, _) = post_json_rpc(
+            server.port,
+            json!({
+                "jsonrpc": "2.0", "id": 1, "method": "tools/list",
+                "params": modern_params(json!({}))
+            }),
+            host,
+            origin,
+        )
+        .await?;
+        assert_eq!(status, 403, "host={host:?} origin={origin:?}");
+    }
+    server.shutdown().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_rmcp_stdio_supports_stateless_discovery_and_tool_listing() -> Result<()> {
+    let mut client = RmcpTestClient::spawn().await?;
+    let discovery = client
+        .request(1, "server/discover", modern_params(json!({})))
+        .await?;
+    assert!(discovery.get("error").is_none(), "{discovery}");
+    let response = client
+        .request(2, "tools/list", modern_params(json!({})))
+        .await?;
+    assert!(response["result"]["tools"]
+        .as_array()
+        .is_some_and(|tools| tools.len() >= 6));
+    client.shutdown().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_rmcp_ignores_context_generation_config() -> Result<()> {
+    let project = TempDir::new()?;
+    std::fs::write(
+        project.path().join(".context-creator.toml"),
+        "invalid TOML = [",
+    )?;
+    let mut command = Command::new(env!("CARGO_BIN_EXE_context-creator"));
+    command.current_dir(project.path());
+    let mut client = RmcpTestClient::spawn_command(command).await?;
+    client.initialize().await?;
+    client.shutdown().await?;
+    Ok(())
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn test_rmcp_provider_models_headless_arguments_and_single_prompt_reservation() -> Result<()>
+{
+    use std::os::unix::fs::PermissionsExt;
+    let project = TempDir::new()?;
+    let tools = TempDir::new()?;
+    let logs = TempDir::new()?;
+    std::fs::write(
+        project.path().join("main.rs"),
+        "fn main() {}\n".to_string() + &"// context row\n".repeat(80),
+    )?;
+    std::fs::write(project.path().join("notes.md"), "## An embedded heading\n")?;
+    for tool in ["gemini", "codex", "claude", "ollama"] {
+        let path = tools.path().join(tool);
+        std::fs::write(
+            &path,
+            format!(
+                r#"#!/bin/sh
+set -eu
+printf '%s\n' "$@" > "$CONTEXT_CREATOR_MOCK_LOG_DIR/{tool}.args"
+cat > "$CONTEXT_CREATOR_MOCK_LOG_DIR/{tool}.stdin"
+printf '{tool} response\n'
+"#
+            ),
+        )?;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))?;
+    }
+    let binary = env!("CARGO_BIN_EXE_context-creator");
+    let mut command = Command::new(binary);
+    let path = std::env::join_paths(std::iter::once(tools.path().to_path_buf()).chain(
+        std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()),
+    ))?;
+    command
+        .env("PATH", path)
+        .env("CONTEXT_CREATOR_MOCK_LOG_DIR", logs.path());
+    let mut client = RmcpTestClient::spawn_command(command).await?;
+    client.initialize().await?;
+    for (index, tool) in ["gemini", "codex", "claude", "ollama"]
+        .into_iter()
+        .enumerate()
+    {
+        let response = client
+            .request(
+                index as u64 + 2,
+                "tools/call",
+                json!({
+                    "name": "analyze_local", "arguments": {
+                        "path": project.path(), "prompt": "Explain", "llm_tool": tool,
+                        "model": "test-current-model", "tokenizer": "cl100k-base",
+                        "max_tokens": 2000, "include_context": true
+                    }
+                }),
+            )
+            .await?;
+        let text = response["result"]["content"][0]["text"]
+            .as_str()
+            .context("missing tool text")?;
+        let payload: Value = serde_json::from_str(text)?;
+        assert_eq!(payload["answer"], format!("{tool} response\n"));
+        assert_eq!(payload["file_count"], 2, "{payload}");
+        let args = std::fs::read_to_string(logs.path().join(format!("{tool}.args")))?;
+        let stdin = std::fs::read_to_string(logs.path().join(format!("{tool}.stdin")))?;
+        assert!(args.contains("test-current-model"), "{args}");
+        assert!(stdin.contains("fn main()"), "{stdin}");
+        match tool {
+            "codex" => assert!(args.starts_with("exec\n--skip-git-repo-check\n")),
+            "gemini" => assert!(args.starts_with("--prompt\nExplain\n")),
+            "claude" => assert!(args.starts_with("-p\nExplain\n")),
+            "ollama" => assert!(args.starts_with("run\ntest-current-model\n")),
+            _ => unreachable!(),
+        }
+    }
+    client.shutdown().await?;
     Ok(())
 }

@@ -291,7 +291,6 @@ pub(super) fn process_codebase_sync(
     use crate::core::cache::FileCache;
     use crate::core::context_builder::{generate_markdown, ContextOptions};
     use crate::core::prioritizer::prioritize_files;
-    use crate::core::token::TokenCounter;
     use crate::core::walker::{walk_directory, WalkOptions};
     use std::sync::Arc;
 
@@ -305,18 +304,6 @@ pub(super) fn process_codebase_sync(
         // Use LLM default if not specified
         llm_tool.default_max_tokens()
     };
-
-    // Reserve tokens for prompt and response
-    let prompt_tokens = if let Ok(counter) = TokenCounter::new() {
-        counter
-            .count_tokens(&request.prompt)
-            .unwrap_or(request.prompt.len() / 4)
-    } else {
-        request.prompt.len() / 4 // Rough estimate
-    };
-
-    let safety_buffer = 1000; // For LLM response
-    let context_tokens = effective_max_tokens.saturating_sub(prompt_tokens + safety_buffer);
 
     // Create a Config from the request
     let config = Config {
@@ -332,7 +319,9 @@ pub(super) fn process_codebase_sync(
             Some(request.ignore_patterns.clone())
         },
         trace_imports: request.include_imports,
-        max_tokens: Some(context_tokens),
+        max_tokens: Some(effective_max_tokens),
+        model: request.model.clone(),
+        tokenizer: request.tokenizer,
         llm_tool,
         prompt: if has_prompt {
             Some(request.prompt.clone())
@@ -346,6 +335,8 @@ pub(super) fn process_codebase_sync(
         quiet: true,
         ..Default::default()
     };
+
+    config.validate()?;
 
     // Create walker options
     let walk_options = WalkOptions::from_config(&config)?;
@@ -366,26 +357,16 @@ pub(super) fn process_codebase_sync(
         files
     };
 
-    // Generate markdown
+    // Count selected files before rendering arbitrary source headings.
+    let file_count = prioritized_files.len();
     let output = generate_markdown(prioritized_files, context_options, cache)?;
 
     // Count tokens
-    let token_counter = crate::core::token::TokenCounter::new()?;
+    let token_counter = crate::core::token::TokenCounter::with_encoding(config.get_tokenizer())?;
     let token_count = token_counter.count_tokens(&output)?;
 
-    // Count files (count markdown headers starting with ##)
-    let file_count = output
-        .lines()
-        .filter(|line| {
-            line.starts_with("## ")
-                && !line.starts_with("## Table of")
-                && !line.starts_with("## Statistics")
-                && !line.starts_with("## File Structure")
-        })
-        .count();
-
     let answer = if has_prompt {
-        execute_llm_sync(&request.prompt, &output, Some(&llm_tool_name))?
+        execute_llm_sync(&request.prompt, &output, &config)?
     } else {
         String::new()
     };
@@ -444,18 +425,6 @@ pub(super) fn process_remote_sync(
         llm_tool.default_max_tokens()
     };
 
-    // Reserve tokens for prompt and response
-    let prompt_tokens = if let Ok(counter) = crate::core::token::TokenCounter::new() {
-        counter
-            .count_tokens(&request.prompt)
-            .unwrap_or(request.prompt.len() / 4)
-    } else {
-        request.prompt.len() / 4
-    };
-
-    let safety_buffer = 1000;
-    let context_tokens = effective_max_tokens.saturating_sub(prompt_tokens + safety_buffer);
-
     // Create a Config from the request
     let config = Config {
         paths: Some(vec![repo_path.clone()]),
@@ -470,7 +439,9 @@ pub(super) fn process_remote_sync(
             Some(request.ignore_patterns.clone())
         },
         trace_imports: request.include_imports,
-        max_tokens: Some(context_tokens),
+        max_tokens: Some(effective_max_tokens),
+        model: request.model.clone(),
+        tokenizer: request.tokenizer,
         llm_tool,
         prompt: if has_prompt {
             Some(request.prompt.clone())
@@ -484,6 +455,8 @@ pub(super) fn process_remote_sync(
         quiet: true,
         ..Default::default()
     };
+
+    config.validate()?;
 
     // Create walker options
     let walk_options = WalkOptions::from_config(&config)?;
@@ -504,26 +477,16 @@ pub(super) fn process_remote_sync(
         files
     };
 
-    // Generate markdown
+    // Count selected files before rendering arbitrary source headings.
+    let file_count = prioritized_files.len();
     let output = generate_markdown(prioritized_files, context_options, cache)?;
 
     // Count tokens
-    let token_counter = crate::core::token::TokenCounter::new()?;
+    let token_counter = crate::core::token::TokenCounter::with_encoding(config.get_tokenizer())?;
     let token_count = token_counter.count_tokens(&output)?;
 
-    // Count files (count markdown headers starting with ##)
-    let file_count = output
-        .lines()
-        .filter(|line| {
-            line.starts_with("## ")
-                && !line.starts_with("## Table of")
-                && !line.starts_with("## Statistics")
-                && !line.starts_with("## File Structure")
-        })
-        .count();
-
     let answer = if has_prompt {
-        execute_llm_sync(&request.prompt, &output, Some(&llm_tool_name))?
+        execute_llm_sync(&request.prompt, &output, &config)?
     } else {
         String::new()
     };
@@ -1208,21 +1171,26 @@ pub(super) fn semantic_search_sync(
 fn is_supported_language_file(ext: &str) -> bool {
     matches!(
         ext,
-        "rs" | "py" | "js" | "jsx" | "ts" | "tsx" | "go" | "swift"
+        "rs" | "py" | "js" | "jsx" | "ts" | "tsx" | "go" | "swift" | "java"
     )
 }
 
 /// Execute LLM with prompt and context
-fn execute_llm_sync(prompt: &str, context: &str, llm_tool: Option<&str>) -> Result<String> {
+fn execute_llm_sync(prompt: &str, context: &str, config: &crate::cli::Config) -> Result<String> {
     use crate::utils::error::ContextCreatorError;
     use std::io::Write;
-    use std::process::{Command, Stdio};
+    use std::process::Stdio;
 
-    let (tool, _) = resolve_llm_tool(llm_tool);
-    let full_input = format!("{prompt}\n\n{context}");
+    let tool = config.llm_tool;
+    let (mut command, combined_input) = tool.prepare_command(config)?;
+    let full_input = if combined_input {
+        format!("{prompt}\n\n{context}")
+    } else {
+        context.to_string()
+    };
     let tool_command = tool.command();
 
-    let mut child = Command::new(tool_command)
+    let mut child = command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

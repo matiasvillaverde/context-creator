@@ -26,7 +26,7 @@ cargo install context-creator --no-default-features
 ```
 
 **Common Causes**:
-- Outdated Rust version (requires 1.70.0+)
+- Outdated Rust version (requires 1.89.0+)
 - Corrupted cargo cache
 - Missing system dependencies
 

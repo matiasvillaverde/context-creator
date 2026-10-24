@@ -10,12 +10,9 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::Path;
 use std::process::{Child, Command};
-use std::sync::atomic::{AtomicU16, Ordering};
 use std::time::Duration;
 use tempfile::TempDir;
 use tokio::time::sleep;
-
-static NEXT_PORT: AtomicU16 = AtomicU16::new(18123);
 
 /// Test server configuration
 struct TestServer {
@@ -29,23 +26,13 @@ struct TestServer {
 impl TestServer {
     /// Start a test MCP server
     async fn start() -> Result<Self> {
-        let port = NEXT_PORT.fetch_add(1, Ordering::SeqCst);
+        let port = std::net::TcpListener::bind("127.0.0.1:0")?
+            .local_addr()?
+            .port();
         let mock_tools = create_mock_llm_tools()?;
 
-        // Build the binary in release mode for realistic performance testing
-        let output = Command::new("cargo")
-            .args(["build", "--release"])
-            .output()?;
-
-        if !output.status.success() {
-            anyhow::bail!(
-                "Failed to build binary: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
-        }
-
-        // Start the server
-        let mut command = Command::new("./target/release/context-creator");
+        // Cargo supplies the binary built for this test profile.
+        let mut command = Command::new(env!("CARGO_BIN_EXE_context-creator"));
         command
             .arg("--mcp")
             .arg("--mcp-port")
@@ -55,14 +42,14 @@ impl TestServer {
 
         // Create client
         let client = HttpClientBuilder::default().build(format!("http://127.0.0.1:{port}"))?;
-        wait_for_server(&client).await?;
-
-        Ok(Self {
+        let server = Self {
             process: Some(process),
             port,
             client,
             _mock_tools: mock_tools,
-        })
+        };
+        wait_for_server(&server.client).await?;
+        Ok(server)
     }
 
     /// Stop the test server

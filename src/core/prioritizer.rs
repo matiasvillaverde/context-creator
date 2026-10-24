@@ -40,7 +40,7 @@ pub fn prioritize_files(
     };
 
     // Create token counter
-    let counter = TokenCounter::new()?;
+    let counter = TokenCounter::with_encoding(options.tokenizer)?;
 
     // Calculate overhead for markdown structure
     let structure_overhead = calculate_structure_overhead(options, &files)?;
@@ -131,7 +131,7 @@ pub fn prioritize_files(
 
 /// Calculate token overhead for markdown structure
 fn calculate_structure_overhead(options: &ContextOptions, files: &[FileInfo]) -> Result<usize> {
-    let counter = TokenCounter::new()?;
+    let counter = TokenCounter::with_encoding(options.tokenizer)?;
     let mut overhead = 0;
 
     // Document header
@@ -428,6 +428,7 @@ mod tests {
         }];
 
         let options = ContextOptions {
+            tokenizer: Default::default(),
             max_tokens: None,
             include_tree: true,
             include_stats: true,

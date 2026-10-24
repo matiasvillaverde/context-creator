@@ -54,10 +54,26 @@ jobs:
     - name: Run all tests
       run: make test
 
+    - name: Run MCP integration tests
+      run: cargo test --locked --test rmcp_basic_test --test rmcp_integration_test --test mcp_server_test
+
+    - name: Run MCP acceptance tests with shell stubs
+      if: runner.os != 'Windows'
+      run: cargo test --locked --test mcp_acceptance_test --test mcp_acceptance_mock_test
+
+  msrv:
+    name: Check minimum Rust version
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@1.89.0
+    - uses: Swatinem/rust-cache@v2
+    - run: cargo check --locked --all-targets
+
   # Build release binaries
   build:
     name: Build release on ${{ matrix.os }}
-    needs: [validate, test]
+    needs: [validate, test, msrv]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
