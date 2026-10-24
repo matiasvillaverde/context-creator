@@ -211,3 +211,42 @@ fn strict_secret_policy_also_covers_semantically_discovered_files() {
         .stdout("")
         .stderr(predicates::str::contains("Secret detected"));
 }
+
+#[test]
+fn semantic_expansion_uses_each_input_repository_root() {
+    let project = TempDir::new().unwrap();
+    let roots = [project.path().join("first"), project.path().join("second")];
+    for root in &roots {
+        fs::create_dir(root).unwrap();
+        fs::create_dir(root.join(".git")).unwrap();
+        fs::write(
+            root.join("main.rs"),
+            "mod helper;\nfn main() { helper::run(); }\n",
+        )
+        .unwrap();
+        fs::write(root.join("helper.rs"), "pub fn run() {}\n").unwrap();
+    }
+    for (feature, include) in [
+        ("--trace-imports", "**/main.rs"),
+        ("--include-callers", "**/helper.rs"),
+    ] {
+        let output = assert_cmd::Command::cargo_bin("context-creator")
+            .unwrap()
+            .args(&roots)
+            .args(["--quiet", "--style", "paths", "--include", include, feature])
+            .assert()
+            .success()
+            .get_output()
+            .stdout
+            .clone();
+        let paths = String::from_utf8(output).unwrap();
+        for path in [
+            "1-first/main.rs",
+            "1-first/helper.rs",
+            "2-second/main.rs",
+            "2-second/helper.rs",
+        ] {
+            assert!(paths.contains(path), "{feature}: {paths}");
+        }
+    }
+}

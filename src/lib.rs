@@ -291,6 +291,13 @@ pub(crate) fn collect_directory_files(
     cache: Arc<FileCache>,
     config: &Config,
 ) -> Result<Vec<core::walker::FileInfo>> {
+    // Semantic expansion uses the configured seed root. Each explicit input
+    // directory may belong to a different repository with its own boundary.
+    let mut directory_config = config.clone();
+    directory_config.paths = Some(vec![path.to_path_buf()]);
+    directory_config.directories = None;
+    let config = &directory_config;
+
     // Walk the directory
     if config.progress && !config.quiet {
         info!("Scanning directory: {}", path.display());
