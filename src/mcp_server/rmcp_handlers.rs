@@ -6,8 +6,7 @@ use std::path::Path;
 /// Validate path for security issues
 pub fn validate_path(path: &Path) -> Result<()> {
     // Check for path traversal attempts
-    let path_str = path.to_string_lossy();
-    if path_str.contains("..") || path_str.contains('~') {
+    if super::has_path_traversal(path) {
         bail!("Path traversal attempt detected");
     }
 

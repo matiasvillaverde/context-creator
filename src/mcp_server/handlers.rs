@@ -279,8 +279,7 @@ impl CodebaseRpcServer for CodebaseRpcImpl {
 /// Validate path for security issues
 pub(super) fn validate_path(path: &Path) -> RpcResult<()> {
     // Check for path traversal attempts
-    let path_str = path.to_string_lossy();
-    if path_str.contains("..") || path_str.contains('~') {
+    if super::has_path_traversal(path) {
         return Err(jsonrpsee::types::ErrorObject::owned(
             -32602,
             "Invalid path: potential security risk",

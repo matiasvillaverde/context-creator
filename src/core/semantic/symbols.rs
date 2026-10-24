@@ -71,9 +71,15 @@ pub fn extract_symbols(path: &Path, content: &str) -> Result<Vec<CodeSymbol>, Co
         };
         if let Some(kind) = kind {
             if let Some(name) = declaration_name(node) {
-                let mut children = node.walk();
-                let body = node.child_by_field_name("body").or_else(|| {
-                    node.named_children(&mut children).find(|child| {
+                let declaration = node
+                    .child_by_field_name("value")
+                    .filter(|value| {
+                        matches!(value.kind(), "arrow_function" | "function_expression")
+                    })
+                    .unwrap_or(node);
+                let mut children = declaration.walk();
+                let body = declaration.child_by_field_name("body").or_else(|| {
+                    declaration.named_children(&mut children).find(|child| {
                         matches!(
                             child.kind(),
                             "function_body"
