@@ -20,6 +20,7 @@ pub mod parser_pool;
 pub mod path_validator;
 pub mod query_engine;
 pub mod resolver;
+pub mod symbols;
 pub mod type_resolver;
 
 #[cfg(test)]
@@ -92,6 +93,21 @@ pub fn get_analyzer_for_file(
     };
 
     Ok(analyzer)
+}
+
+/// Grammar selection is shared by map extraction and language-specific analysis.
+pub fn grammar_for_file(path: &Path) -> Option<tree_sitter::Language> {
+    match path.extension()?.to_str()? {
+        "rs" => Some(tree_sitter_rust::language()),
+        "py" | "pyi" => Some(tree_sitter_python::language()),
+        "js" | "jsx" | "mjs" | "cjs" => Some(tree_sitter_javascript::language()),
+        "ts" | "mts" | "cts" => Some(tree_sitter_typescript::language_typescript()),
+        "tsx" => Some(tree_sitter_typescript::language_tsx()),
+        "go" => Some(tree_sitter_go::language()),
+        "swift" => Some(tree_sitter_swift::language()),
+        "java" => Some(tree_sitter_java::language()),
+        _ => None,
+    }
 }
 
 /// Get the appropriate module resolver for a file

@@ -1,5 +1,6 @@
 //! Core functionality modules
 
+pub mod budget;
 pub mod cache;
 pub mod context_builder;
 pub mod file_expander;

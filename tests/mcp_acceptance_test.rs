@@ -1124,7 +1124,7 @@ async fn test_edge_cases() -> Result<()> {
 
     // Test 3: Very long prompt with token limits
     let long_prompt = "Explain this: ".repeat(1000);
-    let response: serde_json::Value = server
+    let response: Result<serde_json::Value, _> = server
         .client
         .request(
             "process_local_codebase",
@@ -1137,10 +1137,14 @@ async fn test_edge_cases() -> Result<()> {
                 "max_tokens": 1000
             })],
         )
-        .await?;
+        .await;
 
-    // Should still work but with limited context
-    assert!(response["answer"].is_string());
+    // A prompt plus response reserve larger than the entire budget must fail
+    // before invoking a provider, rather than sending an oversized request.
+    assert!(response
+        .unwrap_err()
+        .to_string()
+        .contains("Token limit exceeded"));
 
     // Test 4: Special characters in file names
     let special_file = temp_dir.path().join("file with spaces & special.rs");

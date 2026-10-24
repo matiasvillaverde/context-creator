@@ -59,6 +59,7 @@ pub struct ProcessLocalRequest {
     pub model: Option<String>,
     /// Local tokenizer for budget estimates (default: o200k-base).
     pub tokenizer: Option<crate::core::token::TokenEncoding>,
+    pub output_reserve: Option<usize>,
     /// Optional: return markdown context along with answer
     pub include_context: Option<bool>,
 }
@@ -108,6 +109,7 @@ pub struct ProcessRemoteRequest {
     pub model: Option<String>,
     /// Local tokenizer for budget estimates (default: o200k-base).
     pub tokenizer: Option<crate::core::token::TokenEncoding>,
+    pub output_reserve: Option<usize>,
     /// Optional: return markdown context along with answer
     pub include_context: Option<bool>,
 }

@@ -87,6 +87,8 @@ mod formatters_test;
 mod output_format_test;
 
 // Semantic analysis tests
+#[path = "modules/budget_test.rs"]
+mod budget_test;
 #[path = "integration/cli_include_callers_simple_test.rs"]
 mod cli_include_callers_simple_test;
 #[path = "integration/cli_include_callers_test.rs"]
@@ -109,6 +111,8 @@ mod modernization_test;
 mod parallel_semantic_test;
 #[path = "modules/parallel_workflow_test.rs"]
 mod parallel_workflow_test;
+#[path = "modules/repository_map_test.rs"]
+mod repository_map_test;
 #[path = "modules/semantic_analysis_test.rs"]
 mod semantic_analysis_test;
 #[path = "modules/semantic_comprehensive_test.rs"]

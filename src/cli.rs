@@ -164,6 +164,8 @@ pub enum OutputFormat {
     /// List of file paths only
     #[value(name = "paths")]
     Paths,
+    /// Compact repository map with declaration signatures and line numbers
+    Map,
 }
 
 impl LlmTool {
@@ -385,12 +387,16 @@ pub struct Config {
     pub read_stdin: bool,
 
     /// The path to the output Markdown file. If used, won't call the LLM CLI
-    #[arg(short = 'o', long)]
+    #[arg(short = 'o', long, visible_alias = "output")]
     pub output_file: Option<PathBuf>,
 
     /// Maximum number of tokens for the generated codebase context
     #[arg(long)]
     pub max_tokens: Option<usize>,
+
+    /// Tokens reserved for the model response when a prompt is present (default: 1000)
+    #[arg(long)]
+    pub output_reserve: Option<usize>,
 
     /// Local tokenizer used for context and prompt token estimates
     #[arg(long, value_enum)]
@@ -521,6 +527,7 @@ impl Default for Config {
             read_stdin: false,
             output_file: None,
             max_tokens: None,
+            output_reserve: None,
             tokenizer: None,
             llm_tool: LlmTool::default(),
             ollama_model: None,
@@ -826,8 +833,12 @@ impl Config {
             return Some(defaults_tokens);
         }
 
-        // 6. No automatic token limits for non-prompt usage
-        None
+        // Repository maps are bounded by default, including context-only use.
+        if self.output_format == OutputFormat::Map {
+            Some(4096)
+        } else {
+            None
+        }
     }
 
     /// Get effective context tokens with prompt reservation
@@ -841,16 +852,14 @@ impl Config {
                 {
                     if let Ok(prompt_tokens) = counter.count_tokens(&prompt) {
                         // Reserve space for prompt + safety buffer for response
-                        let safety_buffer = 1000; // Reserve for LLM response
-                        let reserved = prompt_tokens + safety_buffer;
+                        let reserved = prompt_tokens.saturating_add(self.get_output_reserve());
                         let available = max_tokens.saturating_sub(reserved);
                         return Some(available);
                     }
                 }
                 // Fallback: rough estimation if tiktoken fails
                 let estimated_prompt_tokens = prompt.len().div_ceil(4); // ~4 chars per token
-                let safety_buffer = 1000;
-                let reserved = estimated_prompt_tokens + safety_buffer;
+                let reserved = estimated_prompt_tokens.saturating_add(self.get_output_reserve());
                 let available = max_tokens.saturating_sub(reserved);
                 Some(available)
             } else {
@@ -865,6 +874,10 @@ impl Config {
     /// Resolve the local tokenizer, preserving explicit CLI/config choices.
     pub fn get_tokenizer(&self) -> crate::core::token::TokenEncoding {
         self.tokenizer.unwrap_or_default()
+    }
+
+    pub fn get_output_reserve(&self) -> usize {
+        self.output_reserve.unwrap_or(1000)
     }
 
     /// Check if we should read from stdin

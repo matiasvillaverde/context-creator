@@ -18,6 +18,7 @@ pub struct ProcessLocalCacheKey {
     pub llm_tool: Option<String>,
     pub model: Option<String>,
     pub tokenizer: Option<crate::core::token::TokenEncoding>,
+    pub output_reserve: Option<usize>,
 }
 
 impl ProcessLocalCacheKey {
@@ -32,6 +33,7 @@ impl ProcessLocalCacheKey {
             llm_tool: request.llm_tool.clone(),
             model: request.model.clone(),
             tokenizer: request.tokenizer,
+            output_reserve: request.output_reserve,
         }
     }
 }
@@ -58,6 +60,7 @@ pub struct ProcessRemoteCacheKey {
     pub llm_tool: Option<String>,
     pub model: Option<String>,
     pub tokenizer: Option<crate::core::token::TokenEncoding>,
+    pub output_reserve: Option<usize>,
 }
 
 impl ProcessRemoteCacheKey {
@@ -72,6 +75,7 @@ impl ProcessRemoteCacheKey {
             llm_tool: request.llm_tool.clone(),
             model: request.model.clone(),
             tokenizer: request.tokenizer,
+            output_reserve: request.output_reserve,
         }
     }
 }

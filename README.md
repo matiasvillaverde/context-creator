@@ -64,6 +64,12 @@ context-creator --tool codex --model YOUR_MODEL --max-tokens 100000 --prompt "Ex
 # Select the local tokenizer (o200k-base is the default)
 context-creator --tokenizer cl100k-base --max-tokens 50000
 
+# Navigate declarations without implementation bodies
+context-creator --style map --max-tokens 4096
+
+# Reserve room for a response
+context-creator --output-reserve 8000 --max-tokens 100000 --prompt "Review this code"
+
 # Trace dependencies of specific files
 context-creator --trace-imports --include "**/auth.py"
 
@@ -78,7 +84,10 @@ Model selection is passed through to Gemini CLI, Codex, Claude Code, or Ollama. 
 `--model` to use the provider CLI's configured default. `--ollama-model` remains
 supported. Set a budget appropriate to your model; tool defaults are working
 budgets, not discovered model limits. Local token counts are estimates for Claude
-and Gemini, and file selection estimates formatting overhead.
+and Gemini. Final rendered output is checked against the selected local encoding;
+multiple input directories share one budget. Whole files are retained, and a
+budget too small for the format header returns an error before output is written.
+Repository maps default to 4,096 tokens and show up to 64 declarations per file.
 
 ### MCP Server
 

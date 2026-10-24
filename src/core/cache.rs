@@ -11,6 +11,7 @@ use std::sync::Arc;
 /// Thread-safe file content cache
 pub struct FileCache {
     cache: DashMap<PathBuf, Arc<str>>,
+    symbols: DashMap<PathBuf, Arc<Vec<crate::core::semantic::symbols::CodeSymbol>>>,
 }
 
 impl FileCache {
@@ -18,6 +19,7 @@ impl FileCache {
     pub fn new() -> Self {
         FileCache {
             cache: DashMap::new(),
+            symbols: DashMap::new(),
         }
     }
 
@@ -46,6 +48,23 @@ impl FileCache {
         CacheStats {
             entries: self.cache.len(),
         }
+    }
+
+    /// Cache declarations from the same immutable content snapshot as rendering.
+    pub fn get_symbols(
+        &self,
+        path: &Path,
+    ) -> Result<Arc<Vec<crate::core::semantic::symbols::CodeSymbol>>> {
+        let canonical = path.canonicalize()?;
+        if let Some(symbols) = self.symbols.get(&canonical) {
+            return Ok(Arc::clone(&symbols));
+        }
+        let content = self.get_or_load(&canonical)?;
+        let symbols = Arc::new(crate::core::semantic::symbols::extract_symbols(
+            &canonical, &content,
+        )?);
+        self.symbols.insert(canonical, Arc::clone(&symbols));
+        Ok(symbols)
     }
 }
 

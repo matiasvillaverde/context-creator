@@ -23,6 +23,7 @@ max_tokens = 100000
 llm_tool = "codex"            # gemini, codex, claude, ollama
 model = "YOUR_MODEL"          # optional model name or provider alias
 tokenizer = "o200k-base"      # o200k-base (default), cl100k-base
+output_reserve = 1000         # reserved when a prompt is present
 progress = false
 verbose = false               # enables -v
 quiet = false
@@ -67,16 +68,20 @@ The effective budget follows this order:
 4. Built-in tool budget when a prompt is present.
 5. No automatic limit for context-only CLI usage.
 
-With a prompt, its local token count and a 1,000-token response allowance are
-subtracted once. MCP context-only requests use the tool budget if `max_tokens`
+With a prompt, its local token count and the response allowance (`--output-reserve`,
+default 1,000) are subtracted once. MCP context-only requests use the tool budget if `max_tokens`
 is omitted. Budgets are working defaults, not a lookup of the chosen model's
 context window. Use explicit values appropriate to your model and output needs.
 
 `o200k-base` is the default local encoding; `cl100k-base` preserves the previous
 vocabulary. Literal token delimiters in source count as ordinary text. Neither
 encoding is an exact Claude/Gemini tokenizer. File selection estimates formatting
-overhead and applies to each input directory; it does not guarantee that combined
-multi-directory output or a provider's complete request fits the same limit.
+overhead for initial selection, then verifies the complete final document. All
+input directories share one budget, including metadata, escaping, and headers.
+Whole files are removed if necessary; source files are never cut mid-content.
+A budget too small for the format header fails clearly before output is written.
+The provider CLI's additional instructions and tool schemas are outside this
+local text budget. `--style map` defaults to 4,096 tokens when no budget is set.
 
 ```bash
 context-creator --tool codex --model YOUR_MODEL --max-tokens 100000 --prompt "Explain this code"

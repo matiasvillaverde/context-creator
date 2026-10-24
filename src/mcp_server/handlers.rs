@@ -289,7 +289,7 @@ pub(super) fn process_codebase_sync(
 ) -> Result<ProcessLocalResponse> {
     use crate::cli::Config;
     use crate::core::cache::FileCache;
-    use crate::core::context_builder::{generate_markdown, ContextOptions};
+    use crate::core::context_builder::{generate_markdown_with_report, ContextOptions};
     use crate::core::prioritizer::prioritize_files;
     use crate::core::walker::{walk_directory, WalkOptions};
     use std::sync::Arc;
@@ -322,6 +322,7 @@ pub(super) fn process_codebase_sync(
         max_tokens: Some(effective_max_tokens),
         model: request.model.clone(),
         tokenizer: request.tokenizer,
+        output_reserve: request.output_reserve,
         llm_tool,
         prompt: if has_prompt {
             Some(request.prompt.clone())
@@ -358,8 +359,10 @@ pub(super) fn process_codebase_sync(
     };
 
     // Count selected files before rendering arbitrary source headings.
-    let file_count = prioritized_files.len();
-    let output = generate_markdown(prioritized_files, context_options, cache)?;
+    let rendered = generate_markdown_with_report(prioritized_files, context_options, cache)?;
+    let file_count = rendered.file_count;
+    let output = rendered.text;
+    crate::core::budget::check_prompt_budget(&config, &output)?;
 
     // Count tokens
     let token_counter = crate::core::token::TokenCounter::with_encoding(config.get_tokenizer())?;
@@ -396,7 +399,7 @@ pub(super) fn process_remote_sync(
 ) -> Result<ProcessRemoteResponse> {
     use crate::cli::Config;
     use crate::core::cache::FileCache;
-    use crate::core::context_builder::{generate_markdown, ContextOptions};
+    use crate::core::context_builder::{generate_markdown_with_report, ContextOptions};
     use crate::core::prioritizer::prioritize_files;
     use crate::core::walker::{walk_directory, WalkOptions};
     use crate::remote;
@@ -442,6 +445,7 @@ pub(super) fn process_remote_sync(
         max_tokens: Some(effective_max_tokens),
         model: request.model.clone(),
         tokenizer: request.tokenizer,
+        output_reserve: request.output_reserve,
         llm_tool,
         prompt: if has_prompt {
             Some(request.prompt.clone())
@@ -478,8 +482,10 @@ pub(super) fn process_remote_sync(
     };
 
     // Count selected files before rendering arbitrary source headings.
-    let file_count = prioritized_files.len();
-    let output = generate_markdown(prioritized_files, context_options, cache)?;
+    let rendered = generate_markdown_with_report(prioritized_files, context_options, cache)?;
+    let file_count = rendered.file_count;
+    let output = rendered.text;
+    crate::core::budget::check_prompt_budget(&config, &output)?;
 
     // Count tokens
     let token_counter = crate::core::token::TokenCounter::with_encoding(config.get_tokenizer())?;

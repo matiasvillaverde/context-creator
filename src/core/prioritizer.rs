@@ -43,7 +43,9 @@ pub fn prioritize_files(
     let counter = TokenCounter::with_encoding(options.tokenizer)?;
 
     // Calculate overhead for markdown structure
-    let structure_overhead = calculate_structure_overhead(options, &files)?;
+    // Candidate tree/TOC size is not the size of the selected subset. Reserve
+    // only fixed overhead here; final rendering enforces the complete budget.
+    let structure_overhead = calculate_structure_overhead(options, &[])?;
 
     // Phase 1: Count tokens for all files in parallel with proper error handling
     let results: Vec<crate::utils::error::Result<FileWithTokens>> = files

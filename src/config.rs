@@ -36,6 +36,8 @@ pub struct ConfigFile {
 /// Default configuration settings
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Defaults {
+    /// Tokens reserved for a response when using a prompt.
+    pub output_reserve: Option<usize>,
     /// Default maximum tokens
     pub max_tokens: Option<usize>,
 
@@ -146,6 +148,9 @@ impl ConfigFile {
 
     /// Apply configuration defaults to CLI config
     pub fn apply_to_cli_config(&self, cli_config: &mut CliConfig) {
+        if cli_config.output_reserve.is_none() {
+            cli_config.output_reserve = self.defaults.output_reserve;
+        }
         if cli_config.tokenizer.is_none() {
             cli_config.tokenizer = self.defaults.tokenizer;
         }
@@ -228,6 +233,7 @@ impl ConfigFile {
 pub fn create_example_config() -> String {
     let example = ConfigFile {
         defaults: Defaults {
+            output_reserve: None,
             max_tokens: Some(150000),
             llm_tool: Some("gemini".to_string()),
             model: None,
@@ -349,6 +355,7 @@ progress = true
     fn test_apply_to_cli_config() {
         let config_file = ConfigFile {
             defaults: Defaults {
+                output_reserve: None,
                 model: Default::default(),
                 tokenizer: Default::default(),
                 max_tokens: Some(75000),
@@ -446,6 +453,7 @@ max_tokens = 200000
     fn test_apply_to_cli_config_with_token_limits() {
         let config_file = ConfigFile {
             defaults: Defaults {
+                output_reserve: None,
                 model: Default::default(),
                 tokenizer: Default::default(),
                 max_tokens: Some(75000),

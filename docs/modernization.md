@@ -108,6 +108,19 @@ workloads; token cache hits and first-time encoding are measured separately.
 
 ## Prioritized next work
 
+Execution plan for the next release (each item requires focused regressions,
+the full Rust/MCP checks, and review before pushing to `main`):
+
+- [x] Commit the verified model/MCP/tokenizer/Java foundation.
+- [x] Enforce final rendered budgets across formats and input roots; expose output reservation.
+- [x] Add a compact, dependency-ranked repository map with definitions and signatures.
+- [ ] Implement and test C, C++, C#, Kotlin, Ruby, and PHP extraction and local resolution.
+- [ ] Upgrade compatible parsers together and cover module variants and malformed syntax.
+- [ ] Add reproducible cold/warm performance and fixed-task relevance benchmarks.
+- [ ] Add opt-in provider-native counting, without credentials in ordinary tests.
+- [ ] Add explicit secret handling and bounded map/file reads to both MCP servers.
+- [ ] Validate the release binary, push tested commits to `main`, and inspect CI.
+
 | Priority | Work | Completion criterion |
 | --- | --- | --- |
 | 1 | Enforce budgets against the final rendered output and combined directories. | Every style includes metadata/escaping overhead; oversized outputs produce a clear result without corrupting source. Test zero/tiny budgets, multiple roots, semantic metadata, and prompt/output reservation. Current file selection remains an estimate. |

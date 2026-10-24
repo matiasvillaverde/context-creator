@@ -104,7 +104,8 @@ pub fn run(mut config: Config) -> Result<()> {
     let cache = Arc::new(FileCache::new());
 
     // Process all directories
-    let mut all_outputs = Vec::new();
+    let mut all_files = Vec::new();
+    let mut visited = std::collections::HashSet::new();
 
     let directories = config.get_directories();
     for (index, directory) in directories.iter().enumerate() {
@@ -117,33 +118,73 @@ pub fn run(mut config: Config) -> Result<()> {
             );
         }
 
-        let output = process_directory(
+        let files = collect_directory_files(
             directory,
             walk_options.clone(),
             context_options.clone(),
             cache.clone(),
             &config,
         )?;
-        all_outputs.push((directory.clone(), output));
+        let label = directory
+            .canonicalize()
+            .ok()
+            .and_then(|path| path.file_name().map(|name| name.to_os_string()))
+            .unwrap_or_else(|| "root".into());
+        for mut file in files {
+            if !visited.insert(file.path.clone()) {
+                continue;
+            }
+            if directories.len() > 1 {
+                file.relative_path =
+                    std::path::PathBuf::from(format!("{}-{}", index + 1, label.to_string_lossy()))
+                        .join(&file.relative_path);
+            }
+            all_files.push(file);
+        }
     }
 
-    // Combine outputs from all directories
-    let output = if all_outputs.len() == 1 {
-        // Single directory - return output as-is
-        all_outputs.into_iter().next().unwrap().1
+    // Select once across all roots, then count the actual final serialization.
+    let mut selection_options = context_options.clone();
+    if matches!(
+        config.output_format,
+        cli::OutputFormat::Map | cli::OutputFormat::Paths
+    ) {
+        selection_options.max_tokens = None;
+    }
+    let selected =
+        core::prioritizer::prioritize_files(all_files, &selection_options, cache.clone())?;
+    if config.progress && !config.quiet {
+        info!(
+            "Generating {} context from {} files...",
+            format!("{:?}", config.output_format).to_lowercase(),
+            selected.len()
+        );
+    }
+    let base = if directories.len() == 1 {
+        directories[0].display().to_string()
     } else {
-        // Multiple directories - combine with headers
-        let mut combined = String::new();
-        combined.push_str("# Code Context - Multiple Directories\n\n");
-
-        for (path, content) in all_outputs {
-            combined.push_str(&format!("## Directory: {}\n\n", path.display()));
-            combined.push_str(&content);
-            combined.push_str("\n\n");
-        }
-
-        combined
+        "multiple directories".to_string()
     };
+    let mut context_options = context_options;
+    if directories.len() > 1 && config.output_format == cli::OutputFormat::Markdown {
+        context_options.doc_header_template = format!(
+            "# Code Context - Multiple Directories\n\n{}",
+            directories
+                .iter()
+                .map(|directory| format!("## Directory: {}\n", directory.display()))
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+    }
+    let output = core::context_builder::generate_digest_with_report(
+        selected,
+        context_options,
+        cache,
+        config.output_format,
+        &base,
+    )?
+    .text;
+    core::budget::check_prompt_budget(&config, &output)?;
 
     // Handle output based on configuration
     let resolved_prompt = config.get_prompt();
@@ -207,13 +248,13 @@ pub fn run(mut config: Config) -> Result<()> {
 }
 
 /// Process a directory and generate markdown output
-fn process_directory(
+pub(crate) fn collect_directory_files(
     path: &Path,
     walk_options: WalkOptions,
-    context_options: ContextOptions,
+    _context_options: ContextOptions,
     cache: Arc<FileCache>,
     config: &Config,
-) -> Result<String> {
+) -> Result<Vec<core::walker::FileInfo>> {
     // Walk the directory
     if config.progress && !config.quiet {
         info!("Scanning directory: {}", path.display());
@@ -286,6 +327,24 @@ fn process_directory(
         }
     }
 
+    if config.output_format == cli::OutputFormat::Map
+        && !config.trace_imports
+        && !config.include_callers
+        && !config.include_types
+    {
+        let mut map_config = config.clone();
+        map_config.trace_imports = true;
+        let root = if path.is_file() {
+            path.parent().unwrap_or(path)
+        } else {
+            path
+        };
+        let root = root.canonicalize()?;
+        files =
+            core::project_analyzer::ProjectAnalysis::from_files(files, &root, &map_config, &cache)?
+                .all_files;
+    }
+
     if config.verbose > 0 {
         debug!("File list:");
         for file in &files {
@@ -297,43 +356,7 @@ fn process_directory(
         }
     }
 
-    // Prioritize files if needed
-    let prioritized_files = if context_options.max_tokens.is_some() {
-        if config.progress && !config.quiet {
-            info!("Prioritizing files for token limit...");
-        }
-        core::prioritizer::prioritize_files(files, &context_options, cache.clone())?
-    } else {
-        files
-    };
-
-    if config.progress && !config.quiet {
-        info!(
-            "Generating markdown from {} files...",
-            prioritized_files.len()
-        );
-    }
-
-    // Generate output using the appropriate formatter
-    let output = if config.output_format == cli::OutputFormat::Markdown {
-        // Use existing generate_markdown for backward compatibility
-        core::context_builder::generate_markdown(prioritized_files, context_options, cache)?
-    } else {
-        // Use new formatter system
-        core::context_builder::generate_digest(
-            prioritized_files,
-            context_options,
-            cache,
-            config.output_format,
-            &path.display().to_string(),
-        )?
-    };
-
-    if config.progress && !config.quiet {
-        info!("Output generation complete");
-    }
-
-    Ok(output)
+    Ok(files)
 }
 
 /// Execute LLM CLI with the generated context
