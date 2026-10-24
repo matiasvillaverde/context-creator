@@ -66,3 +66,54 @@ fn declaration_cache_reuses_the_loaded_content_snapshot() {
     assert!(Arc::ptr_eq(&first, &second));
     assert_eq!(first[0].name, "first");
 }
+
+#[test]
+fn dependency_ranking_places_shared_definitions_ahead_of_unrelated_files() {
+    let project = TempDir::new().unwrap();
+    fs::create_dir(project.path().join(".git")).unwrap();
+    fs::write(
+        project.path().join("a_unrelated.py"),
+        "def unrelated(): pass\n",
+    )
+    .unwrap();
+    fs::write(
+        project.path().join("z_shared.py"),
+        "def authenticate(): return True\n",
+    )
+    .unwrap();
+    for file in ["client.py", "service.py"] {
+        fs::write(
+            project.path().join(file),
+            "from z_shared import authenticate\ndef run(): return authenticate()\n",
+        )
+        .unwrap();
+    }
+    let output = assert_cmd::Command::cargo_bin("context-creator")
+        .unwrap()
+        .current_dir(project.path())
+        .args(["--style", "map", "--quiet"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let map = String::from_utf8(output).unwrap();
+    assert!(
+        map.find("## z_shared.py").unwrap() < map.find("## a_unrelated.py").unwrap(),
+        "{map}"
+    );
+}
+
+#[test]
+fn cpp_declarations_in_h_headers_use_the_cpp_grammar() {
+    let symbols = context_creator::core::semantic::symbols::extract_symbols(
+        std::path::Path::new("user.h"),
+        "namespace app { class User { public: int id; int name() { return 123; } }; }",
+    )
+    .unwrap();
+    assert!(symbols.iter().any(|symbol| symbol.name == "User"));
+    assert!(symbols.iter().any(|symbol| symbol.name == "name"));
+    assert!(!symbols
+        .iter()
+        .any(|symbol| symbol.signature.contains("return 123")));
+}

@@ -413,6 +413,69 @@ fn bench_file_type_processing(c: &mut Criterion) {
     group.finish();
 }
 
+/// Separate declaration parsing from reuse of the immutable source/tag cache.
+fn bench_repository_map(c: &mut Criterion) {
+    use context_creator::cli::OutputFormat;
+    use context_creator::core::context_builder::generate_digest_with_report;
+    let project = TempDir::new().unwrap();
+    for index in 0..40 {
+        fs::write(
+            project.path().join(format!("module_{index}.rs")),
+            format!(
+                "pub fn lookup_customer_{index}(value: u64) -> u64 {{\n{}    value\n}}\n",
+                "    let _detail = value.saturating_add(1);\n".repeat(80)
+            ),
+        )
+        .unwrap();
+    }
+    let files = walk_directory(project.path(), WalkOptions::default()).unwrap();
+    let options = ContextOptions {
+        max_tokens: Some(4096),
+        ..ContextOptions::default()
+    };
+    let warm = Arc::new(FileCache::new());
+    for file in &files {
+        warm.get_symbols(&file.path).unwrap();
+    }
+    // Vocabulary initialization is outside both measurements.
+    TokenCounter::new().unwrap();
+    let mut group = c.benchmark_group("repository_map");
+    group.throughput(Throughput::Elements(files.len() as u64));
+    group.bench_function("cold_symbols", |b| {
+        b.iter_batched(
+            || Arc::new(FileCache::new()),
+            |cache| {
+                black_box(
+                    generate_digest_with_report(
+                        files.clone(),
+                        options.clone(),
+                        cache,
+                        OutputFormat::Map,
+                        "benchmark",
+                    )
+                    .unwrap(),
+                )
+            },
+            BatchSize::SmallInput,
+        )
+    });
+    group.bench_function("warm_symbols", |b| {
+        b.iter(|| {
+            black_box(
+                generate_digest_with_report(
+                    files.clone(),
+                    options.clone(),
+                    warm.clone(),
+                    OutputFormat::Map,
+                    "benchmark",
+                )
+                .unwrap(),
+            )
+        })
+    });
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_directory_walking,
@@ -423,7 +486,8 @@ criterion_group!(
     bench_end_to_end_processing,
     bench_memory_efficiency,
     bench_parallel_processing,
-    bench_file_type_processing
+    bench_file_type_processing,
+    bench_repository_map
 );
 
 criterion_main!(benches);

@@ -256,6 +256,8 @@ fn language_family(path: &Path) -> Option<&str> {
             // JavaScript and TypeScript can call each other's exported functions.
             "js" | "jsx" | "mjs" | "cjs" | "ts" | "tsx" | "mts" | "cts" => "javascript",
             "py" | "pyi" => "python",
+            "c" | "h" | "cpp" | "cc" | "cxx" | "hpp" | "hxx" | "hh" | "c++" | "h++" => "c-family",
+            "kt" | "kts" => "kotlin",
             other => other,
         })
 }

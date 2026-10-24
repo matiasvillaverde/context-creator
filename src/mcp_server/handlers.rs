@@ -43,14 +43,66 @@ impl CodebaseRpcImpl {
 
 #[jsonrpsee::core::async_trait]
 impl CodebaseRpcServer for CodebaseRpcImpl {
+    async fn repository_map(
+        &self,
+        request: super::RepositoryMapRequest,
+    ) -> RpcResult<super::RepositoryMapResponse> {
+        tokio::task::spawn_blocking(move || super::progressive::repository_map_sync(request))
+            .await
+            .map_err(|error| {
+                jsonrpsee::types::ErrorObject::owned(
+                    -32603,
+                    "Worker failed",
+                    Some(error.to_string()),
+                )
+            })?
+            .map_err(|error| {
+                jsonrpsee::types::ErrorObject::owned(
+                    -32602,
+                    "Invalid map request",
+                    Some(error.to_string()),
+                )
+            })
+    }
+
+    async fn read_file(
+        &self,
+        request: super::ReadFileRequest,
+    ) -> RpcResult<super::ReadFileResponse> {
+        tokio::task::spawn_blocking(move || super::progressive::read_file_sync(request))
+            .await
+            .map_err(|error| {
+                jsonrpsee::types::ErrorObject::owned(
+                    -32603,
+                    "Worker failed",
+                    Some(error.to_string()),
+                )
+            })?
+            .map_err(|error| {
+                jsonrpsee::types::ErrorObject::owned(
+                    -32602,
+                    "Invalid file request",
+                    Some(error.to_string()),
+                )
+            })
+    }
+
     async fn process_local_codebase(
         &self,
         request: ProcessLocalRequest,
     ) -> RpcResult<ProcessLocalResponse> {
         let start = Instant::now();
 
-        // Validate path security
-        validate_path(&request.path)?;
+        let path = request.path.clone();
+        tokio::task::spawn_blocking(move || validate_path(&path))
+            .await
+            .map_err(|error| {
+                jsonrpsee::types::ErrorObject::owned(
+                    -32603,
+                    "Validation worker failed",
+                    Some(error.to_string()),
+                )
+            })??;
 
         // Check cache first
         let cache_key = crate::mcp_server::cache::ProcessLocalCacheKey::from_request(&request);
@@ -291,7 +343,7 @@ pub(super) fn process_codebase_sync(
     use crate::core::cache::FileCache;
     use crate::core::context_builder::{generate_markdown_with_report, ContextOptions};
     use crate::core::prioritizer::prioritize_files;
-    use crate::core::walker::{walk_directory, WalkOptions};
+    use crate::core::walker::WalkOptions;
     use std::sync::Arc;
 
     let (llm_tool, llm_tool_name) = resolve_llm_tool(request.llm_tool.as_deref());
@@ -323,6 +375,7 @@ pub(super) fn process_codebase_sync(
         model: request.model.clone(),
         tokenizer: request.tokenizer,
         output_reserve: request.output_reserve,
+        secret_scan: request.secret_scan,
         llm_tool,
         prompt: if has_prompt {
             Some(request.prompt.clone())
@@ -346,10 +399,16 @@ pub(super) fn process_codebase_sync(
     let context_options = ContextOptions::from_config(&config)?;
 
     // Create file cache
-    let cache = Arc::new(FileCache::new());
+    let cache = Arc::new(FileCache::with_secret_policy(config.get_secret_policy()));
 
     // Walk the directory
-    let files = walk_directory(&request.path, walk_options)?;
+    let files = crate::collect_directory_files(
+        &request.path,
+        walk_options,
+        context_options.clone(),
+        cache.clone(),
+        &config,
+    )?;
 
     // Prioritize files if max tokens is set
     let prioritized_files = if context_options.max_tokens.is_some() {
@@ -401,7 +460,7 @@ pub(super) fn process_remote_sync(
     use crate::core::cache::FileCache;
     use crate::core::context_builder::{generate_markdown_with_report, ContextOptions};
     use crate::core::prioritizer::prioritize_files;
-    use crate::core::walker::{walk_directory, WalkOptions};
+    use crate::core::walker::WalkOptions;
     use crate::remote;
     use std::sync::Arc;
 
@@ -446,6 +505,7 @@ pub(super) fn process_remote_sync(
         model: request.model.clone(),
         tokenizer: request.tokenizer,
         output_reserve: request.output_reserve,
+        secret_scan: request.secret_scan,
         llm_tool,
         prompt: if has_prompt {
             Some(request.prompt.clone())
@@ -469,10 +529,16 @@ pub(super) fn process_remote_sync(
     let context_options = ContextOptions::from_config(&config)?;
 
     // Create file cache
-    let cache = Arc::new(FileCache::new());
+    let cache = Arc::new(FileCache::with_secret_policy(config.get_secret_policy()));
 
     // Walk the directory
-    let files = walk_directory(&repo_path, walk_options)?;
+    let files = crate::collect_directory_files(
+        &repo_path,
+        walk_options,
+        context_options.clone(),
+        cache.clone(),
+        &config,
+    )?;
 
     // Prioritize files if max tokens is set
     let prioritized_files = if context_options.max_tokens.is_some() {
@@ -1175,10 +1241,7 @@ pub(super) fn semantic_search_sync(
 
 /// Check if file extension is a supported language
 fn is_supported_language_file(ext: &str) -> bool {
-    matches!(
-        ext,
-        "rs" | "py" | "js" | "jsx" | "ts" | "tsx" | "go" | "swift" | "java"
-    )
+    crate::core::semantic::grammar_for_file(Path::new(&format!("file.{ext}"))).is_some()
 }
 
 /// Execute LLM with prompt and context

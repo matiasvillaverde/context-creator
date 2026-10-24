@@ -45,6 +45,34 @@ impl Default for ContextCreatorServer {
 
 #[tool_router]
 impl ContextCreatorServer {
+    #[tool(
+        description = "Get a bounded repository map of declarations and line numbers without calling an LLM"
+    )]
+    pub async fn repository_map(
+        &self,
+        Parameters(request): Parameters<super::RepositoryMapRequest>,
+    ) -> Result<Json<super::RepositoryMapResponse>, ErrorData> {
+        tokio::task::spawn_blocking(move || super::progressive::repository_map_sync(request))
+            .await
+            .map_err(|error| ErrorData::new(ErrorCode::INTERNAL_ERROR, error.to_string(), None))?
+            .map(Json)
+            .map_err(|error| ErrorData::new(ErrorCode::INVALID_PARAMS, error.to_string(), None))
+    }
+
+    #[tool(
+        description = "Read a bounded source range relative to a repository root; respects ignore rules and denies symlinks and hidden paths"
+    )]
+    pub async fn read_file(
+        &self,
+        Parameters(request): Parameters<super::ReadFileRequest>,
+    ) -> Result<Json<super::ReadFileResponse>, ErrorData> {
+        tokio::task::spawn_blocking(move || super::progressive::read_file_sync(request))
+            .await
+            .map_err(|error| ErrorData::new(ErrorCode::INTERNAL_ERROR, error.to_string(), None))?
+            .map(Json)
+            .map_err(|error| ErrorData::new(ErrorCode::INVALID_PARAMS, error.to_string(), None))
+    }
+
     #[tool(description = "Analyze a local codebase directory and answer questions about it")]
     pub async fn analyze_local(
         &self,
@@ -52,14 +80,11 @@ impl ContextCreatorServer {
     ) -> Result<Json<ProcessLocalResponse>, ErrorData> {
         let start = Instant::now();
 
-        // Validate path security
-        super::rmcp_handlers::validate_path(&request.path).map_err(|e| {
-            ErrorData::new(
-                ErrorCode::INVALID_PARAMS,
-                format!("Invalid path: {e}"),
-                None,
-            )
-        })?;
+        let path = request.path.clone();
+        tokio::task::spawn_blocking(move || super::rmcp_handlers::validate_path(&path))
+            .await
+            .map_err(|error| ErrorData::new(ErrorCode::INTERNAL_ERROR, error.to_string(), None))?
+            .map_err(|error| ErrorData::new(ErrorCode::INVALID_PARAMS, error.to_string(), None))?;
 
         // Check cache first
         let cache_key = crate::mcp_server::cache::ProcessLocalCacheKey::from_request(&request);
@@ -218,6 +243,7 @@ impl ServerHandler for ContextCreatorServer {
             "This server provides tools to:\n",
             "- Analyze local directories with 'analyze_local'\n",
             "- Analyze remote Git repositories with 'analyze_remote'\n",
+            "- Explore declarations with 'repository_map', then page source with 'read_file'\n",
             "- Get file metadata with 'file_metadata'\n",
             "- Search codebases with 'search'\n",
             "- Generate diffs with 'diff'\n",

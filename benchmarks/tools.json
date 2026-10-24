@@ -1,0 +1,80 @@
+[
+  {
+    "name": "repomix/full",
+    "version": "1.18.1",
+    "artifact": "file",
+    "command": [
+      "npx",
+      "--yes",
+      "repomix@1.18.1",
+      "{root}",
+      "--output",
+      "{output}",
+      "--style",
+      "markdown",
+      "--quiet",
+      "--no-security-check",
+      "--no-git-sort-by-changes"
+    ],
+    "version_command": [
+      "npx",
+      "--yes",
+      "repomix@1.18.1",
+      "--version"
+    ]
+  },
+  {
+    "name": "gitingest/full",
+    "version": "0.3.1",
+    "artifact": "file",
+    "command": [
+      "gitingest",
+      "{root}",
+      "--output",
+      "{output}"
+    ],
+    "version_command": [
+      "python",
+      "-c",
+      "import importlib.metadata; print(importlib.metadata.version('gitingest'))"
+    ]
+  },
+  {
+    "name": "code2prompt/full",
+    "version": "4.2.0",
+    "artifact": "file",
+    "command": [
+      "code2prompt",
+      "{root}",
+      "--output-file",
+      "{output}",
+      "--output-format",
+      "markdown",
+      "--quiet",
+      "--token-format",
+      "raw",
+      "--encoding",
+      "cl100k"
+    ],
+    "version_command": [
+      "code2prompt",
+      "--version"
+    ]
+  },
+  {
+    "name": "aider/map",
+    "version": "0.86.0",
+    "artifact": "stdout",
+    "command": [
+      "python",
+      "{repo}/benchmarks/aider_map.py",
+      "{root}",
+      "{tokens}"
+    ],
+    "version_command": [
+      "python",
+      "-c",
+      "import importlib.metadata; print(importlib.metadata.version('aider-chat'))"
+    ]
+  }
+]

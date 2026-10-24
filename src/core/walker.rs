@@ -115,7 +115,9 @@ impl WalkOptions {
             ignore_patterns,
             include_patterns,
             custom_priorities,
-            filter_binary_files: config.get_prompt().is_some(),
+            filter_binary_files: config.get_prompt().is_some()
+                || config.output_format == crate::cli::OutputFormat::Map
+                || config.get_secret_policy() != crate::core::secrets::SecretPolicy::Off,
         })
     }
 }
@@ -201,13 +203,38 @@ impl FileInfo {
 }
 
 /// Walk a path (file or directory) and collect file information
-pub fn walk_directory(root: &Path, options: WalkOptions) -> Result<Vec<FileInfo>> {
+pub fn walk_directory(root: &Path, mut options: WalkOptions) -> Result<Vec<FileInfo>> {
     if !root.exists() {
         return Err(ContextCreatorError::InvalidPath(format!(
             "Path does not exist: {}",
             root.display()
         ))
         .into());
+    }
+
+    let priority_root = if root.is_dir() {
+        root
+    } else {
+        root.parent().unwrap_or(root)
+    };
+    let keep = priority_root.join(".contextkeep");
+    if keep.is_file() {
+        let canonical_root = priority_root.canonicalize()?;
+        let keep =
+            crate::core::semantic::path_validator::validate_import_path(&canonical_root, &keep)?;
+        if std::fs::metadata(&keep)?.len() > 1_048_576 {
+            anyhow::bail!(".contextkeep exceeds 1 MiB");
+        }
+        for line in std::fs::read_to_string(keep)?
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        {
+            let pattern = sanitize_pattern(line)?;
+            options
+                .custom_priorities
+                .push(CompiledPriority::new(&pattern, 100.0)?);
+        }
     }
 
     // Handle individual files
@@ -251,6 +278,58 @@ pub fn walk_directory(root: &Path, options: WalkOptions) -> Result<Vec<FileInfo>
     } else {
         walk_sequential(walker, &root, &options)
     }
+}
+
+/// Check ancestor ignore files without walking the tree for each discovered import
+/// or paginated read. Local whitelist rules take precedence over global ignores.
+pub fn repository_path_is_ignored(root: &Path, target: &Path) -> Result<bool> {
+    let relative = target.strip_prefix(root)?;
+    let mut directory = root.to_path_buf();
+    let mut ancestors = vec![directory.clone()];
+    for part in relative.parent().into_iter().flat_map(Path::components) {
+        directory.push(part);
+        ancestors.push(directory.clone());
+    }
+    let mut builder = ignore::gitignore::GitignoreBuilder::new(root);
+    let mut ignore_files = vec![root.join(".git/info/exclude")];
+    for directory in &ancestors {
+        for name in [
+            ".gitignore",
+            ".ignore",
+            ".contextignore",
+            ".context-creator-ignore",
+        ] {
+            ignore_files.push(directory.join(name));
+        }
+    }
+    for path in ignore_files.into_iter().filter(|path| path.exists()) {
+        crate::core::semantic::path_validator::validate_import_path(root, &path)?;
+        if std::fs::metadata(&path)?.len() > 1_048_576 {
+            anyhow::bail!("Ignore file exceeds 1 MiB");
+        }
+        if let Some(error) = builder.add(path) {
+            return Err(error.into());
+        }
+    }
+    let local = builder.build()?;
+    let (global, error) = ignore::gitignore::GitignoreBuilder::new(root).build_global();
+    if let Some(error) = error {
+        return Err(error.into());
+    }
+    let mut candidates: Vec<_> = ancestors
+        .into_iter()
+        .skip(1)
+        .map(|path| (path, true))
+        .collect();
+    candidates.push((target.to_path_buf(), false));
+    // A negated child pattern cannot reopen a directory the walker would prune.
+    for (path, is_dir) in candidates {
+        let matched = local.matched(&path, is_dir);
+        if matched.is_ignore() || (matched.is_none() && global.matched(&path, is_dir).is_ignore()) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 /// Sanitize include patterns to prevent security issues
@@ -310,6 +389,7 @@ fn build_walker(root: &Path, options: &WalkOptions) -> Result<Walk> {
         .git_exclude(true)
         .ignore(true)
         .parents(true)
+        .add_custom_ignore_filename(".contextignore")
         .add_custom_ignore_filename(&options.ignore_file);
 
     // Handle both include and ignore patterns using OverrideBuilder

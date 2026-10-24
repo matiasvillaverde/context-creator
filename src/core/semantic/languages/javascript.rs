@@ -17,7 +17,7 @@ pub struct JavaScriptAnalyzer {
 
 impl JavaScriptAnalyzer {
     pub fn new() -> Self {
-        let language = tree_sitter_javascript::language();
+        let language = tree_sitter_javascript::LANGUAGE.into();
         let query_engine = QueryEngine::new(language, "javascript")
             .expect("Failed to create JavaScript query engine");
         Self { query_engine }
@@ -37,7 +37,7 @@ impl LanguageAnalyzer for JavaScriptAnalyzer {
     ) -> SemanticResult<AnalysisResult> {
         let mut parser = Parser::new();
         parser
-            .set_language(tree_sitter_javascript::language())
+            .set_language(&tree_sitter_javascript::LANGUAGE.into())
             .map_err(|e| ContextCreatorError::ParseError(format!("Failed to set language: {e}")))?;
 
         let mut result = self
@@ -55,11 +55,11 @@ impl LanguageAnalyzer for JavaScriptAnalyzer {
     }
 
     fn can_handle_extension(&self, extension: &str) -> bool {
-        extension == "js" || extension == "jsx"
+        matches!(extension, "js" | "jsx" | "mjs" | "cjs")
     }
 
     fn supported_extensions(&self) -> Vec<&'static str> {
-        vec!["js", "jsx"]
+        vec!["js", "jsx", "mjs", "cjs"]
     }
 }
 
@@ -96,7 +96,7 @@ impl ModuleResolver for JavaScriptModuleResolver {
                 let resolved_path = parent.join(clean_path);
 
                 // Try different extensions
-                for ext in &["js", "jsx", "ts", "tsx"] {
+                for ext in &["js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts"] {
                     let with_ext = resolved_path.with_extension(ext);
                     if with_ext.exists() {
                         let validated_path = validate_import_path(base_dir, &with_ext)?;
@@ -109,7 +109,7 @@ impl ModuleResolver for JavaScriptModuleResolver {
                 }
 
                 // Try as directory with index file
-                for ext in &["js", "jsx", "ts", "tsx"] {
+                for ext in &["js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts"] {
                     let index_path = resolved_path.join(format!("index.{ext}"));
                     if index_path.exists() {
                         let validated_path = validate_import_path(base_dir, &index_path)?;
@@ -131,7 +131,7 @@ impl ModuleResolver for JavaScriptModuleResolver {
 
         for search_path in &search_paths {
             // Try as a file
-            for ext in &["js", "jsx", "ts", "tsx"] {
+            for ext in &["js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts"] {
                 let file_path = search_path.join(format!("{module_path}.{ext}"));
                 if file_path.exists() {
                     let validated_path = validate_import_path(base_dir, &file_path)?;
@@ -144,7 +144,7 @@ impl ModuleResolver for JavaScriptModuleResolver {
             }
 
             // Try as a directory with index file
-            for ext in &["js", "jsx", "ts", "tsx"] {
+            for ext in &["js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts"] {
                 let index_path = search_path.join(module_path).join(format!("index.{ext}"));
                 if index_path.exists() {
                     let validated_path = validate_import_path(base_dir, &index_path)?;
@@ -166,7 +166,7 @@ impl ModuleResolver for JavaScriptModuleResolver {
     }
 
     fn get_file_extensions(&self) -> Vec<&'static str> {
-        vec!["js", "jsx"]
+        vec!["js", "jsx", "mjs", "cjs"]
     }
 
     fn is_external_module(&self, module_path: &str) -> bool {

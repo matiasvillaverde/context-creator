@@ -44,6 +44,8 @@ pub fn run(mut config: Config) -> Result<()> {
         None => {} // Continue with normal processing
     }
 
+    let generation_start = std::time::Instant::now();
+
     // Handle remote repository if specified
     let _temp_dir = if let Some(repo_url) = &config.remote {
         if config.verbose > 0 {
@@ -79,7 +81,7 @@ pub fn run(mut config: Config) -> Result<()> {
             debug!("  Output file: {}", output.display());
         }
         if let Some(prompt) = config.get_prompt() {
-            debug!("  Prompt: {}", prompt);
+            debug!("  Prompt length: {} bytes", prompt.len());
         }
     }
 
@@ -101,7 +103,9 @@ pub fn run(mut config: Config) -> Result<()> {
     if config.verbose > 0 {
         debug!("Creating file cache for I/O optimization...");
     }
-    let cache = Arc::new(FileCache::new());
+    let cache = Arc::new(FileCache::with_secret_policy(config.get_secret_policy()));
+
+    let scan_start = std::time::Instant::now();
 
     // Process all directories
     let mut all_files = Vec::new();
@@ -143,6 +147,9 @@ pub fn run(mut config: Config) -> Result<()> {
         }
     }
 
+    let scan_ms = scan_start.elapsed().as_secs_f64() * 1000.0;
+    let discovered = all_files.len();
+    let selection_start = std::time::Instant::now();
     // Select once across all roots, then count the actual final serialization.
     let mut selection_options = context_options.clone();
     if matches!(
@@ -153,6 +160,7 @@ pub fn run(mut config: Config) -> Result<()> {
     }
     let selected =
         core::prioritizer::prioritize_files(all_files, &selection_options, cache.clone())?;
+    let selection_ms = selection_start.elapsed().as_secs_f64() * 1000.0;
     if config.progress && !config.quiet {
         info!(
             "Generating {} context from {} files...",
@@ -176,15 +184,43 @@ pub fn run(mut config: Config) -> Result<()> {
                 .join("\n")
         );
     }
-    let output = core::context_builder::generate_digest_with_report(
+    let render_start = std::time::Instant::now();
+    let rendered = core::context_builder::generate_digest_with_report(
         selected,
         context_options,
         cache,
         config.output_format,
         &base,
-    )?
-    .text;
-    core::budget::check_prompt_budget(&config, &output)?;
+    )?;
+    core::budget::check_prompt_budget(&config, &rendered.text)?;
+    let rendering_ms = render_start.elapsed().as_secs_f64() * 1000.0;
+    let native_start = std::time::Instant::now();
+    let native = core::native_tokens::count_if_requested(&config, &rendered.text)?;
+    let native_counting = native_start.elapsed().as_secs_f64() * 1000.0;
+    if let Some(path) = &config.report {
+        let timings = core::report::Timings {
+            scan_and_analysis: scan_ms,
+            selection: selection_ms,
+            rendering: rendering_ms,
+            native_counting,
+            accounting: 0.0,
+            generation_total: generation_start.elapsed().as_secs_f64() * 1000.0,
+        };
+        let accounting_start = std::time::Instant::now();
+        let mut report =
+            core::report::GenerationReport::new(&config, &rendered, discovered, native, timings)?;
+        report.timings_ms.accounting = accounting_start.elapsed().as_secs_f64() * 1000.0;
+        report.timings_ms.generation_total = generation_start.elapsed().as_secs_f64() * 1000.0;
+        std::fs::write(path, serde_json::to_vec_pretty(&report)?)?;
+    } else if let Some(native) = native {
+        if !config.quiet {
+            eprintln!(
+                "Native {} input tokens: {} (supplied user text)",
+                native.provider, native.input_tokens
+            );
+        }
+    }
+    let output = rendered.text;
 
     // Handle output based on configuration
     let resolved_prompt = config.get_prompt();
@@ -197,7 +233,7 @@ pub fn run(mut config: Config) -> Result<()> {
             // Write to file
             std::fs::write(file, output)?;
             if !config.quiet {
-                println!(" Written to {}", file.display());
+                println!("✓ Written to {}", file.display());
             }
         }
         (None, Some(prompt), false) => {
@@ -260,11 +296,31 @@ pub(crate) fn collect_directory_files(
         info!("Scanning directory: {}", path.display());
     }
     let mut files = core::walker::walk_directory(path, walk_options.clone())?;
+    files.retain(|file| !core::report::is_artifact(config, &file.path));
+    if config.output_format == cli::OutputFormat::Map && files.len() > 10_000 {
+        anyhow::bail!(
+            "Repository map exceeds 10000 files; narrow the input path or include patterns"
+        );
+    }
+    if config.get_secret_policy() != core::secrets::SecretPolicy::Off {
+        for file in &files {
+            cache.get_or_load(&file.path)?;
+        }
+    }
 
     if config.progress && !config.quiet {
         info!("Found {} files", files.len());
     }
 
+    let initial_paths: std::collections::HashSet<_> =
+        if config.trace_imports || config.include_types || config.include_callers {
+            files
+                .iter()
+                .filter_map(|file| file.path.canonicalize().ok())
+                .collect()
+        } else {
+            std::collections::HashSet::new()
+        };
     // Perform semantic analysis if requested
     if config.trace_imports || config.include_callers || config.include_types {
         if config.progress && !config.quiet {
@@ -345,6 +401,25 @@ pub(crate) fn collect_directory_files(
                 .all_files;
     }
 
+    if config.trace_imports || config.include_types || config.include_callers {
+        let root = core::file_expander::detect_project_root(path);
+        let mut visible = Vec::with_capacity(files.len());
+        for file in files {
+            let canonical = file.path.canonicalize()?;
+            if initial_paths.contains(&canonical)
+                || !core::walker::repository_path_is_ignored(&root, &canonical)?
+            {
+                visible.push(file);
+            }
+        }
+        files = visible;
+    }
+    files.retain(|file| !core::report::is_artifact(config, &file.path));
+    if config.get_secret_policy() != core::secrets::SecretPolicy::Off {
+        for file in &files {
+            cache.get_or_load(&file.path)?;
+        }
+    }
     if config.verbose > 0 {
         debug!("File list:");
         for file in &files {

@@ -1,7 +1,7 @@
 //! Compact declarations for repository maps and progressive exploration.
 
+use crate::core::semantic::parsing::ParserExt;
 use crate::utils::error::ContextCreatorError;
-use anyhow::Result;
 use serde::Serialize;
 use std::path::Path;
 use tree_sitter::{Node, Parser};
@@ -14,17 +14,16 @@ pub struct CodeSymbol {
     pub signature: String,
 }
 
-pub fn extract_symbols(path: &Path, content: &str) -> Result<Vec<CodeSymbol>> {
-    let Some(language) = super::grammar_for_file(path) else {
+pub fn extract_symbols(path: &Path, content: &str) -> Result<Vec<CodeSymbol>, ContextCreatorError> {
+    let Some(language) = super::grammar_for_source(path, content) else {
         return Ok(Vec::new());
     };
     let mut parser = Parser::new();
     parser
-        .set_language(language)
+        .set_language(&language)
         .map_err(|error| ContextCreatorError::ParseError(error.to_string()))?;
-    parser.set_timeout_micros(5_000_000);
     let tree = parser
-        .parse(content, None)
+        .parse_bounded(content, None)
         .ok_or_else(|| ContextCreatorError::ParseError("Declaration parsing timed out".into()))?;
     let mut symbols = Vec::new();
     let mut cursor = tree.walk();
@@ -40,7 +39,9 @@ pub fn extract_symbols(path: &Path, content: &str) -> Result<Vec<CodeSymbol>> {
             | "constructor_declaration"
             | "method"
             | "singleton_method" => Some("function"),
-            "struct_item"
+            "type_definition"
+            | "class"
+            | "struct_item"
             | "enum_item"
             | "trait_item"
             | "type_item"
@@ -94,7 +95,7 @@ pub fn extract_symbols(path: &Path, content: &str) -> Result<Vec<CodeSymbol>> {
                 });
                 if matches!(
                     path.extension().and_then(|extension| extension.to_str()),
-                    Some("py" | "pyi")
+                    Some("py" | "pyi" | "pyw")
                 ) {
                     // Python's block starts after leading comment-only lines;
                     // the declaration's own colon is the true header boundary.

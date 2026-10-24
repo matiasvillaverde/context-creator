@@ -11,6 +11,7 @@ use std::sync::Arc;
 /// Thread-safe file content cache
 pub struct FileCache {
     cache: DashMap<PathBuf, Arc<str>>,
+    secret_policy: super::secrets::SecretPolicy,
     symbols: DashMap<PathBuf, Arc<Vec<crate::core::semantic::symbols::CodeSymbol>>>,
 }
 
@@ -19,7 +20,15 @@ impl FileCache {
     pub fn new() -> Self {
         FileCache {
             cache: DashMap::new(),
+            secret_policy: super::secrets::SecretPolicy::Off,
             symbols: DashMap::new(),
+        }
+    }
+
+    pub fn with_secret_policy(secret_policy: super::secrets::SecretPolicy) -> Self {
+        Self {
+            secret_policy,
+            ..Self::new()
         }
     }
 
@@ -35,6 +44,11 @@ impl FileCache {
 
         // Load from disk
         let content = std::fs::read_to_string(&canonical_path)?;
+        let content = if self.secret_policy == super::secrets::SecretPolicy::Off {
+            content
+        } else {
+            super::secrets::apply_policy(&canonical_path, &content, self.secret_policy)?
+        };
         let arc_content: Arc<str> = Arc::from(content.as_str());
 
         // Store in cache

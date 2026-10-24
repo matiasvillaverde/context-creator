@@ -1,5 +1,6 @@
 //! Java source analysis and root-confined package resolution.
 
+use crate::core::semantic::parsing::ParserExt;
 use crate::core::semantic::{
     analyzer::{
         AnalysisResult, FunctionCall, FunctionDefinition, Import, LanguageAnalyzer,
@@ -34,12 +35,11 @@ impl LanguageAnalyzer for JavaAnalyzer {
     ) -> SemanticResult<AnalysisResult> {
         let mut parser = Parser::new();
         parser
-            .set_language(tree_sitter_java::language())
+            .set_language(&tree_sitter_java::LANGUAGE.into())
             .map_err(|error| {
                 ContextCreatorError::ParseError(format!("Failed to set Java language: {error}"))
             })?;
-        parser.set_timeout_micros(5_000_000);
-        let tree = parser.parse(content, None).ok_or_else(|| {
+        let tree = parser.parse_bounded(content, None).ok_or_else(|| {
             ContextCreatorError::ParseError("Failed to parse Java source".to_string())
         })?;
         let mut result = AnalysisResult::default();
@@ -72,7 +72,7 @@ impl LanguageAnalyzer for JavaAnalyzer {
                     {
                         let full_name = node_text(imported, content);
                         let is_static = (0..node.child_count()).any(|index| {
-                            node.child(index)
+                            node.child(index as u32)
                                 .is_some_and(|child| child.kind() == "static")
                         });
                         let wildcard = node_text(node, content)

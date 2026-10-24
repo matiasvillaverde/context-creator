@@ -17,7 +17,7 @@ pub struct RustAnalyzer {
 
 impl RustAnalyzer {
     pub fn new() -> Self {
-        let language = tree_sitter_rust::language();
+        let language = tree_sitter_rust::LANGUAGE.into();
         let query_engine =
             QueryEngine::new(language, "rust").expect("Failed to create Rust query engine");
         Self { query_engine }
@@ -37,7 +37,7 @@ impl LanguageAnalyzer for RustAnalyzer {
     ) -> SemanticResult<AnalysisResult> {
         let mut parser = Parser::new();
         parser
-            .set_language(tree_sitter_rust::language())
+            .set_language(&tree_sitter_rust::LANGUAGE.into())
             .map_err(|e| ContextCreatorError::ParseError(format!("Failed to set language: {e}")))?;
 
         let mut result = self

@@ -370,6 +370,8 @@ async fn test_rmcp_http_streamable_list_tools_and_call() -> Result<()> {
         .context("missing tools")?;
     assert!(tools.iter().any(|tool| tool["name"] == "analyze_local"));
     assert!(tools.iter().any(|tool| tool["name"] == "semantic_search"));
+    assert!(tools.iter().any(|tool| tool["name"] == "repository_map"));
+    assert!(tools.iter().any(|tool| tool["name"] == "read_file"));
 
     let project = TempDir::new()?;
     std::fs::write(
@@ -392,6 +394,34 @@ async fn test_rmcp_http_streamable_list_tools_and_call() -> Result<()> {
     let response: Value = serde_json::from_str(&body)?;
     assert!(response.get("error").is_none(), "{response}");
     assert!(body.contains("HTTP context"), "{body}");
+    for (id, name, arguments) in [
+        (
+            3,
+            "repository_map",
+            json!({"path": project.path(), "max_tokens": 128}),
+        ),
+        (
+            4,
+            "read_file",
+            json!({"root": project.path(), "path": "main.rs", "max_lines": 1}),
+        ),
+    ] {
+        let (status, body) = post_json_rpc(
+            server.port,
+            json!({
+                "jsonrpc": "2.0", "id": id, "method": "tools/call",
+                "params": modern_params(json!({"name": name, "arguments": arguments}))
+            }),
+            None,
+            None,
+        )
+        .await?;
+        assert_eq!(status, 200, "{body}");
+        let response: Value = serde_json::from_str(&body)?;
+        assert!(response.get("error").is_none(), "{response}");
+        assert_ne!(response["result"]["isError"], true, "{response}");
+        assert!(body.contains("main.rs"), "{body}");
+    }
     server.shutdown().await?;
     Ok(())
 }

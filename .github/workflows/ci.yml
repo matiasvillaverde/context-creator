@@ -54,8 +54,11 @@ jobs:
     - name: Run all tests
       run: make test
 
+    - name: Run library unit tests
+      run: cargo test --locked --lib
+
     - name: Run MCP integration tests
-      run: cargo test --locked --test rmcp_basic_test --test rmcp_integration_test --test mcp_server_test
+      run: cargo test --locked --test rmcp_basic_test --test rmcp_integration_test --test mcp_server_test --test progressive_mcp_test
 
     - name: Run MCP acceptance tests with shell stubs
       if: runner.os != 'Windows'

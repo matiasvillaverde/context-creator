@@ -36,7 +36,7 @@ context-creator --include "**/auth.py" --trace-imports --max-tokens 50000
 - **Dependency-aware**: Uses tree-sitter AST parsing to understand imports, not just file names
 - **Fast**: Rust-powered parallel processing handles massive codebases in seconds
 - **Smart selection**: Includes only files connected to your query through the dependency graph
-- **Multi-language**: Semantic dependency expansion for Rust, Python, JavaScript/JSX, TypeScript/TSX, Go, Swift, and Java
+- **Multi-language**: Semantic extraction and local resolution for [13 language families](docs/languages.md), including C/C++, C#, Kotlin, Ruby, and PHP
 - **MCP integration**: Works as a server for AI assistants to query your codebase programmatically
 
 ## Installation
@@ -70,6 +70,9 @@ context-creator --style map --max-tokens 4096
 # Reserve room for a response
 context-creator --output-reserve 8000 --max-tokens 100000 --prompt "Review this code"
 
+# Produce a checked artifact and machine-readable accounting
+context-creator --secret-scan redact --output context.md --report context-report.json
+
 # Trace dependencies of specific files
 context-creator --trace-imports --include "**/auth.py"
 
@@ -88,6 +91,11 @@ and Gemini. Final rendered output is checked against the selected local encoding
 multiple input directories share one budget. Whole files are retained, and a
 budget too small for the format header returns an error before output is written.
 Repository maps default to 4,096 tokens and show up to 64 declarations per file.
+`--report` records actual local counts, file selection, output bytes, and timings.
+`--native-token-count` optionally checks the supplied text with the selected
+provider API; see [configuration](docs/configuration.md#provider-native-counting).
+Secret scanning is explicit (`off`, `redact`, or `error`) for CLI context generation.
+The two progressive MCP tools default to redaction.
 
 ### MCP Server
 
@@ -124,12 +132,16 @@ Then in your AI assistant:
 
 ## MCP Tools
 
+- `repository_map` - Get bounded declarations and source locations without an LLM call
+- `read_file` - Page through source under line and token limits
 - `analyze_local` - Analyze local codebases with dependency awareness
 - `analyze_remote` - Analyze Git repositories
 - `search` - Text pattern search
 - `semantic_search` - AST-based code search
 - `file_metadata` - File information
 - `diff` - File comparison
+
+See [reproducible benchmarks](benchmarks/README.md) for performance and navigation-task measurements.
 
 ## Configuration
 
@@ -143,6 +155,8 @@ target/
 ```
 
 ### .contextkeep
+
+Add a priority boost to matching visible files. Ignore rules still apply.
 
 ```gitignore
 src/core/**
@@ -167,7 +181,7 @@ weight = 100
 - [Configuration](docs/configuration.md) - Advanced configuration
 - [MCP Server Guide](docs/mcp-server.md) - MCP integration details
 - [Architecture](docs/architecture.md) - Technical implementation
-- [Modernization research and roadmap](docs/modernization.md) - Tool comparison, measured improvements, and remaining work
+- [Modernization research and roadmap](docs/modernization.md) - Implementation plan, tool comparisons, and validation
 
 ## Requirements
 

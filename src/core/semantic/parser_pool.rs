@@ -38,15 +38,12 @@ impl Manager for ParserManager {
         let mut parser = Parser::new();
 
         // Set the language
-        parser.set_language(self.language).map_err(|e| {
+        parser.set_language(&self.language).map_err(|e| {
             ContextCreatorError::ParseError(format!(
                 "Failed to set {} language: {}",
                 self.language_name, e
             ))
         })?;
-
-        // Set timeout to 5 seconds
-        parser.set_timeout_micros(5_000_000);
 
         Ok(parser)
     }
@@ -75,65 +72,31 @@ impl ParserPoolManager {
             ..Default::default()
         };
 
-        // Rust
-        pools.insert(
-            "rust",
-            Pool::builder(ParserManager::new(tree_sitter_rust::language(), "rust"))
-                .config(pool_config)
-                .build()
-                .expect("Failed to create Rust parser pool"),
-        );
-
-        // JavaScript
-        pools.insert(
-            "javascript",
-            Pool::builder(ParserManager::new(
-                tree_sitter_javascript::language(),
-                "javascript",
-            ))
-            .config(pool_config)
-            .build()
-            .expect("Failed to create JavaScript parser pool"),
-        );
-
-        // Python
-        pools.insert(
-            "python",
-            Pool::builder(ParserManager::new(tree_sitter_python::language(), "python"))
-                .config(pool_config)
-                .build()
-                .expect("Failed to create Python parser pool"),
-        );
-
-        // TypeScript
-        pools.insert(
-            "typescript",
-            Pool::builder(ParserManager::new(
-                tree_sitter_typescript::language_typescript(),
-                "typescript",
-            ))
-            .config(pool_config)
-            .build()
-            .expect("Failed to create TypeScript parser pool"),
-        );
-
-        // Go
-        pools.insert(
-            "go",
-            Pool::builder(ParserManager::new(tree_sitter_go::language(), "go"))
-                .config(pool_config)
-                .build()
-                .expect("Failed to create Go parser pool"),
-        );
-
-        // Java
-        pools.insert(
-            "java",
-            Pool::builder(ParserManager::new(tree_sitter_java::language(), "java"))
-                .config(pool_config)
-                .build()
-                .expect("Failed to create Java parser pool"),
-        );
+        for (name, path) in [
+            ("rust", "file.rs"),
+            ("python", "file.py"),
+            ("javascript", "file.js"),
+            ("typescript", "file.ts"),
+            ("tsx", "file.tsx"),
+            ("go", "file.go"),
+            ("swift", "file.swift"),
+            ("java", "file.java"),
+            ("c", "file.c"),
+            ("cpp", "file.cpp"),
+            ("csharp", "file.cs"),
+            ("kotlin", "file.kt"),
+            ("ruby", "file.rb"),
+            ("php", "file.php"),
+        ] {
+            if let Some(language) = super::grammar_for_file(std::path::Path::new(path)) {
+                if let Ok(pool) = Pool::builder(ParserManager::new(language, name))
+                    .config(pool_config)
+                    .build()
+                {
+                    pools.insert(name, pool);
+                }
+            }
+        }
 
         Self { pools }
     }
@@ -166,19 +129,20 @@ impl Default for ParserPoolManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::semantic::parsing::ParserExt;
 
     #[tokio::test]
     async fn test_parser_creation() {
-        let manager = ParserManager::new(tree_sitter_rust::language(), "rust");
-        let parser = manager.create().await.unwrap();
+        let manager = ParserManager::new(tree_sitter_rust::LANGUAGE.into(), "rust");
+        let mut parser = manager.create().await.unwrap();
 
-        // Check timeout is set (tree-sitter returns microseconds as u64, not Option)
-        assert_eq!(parser.timeout_micros(), 5_000_000);
+        // The parser supports bounded parsing.
+        assert!(parser.parse_bounded("fn main() {}", None).is_some());
     }
 
     #[tokio::test]
     async fn test_parser_recycling() {
-        let manager = ParserManager::new(tree_sitter_python::language(), "python");
+        let manager = ParserManager::new(tree_sitter_python::LANGUAGE.into(), "python");
         let mut parser = manager.create().await.unwrap();
 
         // Recycling should succeed

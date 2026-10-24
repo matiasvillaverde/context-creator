@@ -15,6 +15,10 @@ use std::net::SocketAddr;
 
 pub mod cache;
 pub mod handlers;
+pub mod progressive;
+pub use progressive::{
+    ReadFileRequest, ReadFileResponse, RepositoryMapRequest, RepositoryMapResponse,
+};
 pub mod rmcp_handlers;
 pub mod rmcp_server;
 
@@ -60,6 +64,7 @@ pub struct ProcessLocalRequest {
     /// Local tokenizer for budget estimates (default: o200k-base).
     pub tokenizer: Option<crate::core::token::TokenEncoding>,
     pub output_reserve: Option<usize>,
+    pub secret_scan: Option<crate::core::secrets::SecretPolicy>,
     /// Optional: return markdown context along with answer
     pub include_context: Option<bool>,
 }
@@ -110,6 +115,7 @@ pub struct ProcessRemoteRequest {
     /// Local tokenizer for budget estimates (default: o200k-base).
     pub tokenizer: Option<crate::core::token::TokenEncoding>,
     pub output_reserve: Option<usize>,
+    pub secret_scan: Option<crate::core::secrets::SecretPolicy>,
     /// Optional: return markdown context along with answer
     pub include_context: Option<bool>,
 }
@@ -253,6 +259,17 @@ pub struct SemanticSearchResponse {
 /// RPC trait for codebase processing
 #[rpc(server)]
 pub trait CodebaseRpc {
+    /// Compact map for progressive exploration without an LLM call.
+    #[method(name = "repository_map")]
+    async fn repository_map(
+        &self,
+        request: RepositoryMapRequest,
+    ) -> RpcResult<RepositoryMapResponse>;
+
+    /// Read a bounded, root-confined source range without an LLM call.
+    #[method(name = "read_file")]
+    async fn read_file(&self, request: ReadFileRequest) -> RpcResult<ReadFileResponse>;
+
     /// Process a local codebase directory
     #[method(name = "process_local_codebase")]
     async fn process_local_codebase(

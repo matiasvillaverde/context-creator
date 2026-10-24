@@ -20,3 +20,6 @@ target/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Python benchmark helpers
+__pycache__/

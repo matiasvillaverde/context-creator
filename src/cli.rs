@@ -390,6 +390,18 @@ pub struct Config {
     #[arg(short = 'o', long, visible_alias = "output")]
     pub output_file: Option<PathBuf>,
 
+    /// Write a JSON accounting and timing report alongside the generated context
+    #[arg(long, value_name = "PATH")]
+    pub report: Option<PathBuf>,
+
+    /// Count supplied text with the selected provider API (requires --model and API credentials)
+    #[arg(long)]
+    pub native_token_count: bool,
+
+    /// Secret-content policy for source files (default: off)
+    #[arg(long, value_enum)]
+    pub secret_scan: Option<crate::core::secrets::SecretPolicy>,
+
     /// Maximum number of tokens for the generated codebase context
     #[arg(long)]
     pub max_tokens: Option<usize>,
@@ -526,6 +538,9 @@ impl Default for Config {
             remote: None,
             read_stdin: false,
             output_file: None,
+            report: None,
+            native_token_count: false,
+            secret_scan: None,
             max_tokens: None,
             output_reserve: None,
             tokenizer: None,
@@ -561,6 +576,19 @@ impl Config {
     /// Validate the configuration
     pub fn validate(&self) -> Result<(), crate::utils::error::ContextCreatorError> {
         use crate::utils::error::ContextCreatorError;
+
+        crate::core::native_tokens::validate_config(self)
+            .map_err(|error| ContextCreatorError::InvalidConfiguration(error.to_string()))?;
+        crate::core::report::validate_paths(self)
+            .map_err(|error| ContextCreatorError::InvalidConfiguration(error.to_string()))?;
+
+        if (self.command.is_some() || self.mcp || self.rmcp)
+            && (self.report.is_some() || self.native_token_count || self.secret_scan.is_some())
+        {
+            return Err(ContextCreatorError::InvalidConfiguration(
+                "--report, --native-token-count, and --secret-scan apply to context generation; use MCP request parameters for server tools".into()
+            ));
+        }
 
         // If MCP server mode is enabled, validate conflicts
         if self.mcp || self.rmcp {
@@ -863,8 +891,11 @@ impl Config {
                 let available = max_tokens.saturating_sub(reserved);
                 Some(available)
             } else {
-                // No prompt, use full token budget
-                Some(max_tokens)
+                Some(if self.native_token_count {
+                    max_tokens.saturating_sub(self.get_output_reserve())
+                } else {
+                    max_tokens
+                })
             }
         } else {
             None
@@ -874,6 +905,10 @@ impl Config {
     /// Resolve the local tokenizer, preserving explicit CLI/config choices.
     pub fn get_tokenizer(&self) -> crate::core::token::TokenEncoding {
         self.tokenizer.unwrap_or_default()
+    }
+
+    pub fn get_secret_policy(&self) -> crate::core::secrets::SecretPolicy {
+        self.secret_scan.unwrap_or_default()
     }
 
     pub fn get_output_reserve(&self) -> usize {

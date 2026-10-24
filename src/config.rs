@@ -36,6 +36,7 @@ pub struct ConfigFile {
 /// Default configuration settings
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Defaults {
+    pub secret_scan: Option<crate::core::secrets::SecretPolicy>,
     /// Tokens reserved for a response when using a prompt.
     pub output_reserve: Option<usize>,
     /// Default maximum tokens
@@ -148,6 +149,9 @@ impl ConfigFile {
 
     /// Apply configuration defaults to CLI config
     pub fn apply_to_cli_config(&self, cli_config: &mut CliConfig) {
+        if cli_config.secret_scan.is_none() {
+            cli_config.secret_scan = self.defaults.secret_scan;
+        }
         if cli_config.output_reserve.is_none() {
             cli_config.output_reserve = self.defaults.output_reserve;
         }
@@ -233,6 +237,7 @@ impl ConfigFile {
 pub fn create_example_config() -> String {
     let example = ConfigFile {
         defaults: Defaults {
+            secret_scan: None,
             output_reserve: None,
             max_tokens: Some(150000),
             llm_tool: Some("gemini".to_string()),
@@ -355,6 +360,7 @@ progress = true
     fn test_apply_to_cli_config() {
         let config_file = ConfigFile {
             defaults: Defaults {
+                secret_scan: None,
                 output_reserve: None,
                 model: Default::default(),
                 tokenizer: Default::default(),
@@ -453,6 +459,7 @@ max_tokens = 200000
     fn test_apply_to_cli_config_with_token_limits() {
         let config_file = ConfigFile {
             defaults: Defaults {
+                secret_scan: None,
                 output_reserve: None,
                 model: Default::default(),
                 tokenizer: Default::default(),

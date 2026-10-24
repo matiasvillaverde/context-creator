@@ -8,12 +8,53 @@ context-creator includes a built-in MCP (Model Context Protocol) server that all
 
 When connected to an MCP client, you'll have access to these tools:
 
+- **`repository_map`** - Bounded declarations/signatures and source locations, without a model call
+- **`read_file`** - Root-confined, paginated source reads, without a model call
 - **`analyze_local`** - Analyze a local codebase directory and answer questions about it
 - **`analyze_remote`** - Analyze a remote Git repository
 - **`search`** - Search for text patterns across the codebase
 - **`semantic_search`** - Find functions, types, imports, and symbols
 - **`file_metadata`** - Get detailed information about specific files
 - **`diff`** - Generate diffs between two files
+
+## Progressive exploration
+
+Start with `repository_map` and then request only the files/ranges needed for a
+task. Both tools work through RMCP stdio/Streamable HTTP and the legacy JSON-RPC
+server under the same method names. They never invoke an LLM.
+
+```json
+{"path":"/path/to/repo","max_tokens":4096,"secret_scan":"redact"}
+```
+
+`repository_map` returns `map`, `token_count`, `file_count`, and `omitted_files`.
+Optional fields are `include_patterns`, `ignore_patterns`, `tokenizer`, and
+`secret_scan`. It reuses the source walk and dependency analysis, caches
+extracted declarations during fitting, and trims whole file entries. The default
+budget is 4,096 tokens; the maximum is 32,768. Narrow inputs exceeding 10,000
+eligible files before parsing. Files show up to 64 declarations each.
+
+```json
+{"root":"/path/to/repo","path":"src/main.rs","start_line":1,"max_lines":200,"max_tokens":4096}
+```
+
+`read_file` returns `content`, `start_line`, inclusive `end_line`, optional
+`next_line`, `truncated`, and `token_count`. Pass `next_line` as `start_line` to
+continue. The budget counts content, excluding the MCP JSON envelope. It fits
+whole lines and reports an error when the first requested line cannot fit.
+The default page is 200 lines/4,096 tokens, with limits of 1,000 lines/32,768
+tokens. Input files are limited to 10 MiB. Empty or past-EOF ranges have no
+`end_line` or cursor.
+
+Paths are relative to `root`. Traversal, hidden components, symlinks, binary
+files, and repository-ignored files are denied. Ignore matching examines only
+ancestor directories, avoiding a full tree walk for each page. New calls read
+current content rather than serving stale file pages. Both progressive tools
+support `tokenizer` and `secret_scan`, defaulting to `o200k-base` and `redact`.
+Redaction is heuristic; see the [scanning policy](configuration.md#secret-content-policy).
+Existing analyze tools preserve the default `off` policy unless requested and
+include the policy in response cache keys. All filesystem and parser work runs
+on blocking workers.
 
 ## Installation and Setup
 
@@ -34,7 +75,7 @@ and accepts browser Origins only from `localhost` or `127.0.0.1` on its own port
 Stdio remains the simplest local client configuration.
 
 Both `analyze_local` and `analyze_remote` accept optional `model` and `tokenizer`
-fields. Model names pass through to the selected CLI; `tokenizer` accepts
+fields, plus `output_reserve` and `secret_scan`. Model names pass through to the selected CLI; `tokenizer` accepts
 `o200k-base` (default) or `cl100k-base`. Cache keys include both fields. For Ollama,
 provide a model when sending a prompt. Omit `prompt` to build context without an
 LLM call. `token_count` measures the returned context with the selected local

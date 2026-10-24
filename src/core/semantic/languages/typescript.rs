@@ -13,14 +13,23 @@ use tree_sitter::Parser;
 #[allow(clippy::new_without_default)]
 pub struct TypeScriptAnalyzer {
     query_engine: QueryEngine,
+    language: tree_sitter::Language,
 }
 
 impl TypeScriptAnalyzer {
     pub fn new() -> Self {
-        let language = tree_sitter_typescript::language_typescript();
-        let query_engine = QueryEngine::new(language, "typescript")
+        Self::for_file(Path::new("module.ts"))
+    }
+
+    pub fn for_file(path: &Path) -> Self {
+        let language = crate::core::semantic::grammar_for_file(path)
+            .unwrap_or_else(|| tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into());
+        let query_engine = QueryEngine::new(language.clone(), "typescript")
             .expect("Failed to create TypeScript query engine");
-        Self { query_engine }
+        Self {
+            query_engine,
+            language,
+        }
     }
 }
 
@@ -37,7 +46,7 @@ impl LanguageAnalyzer for TypeScriptAnalyzer {
     ) -> SemanticResult<AnalysisResult> {
         let mut parser = Parser::new();
         parser
-            .set_language(tree_sitter_typescript::language_typescript())
+            .set_language(&self.language)
             .map_err(|e| ContextCreatorError::ParseError(format!("Failed to set language: {e}")))?;
 
         let mut result = self
@@ -55,11 +64,11 @@ impl LanguageAnalyzer for TypeScriptAnalyzer {
     }
 
     fn can_handle_extension(&self, extension: &str) -> bool {
-        extension == "ts" || extension == "tsx"
+        matches!(extension, "ts" | "tsx" | "mts" | "cts")
     }
 
     fn supported_extensions(&self) -> Vec<&'static str> {
-        vec!["ts", "tsx"]
+        vec!["ts", "tsx", "mts", "cts"]
     }
 }
 
@@ -90,7 +99,7 @@ impl ModuleResolver for TypeScriptModuleResolver {
                 let resolved_path = parent.join(module_path);
 
                 // Try different extensions (TypeScript first, then JavaScript)
-                for ext in &["ts", "tsx", "js", "jsx"] {
+                for ext in &["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs"] {
                     let with_ext = resolved_path.with_extension(ext);
                     if with_ext.exists() {
                         let validated_path = validate_import_path(base_dir, &with_ext)?;
@@ -103,7 +112,7 @@ impl ModuleResolver for TypeScriptModuleResolver {
                 }
 
                 // Try as directory with index file
-                for ext in &["ts", "tsx", "js", "jsx"] {
+                for ext in &["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs"] {
                     let index_path = resolved_path.join(format!("index.{ext}"));
                     if index_path.exists() {
                         let validated_path = validate_import_path(base_dir, &index_path)?;
@@ -125,7 +134,7 @@ impl ModuleResolver for TypeScriptModuleResolver {
 
         for search_path in &search_paths {
             // Try as a file
-            for ext in &["ts", "tsx", "js", "jsx"] {
+            for ext in &["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs"] {
                 let file_path = search_path.join(format!("{module_path}.{ext}"));
                 if file_path.exists() {
                     let validated_path = validate_import_path(base_dir, &file_path)?;
@@ -138,7 +147,7 @@ impl ModuleResolver for TypeScriptModuleResolver {
             }
 
             // Try as a directory with index file
-            for ext in &["ts", "tsx", "js", "jsx"] {
+            for ext in &["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs"] {
                 let index_path = search_path.join(module_path).join(format!("index.{ext}"));
                 if index_path.exists() {
                     let validated_path = validate_import_path(base_dir, &index_path)?;
@@ -160,7 +169,7 @@ impl ModuleResolver for TypeScriptModuleResolver {
     }
 
     fn get_file_extensions(&self) -> Vec<&'static str> {
-        vec!["ts", "tsx"]
+        vec!["ts", "tsx", "mts", "cts"]
     }
 
     fn is_external_module(&self, module_path: &str) -> bool {

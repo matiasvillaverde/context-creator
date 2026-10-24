@@ -6,8 +6,10 @@
 use crate::core::semantic::analyzer::{
     AnalysisResult, FunctionCall, FunctionDefinition, Import, TypeReference,
 };
+use crate::core::semantic::parsing::ParserExt;
 use crate::utils::error::ContextCreatorError;
 use std::collections::HashMap;
+use tree_sitter::StreamingIterator;
 use tree_sitter::{Language, Parser, Query, QueryCursor, Tree};
 
 /// Query engine for semantic analysis using Tree-sitter queries
@@ -25,11 +27,11 @@ pub struct QueryEngine {
 impl QueryEngine {
     /// Create a new query engine for the specified language
     pub fn new(language: Language, language_name: &str) -> Result<Self, ContextCreatorError> {
-        let import_query = Self::create_import_query(language, language_name)?;
-        let function_call_query = Self::create_function_call_query(language, language_name)?;
-        let type_reference_query = Self::create_type_reference_query(language, language_name)?;
+        let import_query = Self::create_import_query(&language, language_name)?;
+        let function_call_query = Self::create_function_call_query(&language, language_name)?;
+        let type_reference_query = Self::create_type_reference_query(&language, language_name)?;
         let function_definition_query =
-            Self::create_function_definition_query(language, language_name)?;
+            Self::create_function_definition_query(&language, language_name)?;
 
         Ok(Self {
             language,
@@ -48,7 +50,7 @@ impl QueryEngine {
         content: &str,
     ) -> Result<AnalysisResult, ContextCreatorError> {
         // Parse the content
-        let tree = parser.parse(content, None).ok_or_else(|| {
+        let tree = parser.parse_bounded(content, None).ok_or_else(|| {
             ContextCreatorError::ParseError("Failed to parse content".to_string())
         })?;
 
@@ -94,7 +96,7 @@ impl QueryEngine {
 
     /// Create import query for the specified language
     fn create_import_query(
-        language: Language,
+        language: &Language,
         language_name: &str,
     ) -> Result<Query, ContextCreatorError> {
         let query_text = match language_name {
@@ -293,7 +295,7 @@ impl QueryEngine {
 
     /// Create function call query for the specified language
     fn create_function_call_query(
-        language: Language,
+        language: &Language,
         language_name: &str,
     ) -> Result<Query, ContextCreatorError> {
         let query_text = match language_name {
@@ -424,7 +426,7 @@ impl QueryEngine {
 
     /// Create function definition query for the specified language
     fn create_function_definition_query(
-        language: Language,
+        language: &Language,
         language_name: &str,
     ) -> Result<Query, ContextCreatorError> {
         let query_text = match language_name {
@@ -597,7 +599,7 @@ impl QueryEngine {
 
     /// Create type reference query for the specified language
     fn create_type_reference_query(
-        language: Language,
+        language: &Language,
         language_name: &str,
     ) -> Result<Query, ContextCreatorError> {
         let query_text = match language_name {
@@ -835,24 +837,24 @@ impl QueryEngine {
     /// Extract imports from query matches
     fn extract_imports<'a>(
         &self,
-        matches: tree_sitter::QueryMatches<'a, 'a, &'a [u8]>,
+        mut matches: tree_sitter::QueryMatches<'a, 'a, &'a [u8], &'a [u8]>,
         content: &str,
     ) -> Result<Vec<Import>, ContextCreatorError> {
         let mut imports = Vec::new();
         let import_query_captures = self.import_query.capture_names();
 
-        for match_ in matches {
+        while let Some(match_) = matches.next() {
             let mut module = String::new();
             let mut items = Vec::new();
             let mut is_relative = false;
             let mut line = 0;
 
             for capture in match_.captures {
-                let capture_name = &import_query_captures[capture.index as usize];
+                let capture_name = import_query_captures[capture.index as usize];
                 let node = capture.node;
                 line = node.start_position().row + 1;
 
-                match capture_name.as_str() {
+                match capture_name {
                     "rust_simple_import" => {
                         // Simple Rust import like "use std::collections::HashMap"
                         // The path will be captured by rust_import_path
@@ -999,13 +1001,13 @@ impl QueryEngine {
     /// Extract function calls from query matches
     fn extract_function_calls<'a>(
         &self,
-        matches: tree_sitter::QueryMatches<'a, 'a, &'a [u8]>,
+        mut matches: tree_sitter::QueryMatches<'a, 'a, &'a [u8], &'a [u8]>,
         content: &str,
     ) -> Result<Vec<FunctionCall>, ContextCreatorError> {
         let mut calls = Vec::new();
         let call_query_captures = self.function_call_query.capture_names();
 
-        for match_ in matches {
+        while let Some(match_) = matches.next() {
             let mut name = String::new();
             let mut module = None;
             let mut line = 0;
@@ -1013,11 +1015,11 @@ impl QueryEngine {
             let mut type_name = String::new();
 
             for capture in match_.captures {
-                let capture_name = &call_query_captures[capture.index as usize];
+                let capture_name = call_query_captures[capture.index as usize];
                 let node = capture.node;
                 line = node.start_position().row + 1;
 
-                match capture_name.as_str() {
+                match capture_name {
                     "fn_name" | "method_name" => {
                         if let Ok(fn_name) = node.utf8_text(content.as_bytes()) {
                             name = fn_name.to_string();
@@ -1059,24 +1061,24 @@ impl QueryEngine {
     /// Extract type references from query matches
     fn extract_type_references<'a>(
         &self,
-        matches: tree_sitter::QueryMatches<'a, 'a, &'a [u8]>,
+        mut matches: tree_sitter::QueryMatches<'a, 'a, &'a [u8], &'a [u8]>,
         content: &str,
     ) -> Result<Vec<TypeReference>, ContextCreatorError> {
         let mut type_refs = Vec::new();
         let type_query_captures = self.type_reference_query.capture_names();
 
-        for match_ in matches {
+        while let Some(match_) = matches.next() {
             let mut names = HashMap::new();
             let mut module = None;
             let mut line = 0;
 
             for capture in match_.captures {
-                let capture_name = &type_query_captures[capture.index as usize];
+                let capture_name = type_query_captures[capture.index as usize];
                 let node = capture.node;
                 line = node.start_position().row + 1;
 
                 if let Ok(text) = node.utf8_text(content.as_bytes()) {
-                    match capture_name.as_str() {
+                    match capture_name {
                         "type_name" | "param_type" | "return_type" | "field_type"
                         | "trait_name" | "imported_type" | "interface_name" | "type_alias"
                         | "jsx_type" | "parent_class" | "type_arg" | "base_type"
@@ -1286,104 +1288,11 @@ impl QueryEngine {
         content: &str,
         type_name: &str,
     ) -> Result<bool, ContextCreatorError> {
-        // Determine the language from the file extension
-        let language = match path.extension().and_then(|s| s.to_str()) {
-            Some("rs") => Some(tree_sitter_rust::language()),
-            Some("py") => Some(tree_sitter_python::language()),
-            Some("ts") | Some("tsx") => Some(tree_sitter_typescript::language_typescript()),
-            Some("js") | Some("jsx") => Some(tree_sitter_javascript::language()),
-            Some("go") => Some(tree_sitter_go::language()),
-            Some("swift") => Some(tree_sitter_swift::language()),
-            _ => None,
-        };
-
-        if let Some(language) = language {
-            let mut parser = tree_sitter::Parser::new();
-            if parser.set_language(language).is_err() {
-                return Ok(false);
-            }
-
-            if let Some(tree) = parser.parse(content, None) {
-                // Language-specific queries for type definitions
-                let query_text = match path.extension().and_then(|s| s.to_str()) {
-                    Some("rs") => {
-                        r#"
-                        [
-                          (struct_item name: (type_identifier) @name)
-                          (enum_item name: (type_identifier) @name)
-                          (trait_item name: (type_identifier) @name)
-                          (type_item name: (type_identifier) @name)
-                          (union_item name: (type_identifier) @name)
-                        ]
-                    "#
-                    }
-                    Some("py") => {
-                        r#"
-                        [
-                          (class_definition name: (identifier) @name)
-                          (function_definition name: (identifier) @name)
-                        ]
-                    "#
-                    }
-                    Some("ts") | Some("tsx") => {
-                        r#"
-                        [
-                          (interface_declaration name: (type_identifier) @name)
-                          (type_alias_declaration name: (type_identifier) @name)
-                          (class_declaration name: (type_identifier) @name)
-                          (enum_declaration name: (identifier) @name)
-                        ]
-                    "#
-                    }
-                    Some("js") | Some("jsx") => {
-                        r#"
-                        [
-                          (class_declaration name: (identifier) @name)
-                          (function_declaration name: (identifier) @name)
-                        ]
-                    "#
-                    }
-                    Some("go") => {
-                        r#"
-                        [
-                          (type_spec name: (type_identifier) @name)
-                          (type_alias name: (type_identifier) @name)
-                          (function_declaration name: (identifier) @name)
-                        ]
-                    "#
-                    }
-                    Some("swift") => {
-                        r#"
-                        [
-                          (class_declaration name: (type_identifier) @name)
-                          (protocol_declaration name: (type_identifier) @name)
-                          (typealias_declaration name: (type_identifier) @name)
-                          (function_declaration name: (simple_identifier) @name)
-                        ]
-                    "#
-                    }
-                    _ => return Ok(false),
-                };
-
-                if let Ok(query) = tree_sitter::Query::new(language, query_text) {
-                    let mut cursor = tree_sitter::QueryCursor::new();
-                    let matches = cursor.matches(&query, tree.root_node(), content.as_bytes());
-
-                    // Check each match to see if the captured name matches our target type
-                    for m in matches {
-                        for capture in m.captures {
-                            if let Ok(captured_text) = capture.node.utf8_text(content.as_bytes()) {
-                                if captured_text == type_name {
-                                    return Ok(true);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Ok(false)
+        Ok(
+            crate::core::semantic::symbols::extract_symbols(path, content)?
+                .iter()
+                .any(|symbol| symbol.name == type_name),
+        )
     }
 
     /// Get appropriate file extensions for searching based on current file
@@ -1391,8 +1300,12 @@ impl QueryEngine {
         match current_file.extension().and_then(|s| s.to_str()) {
             Some("rs") => vec!["rs"],
             Some("py") => vec!["py"],
-            Some("ts") | Some("tsx") => vec!["ts", "tsx", "js", "jsx"],
-            Some("js") | Some("jsx") => vec!["js", "jsx", "ts", "tsx"],
+            Some("ts" | "tsx" | "mts" | "cts") => {
+                vec!["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs"]
+            }
+            Some("js" | "jsx" | "mjs" | "cjs") => {
+                vec!["js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts"]
+            }
             Some("go") => vec!["go"],
             Some("swift") => vec!["swift"],
             _ => vec!["rs", "py", "ts", "js", "go", "swift"], // Default fallback
@@ -1574,23 +1487,23 @@ impl QueryEngine {
     /// Extract function definitions from query matches
     fn extract_function_definitions<'a>(
         &self,
-        matches: tree_sitter::QueryMatches<'a, 'a, &'a [u8]>,
+        mut matches: tree_sitter::QueryMatches<'a, 'a, &'a [u8], &'a [u8]>,
         content: &str,
     ) -> Result<Vec<FunctionDefinition>, ContextCreatorError> {
         let mut definitions = Vec::new();
         let def_query_captures = self.function_definition_query.capture_names();
 
-        for match_ in matches {
+        while let Some(match_) = matches.next() {
             let mut name = String::new();
             let mut is_exported = false;
             let mut line = 0;
 
             for capture in match_.captures {
-                let capture_name = &def_query_captures[capture.index as usize];
+                let capture_name = def_query_captures[capture.index as usize];
                 let node = capture.node;
                 line = node.start_position().row + 1;
 
-                match capture_name.as_str() {
+                match capture_name {
                     "fn_name"
                     | "method_name"
                     | "assoc_fn_name"
@@ -1762,13 +1675,13 @@ mod tests {
 
     #[test]
     fn test_rust_query_creation() {
-        let engine = QueryEngine::new(tree_sitter_rust::language(), "rust");
+        let engine = QueryEngine::new(tree_sitter_rust::LANGUAGE.into(), "rust");
         assert!(engine.is_ok());
     }
 
     #[test]
     fn test_python_query_creation() {
-        let engine = QueryEngine::new(tree_sitter_python::language(), "python");
+        let engine = QueryEngine::new(tree_sitter_python::LANGUAGE.into(), "python");
         if let Err(e) = &engine {
             println!("Python QueryEngine error: {e}");
         }
@@ -1777,7 +1690,7 @@ mod tests {
 
     #[test]
     fn test_javascript_query_creation() {
-        let engine = QueryEngine::new(tree_sitter_javascript::language(), "javascript");
+        let engine = QueryEngine::new(tree_sitter_javascript::LANGUAGE.into(), "javascript");
         if let Err(e) = &engine {
             println!("JavaScript QueryEngine error: {e}");
         }
@@ -1786,7 +1699,10 @@ mod tests {
 
     #[test]
     fn test_typescript_query_creation() {
-        let engine = QueryEngine::new(tree_sitter_typescript::language_typescript(), "typescript");
+        let engine = QueryEngine::new(
+            tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
+            "typescript",
+        );
         if let Err(e) = &engine {
             println!("TypeScript QueryEngine error: {e}");
         }
@@ -1795,7 +1711,7 @@ mod tests {
 
     #[test]
     fn test_go_query_creation() {
-        let engine = QueryEngine::new(tree_sitter_go::language(), "go");
+        let engine = QueryEngine::new(tree_sitter_go::LANGUAGE.into(), "go");
         if let Err(e) = &engine {
             println!("Go QueryEngine error: {e}");
         }
@@ -1804,7 +1720,7 @@ mod tests {
 
     #[test]
     fn test_swift_query_creation() {
-        let engine = QueryEngine::new(tree_sitter_swift::language(), "swift");
+        let engine = QueryEngine::new(tree_sitter_swift::LANGUAGE.into(), "swift");
         if let Err(e) = &engine {
             println!("Swift QueryEngine error: {e}");
         }
@@ -1813,7 +1729,7 @@ mod tests {
 
     #[test]
     fn test_builtin_type_detection() {
-        let engine = QueryEngine::new(tree_sitter_rust::language(), "rust").unwrap();
+        let engine = QueryEngine::new(tree_sitter_rust::LANGUAGE.into(), "rust").unwrap();
 
         assert!(engine.is_builtin_type("String"));
         assert!(engine.is_builtin_type("Vec"));

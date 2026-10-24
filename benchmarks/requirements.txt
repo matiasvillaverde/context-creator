@@ -1,0 +1,4 @@
+# Optional cross-tool comparisons; keep isolated from the developer's Python.
+gitingest==0.3.1
+aider-chat==0.86.0
+tiktoken==0.10.0

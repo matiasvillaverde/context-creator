@@ -72,9 +72,10 @@ comparable throughput or answer-quality benchmark was found in this review.
    the project; symlink escapes are rejected. The parser uses the existing Java
    dependency. Java classpaths, dependency JARs, overload dispatch, and all
    compiler-specific source sets are not modeled.
-8. A fixture matrix for Rust, Python, JavaScript, JSX, TypeScript, TSX, Go, Swift,
-   and Java, plus Java CLI expansion/security regressions. Remaining empty
-   analyzer modules are not registered as supported semantic languages. Caller
+8. A fixture matrix for all thirteen implemented language families, module
+   variants, malformed source, local imports, callers/importing clients, types,
+   aliases, and symlink confinement. Empty analyzer modules are not registered
+   as supported semantic languages. Caller
    matching separates languages and Java packages. Graph edges use indexed,
    complete-path lookups instead of repeated scans and substring matches.
 9. Markdown fences survive embedded backtick runs in both rendering paths. XML
@@ -86,8 +87,29 @@ comparable throughput or answer-quality benchmark was found in this review.
     RMCP startup ignores context-generation configuration. Configuration
     docs/examples now use the implemented schema.
 
-## Measured speed improvement
+11. Final rendered budgets across all styles and combined roots, configurable
+    response reservation, and a compact dependency-ranked repository map with
+    cached signatures and source locations.
+12. Tree-sitter 0.26 and compatible current grammars, including actual TSX
+    parsing. C/C++, C#, Kotlin, Ruby, and PHP now have real analyzers/local
+    resolvers. Parser deadlines are cooperative; async parsing runs on blocking
+    workers. Rust 1.89 compatibility constrains the resolved language ABI crate.
+13. JSON generation reports, opt-in native counting for OpenAI/Anthropic/Gemini,
+    and explicit `off`/`redact`/`error` content scanning. `.contextignore` is now
+    actually loaded alongside the legacy ignore filename; `.contextkeep`
+    prioritizes visible files without bypassing ignores.
+14. Bounded `repository_map` and `read_file` tools in both MCP servers. File pages
+    respect repository/global ignores and root/symlink/hidden/binary/size limits,
+    preserve complete lines, and expose a forward cursor. New progressive tools
+    default to redaction; existing analyze tools include policy in cache keys.
+15. A versioned thirteen-language corpus and pinned comparison adapters, process
+    CPU/memory/output accounting, fixed navigation tasks, and separate Criterion
+    cold/warm declaration-cache measurements. See [the harness](../benchmarks/README.md).
 
+## Historical tokenizer measurement
+
+This foundation experiment predates the change to a single combined-root budget;
+it describes the `dfc37fa` implementation, not the current final-budget contract.
 A local debug-build experiment created four directories, each containing twenty
 Rust files with thirty copies of `pub fn example() -> usize { 42 }`. Five fresh
 CLI processes generated context for all four directories using a 10,000-token
@@ -106,7 +128,7 @@ for every repository. One-directory runs and parsing-heavy work need separate
 measurements. Run `cargo bench --bench benchmarks` for the repository's Criterion
 workloads; token cache hits and first-time encoding are measured separately.
 
-## Prioritized next work
+## Release execution plan
 
 Execution plan for the next release (each item requires focused regressions,
 the full Rust/MCP checks, and review before pushing to `main`):
@@ -114,24 +136,24 @@ the full Rust/MCP checks, and review before pushing to `main`):
 - [x] Commit the verified model/MCP/tokenizer/Java foundation.
 - [x] Enforce final rendered budgets across formats and input roots; expose output reservation.
 - [x] Add a compact, dependency-ranked repository map with definitions and signatures.
-- [ ] Implement and test C, C++, C#, Kotlin, Ruby, and PHP extraction and local resolution.
-- [ ] Upgrade compatible parsers together and cover module variants and malformed syntax.
-- [ ] Add reproducible cold/warm performance and fixed-task relevance benchmarks.
-- [ ] Add opt-in provider-native counting, without credentials in ordinary tests.
-- [ ] Add explicit secret handling and bounded map/file reads to both MCP servers.
+- [x] Implement and test C, C++, C#, Kotlin, Ruby, and PHP extraction and local resolution.
+- [x] Upgrade compatible parsers together and cover module variants and malformed syntax.
+- [x] Add reproducible cold/warm performance and fixed-task relevance benchmarks.
+- [x] Add opt-in provider-native counting, without credentials in ordinary tests.
+- [x] Add explicit secret handling and bounded map/file reads to both MCP servers.
 - [ ] Validate the release binary, push tested commits to `main`, and inspect CI.
 
 | Priority | Work | Completion criterion |
 | --- | --- | --- |
 | 1 | Enforce budgets against the final rendered output and combined directories. | Every style includes metadata/escaping overhead; oversized outputs produce a clear result without corrupting source. Test zero/tiny budgets, multiple roots, semantic metadata, and prompt/output reservation. Current file selection remains an estimate. |
-| 2 | Add a compact repository-map output through `DigestFormatter`. | Reuse `ProjectAnalysis`, retain definitions/signatures and file links, and compare answer quality and token savings on fixed tasks. |
-| 3 | Improve actual language coverage: C/C++, C#, Kotlin, Ruby, PHP. | Add compatible real parsers/resolvers and import/caller/type fixtures; never advertise empty stubs. Java support is the first completed addition. |
+| 2 | Add a compact repository-map output through `DigestFormatter`. | Reuse `ProjectAnalysis`, retain definitions/signatures and file links, and compare navigation recall and token savings on fixed tasks. Live answer quality needs a separate model evaluation. |
+| 3 | Improve actual language coverage: C/C++, C#, Kotlin, Ruby, PHP. | Add compatible real parsers/resolvers and import/caller/type fixtures; never advertise empty stubs. Thirteen language families are registered. |
 | 4 | Modernize parser infrastructure and module variants. | Upgrade tree-sitter/grammars together; test TSX-specific parsing, `.mjs`/`.cjs`/`.mts`/`.cts`, malformed syntax, and mixed source roots. |
 | 5 | Add reproducible cold/warm performance and relevance evaluation. | Record CPU, memory, files, output size, selected encoding, parsing versus cache time, and task outcomes. Compare release builds against the four tools above on identical pinned corpora. |
 | 6 | Optional provider-native counting and explicit output reservation. | Model-aware counts are opt-in, authenticated, tested without live credentials by default, and reported separately from local estimates. |
 | 7 | Evaluate secret-content scanning and progressive MCP reads. | Define scanning policy/false positives and bounded map → file → expansion workflows; preserve ignore/path protections. |
 
-The broad modernization is ongoing. Passing the current suites does not prove
+The implemented scope is tracked above. Passing the current suites does not prove
 the repository has no bugs, and language fixtures do not prove compiler-level
 semantic equivalence. Provider invocation is verified with executable stubs;
 account-specific live model access is outside those tests.
