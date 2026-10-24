@@ -154,8 +154,9 @@ these forms too. Errors contain rule IDs and file/line locations without matched
 values. Redaction preserves line counts for maps and paginated reads. Use ignore
 rules to exclude sensitive files even when their contents do not match a rule.
 
-Reporting, native counting, and source scanning flags apply to normal context
-generation; subcommands do not silently accept them. MCP tools have their own
+Reporting, native counting, and active source-scanning policies apply to normal
+context generation; unsupported subcommands reject them. A disabled `off` policy
+leaves subcommands unchanged. MCP tools have their own
 request fields, described in the [server guide](mcp-server.md).
 
 ## File selection

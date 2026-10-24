@@ -196,7 +196,7 @@ Registry publication remains a separate tag-driven release step.
 | 6 | Optional provider-native counting and explicit output reservation. | Model-aware counts are opt-in, authenticated, tested without live credentials by default, and reported separately from local estimates. |
 | 7 | Evaluate secret-content scanning and progressive MCP reads. | Define scanning policy/false positives and bounded map → file → expansion workflows; preserve ignore/path protections. |
 
-Local validation passed 1,095 distinct tests across the full and final focused
+Local validation passed 1,096 distinct tests across the full and final focused
 runs, with six existing ignored cases, plus 46 Criterion smoke checks. Formatting,
 strict Clippy, docs, the existing audit policy, and real Rust 1.89 all-target
 checks passed. The release binary passed combined budgets in all five formats

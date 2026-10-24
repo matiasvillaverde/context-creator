@@ -250,3 +250,31 @@ fn semantic_expansion_uses_each_input_repository_root() {
         }
     }
 }
+
+#[test]
+fn disabled_secret_scanning_in_config_does_not_block_search() {
+    let project = TempDir::new().unwrap();
+    fs::write(project.path().join("main.rs"), "pub fn sentinel() {}\n").unwrap();
+    let config = project.path().join(".context-creator.toml");
+    fs::write(&config, "[defaults]\nsecret_scan = 'off'\n").unwrap();
+    assert_cmd::Command::cargo_bin("context-creator")
+        .unwrap()
+        .current_dir(project.path())
+        .args(["--quiet", "search", "sentinel", "."])
+        .assert()
+        .success();
+    fs::write(config, "[defaults]\nsecret_scan = 'redact'\n").unwrap();
+    assert_cmd::Command::cargo_bin("context-creator")
+        .unwrap()
+        .current_dir(project.path())
+        .args(["--quiet", "search", "sentinel", "."])
+        .assert()
+        .failure()
+        .stderr(predicates::str::contains("apply to context generation"));
+    assert_cmd::Command::cargo_bin("context-creator")
+        .unwrap()
+        .current_dir(project.path())
+        .args(["--quiet", "--secret-scan", "off", "search", "sentinel", "."])
+        .assert()
+        .success();
+}

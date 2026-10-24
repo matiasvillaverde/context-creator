@@ -583,7 +583,11 @@ impl Config {
             .map_err(|error| ContextCreatorError::InvalidConfiguration(error.to_string()))?;
 
         if (self.command.is_some() || self.mcp || self.rmcp)
-            && (self.report.is_some() || self.native_token_count || self.secret_scan.is_some())
+            && (self.report.is_some()
+                || self.native_token_count
+                || self
+                    .secret_scan
+                    .is_some_and(|policy| policy != crate::core::secrets::SecretPolicy::Off))
         {
             return Err(ContextCreatorError::InvalidConfiguration(
                 "--report, --native-token-count, and --secret-scan apply to context generation; use MCP request parameters for server tools".into()
