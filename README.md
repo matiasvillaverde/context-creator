@@ -4,83 +4,165 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-%23000000.svg?style=flat&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 
-High-performance CLI for building quality context windows that make AI assistants actually understand your codebase.
+Code context building blocks for AI agents, available as a **Rust crate, CLI, and MCP server**.
 
-## The Problem
+Use context-creator to build tools that let agents explore repositories, inspect
+source, and assemble dependency-aware context within a token budget. Embed the
+crate in your application, wrap the CLI in your agent framework, or connect the
+MCP server to an existing coding agent.
 
-AI coding assistants are only as good as the context you provide. Most tools simply concatenate files, leading to:
+Your agent chooses the task, the files to investigate, and the model to use.
+context-creator handles file discovery, filtering, semantic expansion, formatting,
+and local token accounting. Context generation, repository maps, and source reads
+work locally without an LLM call. Provider CLI handoff is optional.
 
-- **Irrelevant files** cluttering the context window
-- **Missing dependencies** that are crucial for understanding
-- **Token limits** wasted on unimportant code
-- **No understanding** of how your code actually connects
+## Build Tools for Agents
 
-## The Solution
+Choose the integration that fits your application:
 
-context-creator combines file filters, priorities, token budgets, and optional tree-sitter dependency expansion to build focused context. You choose the seed files; import, caller, and type analysis can add related source.
+| Integration | How to use it | What your agent receives |
+| --- | --- | --- |
+| [Rust crate](#rust-crate) | Call typed helpers in-process or compose the core modules. | Typed maps and source pages, or generated context artifacts. |
+| [CLI](#cli) | Run a subprocess from Python, TypeScript, or another agent runtime. | Context on stdout or in a file, with an optional JSON accounting report. |
+| [MCP server](#mcp-server) | Expose the existing tools through stdio or Streamable HTTP. | Maps, paginated source, search results, metadata, and context through tool calls. |
 
-### Without context-creator
-```bash
-# Generic context that includes everything
-cat src/**/*.ts > context.txt  # 500K tokens of mostly noise
-```
+For example, you can combine these building blocks into your own tools:
 
-### With context-creator
-```bash
-# Start with authentication files and include their local dependencies
-context-creator --include "**/auth.py" --trace-imports --max-tokens 50000
-```
+| Tool you build | Building blocks |
+| --- | --- |
+| `explore_repository` | A bounded repository map, search, and selected source pages. |
+| `review_change` | Git diffs and focused context expanded with imports, callers, and types. |
+| `investigate_failure` | Source search, related files, and optional OpenTelemetry enrichment. |
+
+A typical agent workflow is:
+
+1. **Map:** request declarations and source locations under a small token budget.
+2. **Read:** inspect the relevant files or line ranges; request the next page when needed.
+3. **Expand:** add related imports, callers, or types, then return the context to
+   your agent's model for reasoning, editing, or review.
 
 ## Key Advantages
 
-- **Dependency-aware**: Uses tree-sitter AST parsing to understand imports, not just file names
+- **Dependency-aware**: Uses tree-sitter AST parsing to extract imports, declarations, calls, and types
 - **Predictable budgets**: Fits the complete rendered output across all input directories
 - **Focused selection**: Uses file filters, priority rules, and dependency relationships
 - **Multi-language**: Semantic extraction and local resolution for [13 language families](docs/languages.md), including C/C++, C#, Kotlin, Ruby, and PHP
-- **MCP integration**: Works as a server for AI assistants to query your codebase programmatically
+- **Reusable interfaces**: The crate, CLI, and MCP server support custom agent tools
 
 ## Installation
+
+For the native CLI, install from a checkout with Rust 1.89 or newer:
+
+```bash
+cargo install --path . --locked
+```
+
+See [Building from Source](#building-from-source) for cloning and build commands.
+The examples below describe the APIs and flags in this checkout.
+
+For MCP clients, the published npm wrapper is also available:
 
 ```bash
 npm install -g context-creator-mcp@latest
 ```
 
-For platform-specific MCP client setup, see [Installation Guide](docs/installation.md).
+The npm wrapper starts MCP mode automatically. Use the native `context-creator`
+binary for CLI context generation. Published packages follow their release
+versions; see the [Installation Guide](docs/installation.md) for client setup.
 
 ## Usage
 
 ### CLI
 
 ```bash
-# Analyze current directory
-context-creator
+# Give an agent a compact overview of the repository
+context-creator . --style map --max-tokens 4096 --secret-scan redact --quiet
 
-# Build focused context for specific task
-context-creator --prompt "Find security vulnerabilities in the auth system"
+# Build context around files selected by the agent
+context-creator . --include "**/auth.py" \
+  --trace-imports --include-callers --include-types \
+  --max-tokens 16000 --secret-scan redact \
+  --output agent-context.md --report agent-context.json --quiet
 
-# Select a model available in your installed provider CLI
-context-creator --tool codex --model YOUR_MODEL --max-tokens 100000 --prompt "Explain the architecture"
-
-# Select the local tokenizer (o200k-base is the default)
-context-creator --tokenizer cl100k-base --max-tokens 50000
-
-# Navigate declarations without implementation bodies
-context-creator --style map --max-tokens 4096
-
-# Reserve room for a response
-context-creator --output-reserve 8000 --max-tokens 100000 --prompt "Review this code"
-
-# Produce a checked artifact and machine-readable accounting
-context-creator --secret-scan redact --output context.md --report context-report.json
-
-# Trace dependencies of specific files
-context-creator --trace-imports --include "**/auth.py"
-
-# Compare changes with dependency context
+# Get changes for a review tool
 context-creator diff HEAD~1 HEAD
 
 # Enrich code with OpenTelemetry runtime metrics
 context-creator telemetry -t traces.json
+```
+
+The first command returns a map on stdout. The second writes source context and
+a JSON report with selected/omitted file counts, token counts, and timings. Your
+tool can pass the artifact to any model or agent framework.
+
+For example, a Python agent can wrap the CLI as a regular function:
+
+```python
+import subprocess
+
+
+def repository_overview(repo: str) -> str:
+    result = subprocess.run(
+        [
+            "context-creator", repo,
+            "--style", "map", "--max-tokens", "4096",
+            "--secret-scan", "redact", "--quiet",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    return result.stdout
+```
+
+Register the function as a tool using your framework's tool API. A failed command
+raises an exception, so the agent can handle errors separately from context.
+
+### Rust Crate
+
+Embed the same typed map helper used by the MCP server in your own Rust tool.
+This Git dependency follows the current repository's API:
+
+```toml
+[dependencies]
+context-creator = { git = "https://github.com/matiasvillaverde/context-creator", branch = "main" }
+anyhow = "1"
+```
+
+```rust
+use context_creator::mcp_server::{
+    progressive::repository_map_sync, RepositoryMapRequest, RepositoryMapResponse,
+};
+use std::path::PathBuf;
+
+pub fn repository_overview(path: PathBuf) -> anyhow::Result<RepositoryMapResponse> {
+    repository_map_sync(RepositoryMapRequest {
+        path,
+        include_patterns: vec![],
+        ignore_patterns: vec![],
+        max_tokens: Some(4096),
+        tokenizer: None,
+        secret_scan: None,
+    })
+}
+```
+
+The response contains `map`, `token_count`, `file_count`, and `omitted_files`.
+`secret_scan: None` uses this helper's default redaction policy. Use
+`read_file_sync(ReadFileRequest)` for paginated source, or `context_creator::run(Config)`
+to generate full context artifacts. These are blocking functions; call them on a
+blocking worker when integrating with an async agent. An MCP server does not need
+to be running to use these helpers.
+
+### Optional Provider CLI Handoff
+
+You can also ask context-creator to send the generated context and a prompt to an
+installed provider CLI:
+
+```bash
+context-creator --tool codex --model YOUR_MODEL --max-tokens 100000 \
+  --output-reserve 8000 --prompt "Review this code"
 ```
 
 Model selection is passed through to Gemini CLI, Codex, Claude Code, or Ollama. Omit
@@ -99,24 +181,48 @@ The two progressive MCP tools default to redaction.
 
 ### MCP Server
 
-Add to your MCP client configuration:
+To expose the existing tools directly, add the native binary to your MCP client
+configuration. Set `command` to its full path if it is not on `PATH`:
 
 ```json
 {
   "mcpServers": {
     "context-creator": {
-      "command": "npx",
-      "args": ["-y", "context-creator-mcp@latest"]
+      "command": "context-creator",
+      "args": ["--rmcp"]
     }
   }
 }
 ```
 
-Then in your AI assistant:
+An agent can request a map, then read a selected source range. These are example
+`tools/call` parameters:
+
+```json
+{
+  "name": "repository_map",
+  "arguments": { "path": "/workspace/repo", "max_tokens": 4096 }
+}
 ```
-"Explain how the payment system works" # AI will use analyze_local to build relevant context
-"Find all SQL injection vulnerabilities" # Searches with full dependency understanding
+
+```json
+{
+  "name": "read_file",
+  "arguments": {
+    "root": "/workspace/repo",
+    "path": "src/auth.py",
+    "start_line": 1,
+    "max_lines": 120,
+    "max_tokens": 2048
+  }
+}
 ```
+
+Use the returned `next_line` as `start_line` to continue reading. The read budget
+counts source content; your agent must also allow for the MCP response envelope
+and its own instructions. Both tools default to redaction and make no LLM calls.
+See the [MCP Server Guide](docs/mcp-server.md) for tool schemas, limits, HTTP setup,
+and the alternative npm launcher.
 
 ## Features
 
@@ -134,7 +240,7 @@ Then in your AI assistant:
 
 - `repository_map` - Get bounded declarations and source locations without an LLM call
 - `read_file` - Page through source under line and token limits
-- `analyze_local` - Analyze local codebases with dependency awareness
+- `analyze_local` - Build local code context, with optional provider CLI handoff
 - `analyze_remote` - Analyze Git repositories
 - `search` - Text pattern search
 - `semantic_search` - AST-based code search
