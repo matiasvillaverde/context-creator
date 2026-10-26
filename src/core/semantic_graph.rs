@@ -8,6 +8,7 @@
 //! This module now serves as a thin coordination layer that maintains backward compatibility.
 
 use crate::core::cache::FileCache;
+use crate::core::file_expander::absolute_project_root;
 use crate::core::semantic::cycle_detector::{CycleResolution, TarjanCycleDetector};
 use crate::core::semantic::graph_builder::GraphBuilder;
 use crate::core::semantic::graph_traverser::GraphTraverser;
@@ -191,18 +192,6 @@ fn detect_project_root(start_path: &std::path::Path) -> PathBuf {
 
     // Ultimate fallback
     absolute_project_root(start_path.parent().unwrap_or(start_path))
-}
-
-fn absolute_project_root(path: &std::path::Path) -> PathBuf {
-    path.canonicalize().unwrap_or_else(|_| {
-        if path.is_absolute() {
-            path.to_path_buf()
-        } else {
-            std::env::current_dir()
-                .map(|current_dir| current_dir.join(path))
-                .unwrap_or_else(|_| path.to_path_buf())
-        }
-    })
 }
 
 /// Apply import relationships from analysis results

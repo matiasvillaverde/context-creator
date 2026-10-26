@@ -143,16 +143,17 @@ fn current_dir_project_root_for_files(files_map: &HashMap<PathBuf, FileInfo>) ->
     all_files_under_current_project.then_some(project_root)
 }
 
-fn absolute_project_root(path: &Path) -> PathBuf {
-    path.canonicalize().unwrap_or_else(|_| {
-        if path.is_absolute() {
-            path.to_path_buf()
-        } else {
-            std::env::current_dir()
-                .map(|current_dir| current_dir.join(path))
-                .unwrap_or_else(|_| path.to_path_buf())
-        }
-    })
+pub(crate) fn absolute_project_root(path: &Path) -> PathBuf {
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .map(|current_dir| current_dir.join(path))
+            .unwrap_or_else(|_| path.to_path_buf())
+    };
+    // A relative input's parent can be empty. Resolve it against cwd before
+    // canonicalizing so Windows roots and imported files share the same prefix.
+    absolute.canonicalize().unwrap_or(absolute)
 }
 
 fn find_importers_of_files(
@@ -2203,6 +2204,13 @@ fn update_import_relationships(files_map: &mut HashMap<PathBuf, FileInfo>) {
 mod tests {
     use super::*;
     use crate::utils::file_ext::FileType;
+
+    #[test]
+    fn empty_relative_project_root_uses_canonical_current_directory() {
+        let expected = std::env::current_dir().unwrap().canonicalize().unwrap();
+        assert_eq!(absolute_project_root(Path::new("")), expected);
+        assert_eq!(absolute_project_root(Path::new(".")), expected);
+    }
 
     #[test]
     fn test_no_expansion_when_disabled() {
