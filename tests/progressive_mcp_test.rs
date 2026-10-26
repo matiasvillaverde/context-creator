@@ -285,3 +285,87 @@ async fn analyze_cache_distinguishes_secret_policies() {
         assert_eq!(result.context.unwrap().contains(&secret), visible);
     }
 }
+
+#[tokio::test]
+async fn task_context_and_recipes_match_across_legacy_and_rmcp_servers() {
+    use context_creator::agent::{ContextRequest, ContextResponse, RecipeBook, RecipeDefinition};
+    let root = TempDir::new().unwrap();
+    fs::write(
+        root.path().join("expiry.rs"),
+        "pub fn session_expired(now: u64) -> bool { now > 10 }\n",
+    )
+    .unwrap();
+    let mut book = RecipeBook::default();
+    book.recipes.insert(
+        "auth".into(),
+        RecipeDefinition {
+            max_snippets: Some(2),
+            ..RecipeDefinition::default()
+        },
+    );
+    let expected = context_creator::agent::list_recipes(&book).unwrap();
+    let rmcp = ContextCreatorServer::new();
+    let catalog = rmcp.list_recipes(Parameters(book.clone())).await.unwrap().0;
+    assert_eq!(
+        serde_json::to_value(&catalog).unwrap(),
+        serde_json::to_value(&expected).unwrap()
+    );
+    let legacy = context_creator::mcp_server::start_server("127.0.0.1:0")
+        .await
+        .unwrap();
+    let client = HttpClientBuilder::default()
+        .build(format!("http://{}", legacy.local_addr().unwrap()))
+        .unwrap();
+    let catalog: Vec<context_creator::agent::Recipe> = client
+        .request("list_recipes", rpc_params![book.clone()])
+        .await
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(catalog).unwrap(),
+        serde_json::to_value(&expected).unwrap()
+    );
+    let mut request = ContextRequest::new(root.path(), "session expiration");
+    request.recipe = "auth".into();
+    request.custom_recipes = book.recipes;
+    request.session_id = Some("mcp".into());
+    let modern = rmcp
+        .build_context(Parameters(request.clone()))
+        .await
+        .unwrap()
+        .0;
+    let old: ContextResponse = client
+        .request("build_context", rpc_params![request.clone()])
+        .await
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(&modern).unwrap(),
+        serde_json::to_value(&old).unwrap()
+    );
+    request.expected_revision = Some(modern.revision);
+    let modern_delta = rmcp
+        .build_context(Parameters(request.clone()))
+        .await
+        .unwrap()
+        .0;
+    let old_delta: ContextResponse = client
+        .request("build_context", rpc_params![request.clone()])
+        .await
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(&modern_delta).unwrap(),
+        serde_json::to_value(&old_delta).unwrap()
+    );
+    assert!(modern_delta
+        .snippets
+        .iter()
+        .all(|snippet| snippet.content.is_none()));
+    assert!(rmcp
+        .build_context(Parameters(request.clone()))
+        .await
+        .is_err());
+    assert!(client
+        .request::<ContextResponse, _>("build_context", rpc_params![request])
+        .await
+        .is_err());
+    legacy.stop().unwrap();
+}

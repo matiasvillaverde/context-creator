@@ -15,7 +15,7 @@ Repository-level guidance for coding agents working on `context-creator`.
 Main user-facing surfaces:
 
 - CLI context generation from local paths or GitHub repositories.
-- Subcommands: `search`, `diff`, `telemetry`, and `examples`.
+- Subcommands: `context`, `recipes`, `search`, `diff`, `telemetry`, and `examples`.
 - Output styles: markdown, XML, plain text, paths-only, and repository maps.
 - MCP server implementations: legacy jsonrpsee and RMCP.
 - LLM tool integration for Gemini, Codex, Claude, and Ollama.
@@ -86,6 +86,7 @@ Notes:
 - `src/cli.rs`: clap definitions, subcommands, validation, LLM tool behavior, token-limit precedence.
 - `src/config.rs`: TOML config loading and application to CLI config.
 - `src/commands/`: implementations for `search`, `diff`, and `telemetry`.
+- `src/agent/`: shared task context, recipe, source snapshot, session, impact, and contract APIs. CLI and both MCP servers delegate to `AgentService`.
 - `src/core/walker.rs`: path walking, ignore/include pattern handling, file metadata, priority calculation, binary filtering.
 - `src/core/context_builder.rs`: context options and output generation.
 - `src/core/prioritizer.rs`: token-aware priority selection.

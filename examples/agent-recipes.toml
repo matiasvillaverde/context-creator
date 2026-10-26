@@ -1,0 +1,8 @@
+[recipes.auth_review]
+extends = "debug_failure"
+include_patterns = ["src/auth/**", "tests/auth/**"]
+include_tests = true
+include_config = true
+follow_contracts = true
+depth = 3
+max_snippets = 32

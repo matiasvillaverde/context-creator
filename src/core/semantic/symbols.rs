@@ -15,8 +15,36 @@ pub struct CodeSymbol {
 }
 
 pub fn extract_symbols(path: &Path, content: &str) -> Result<Vec<CodeSymbol>, ContextCreatorError> {
+    Ok(extract_declarations(path, content)?
+        .into_iter()
+        .map(|declaration| declaration.symbol)
+        .collect())
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct SourceDeclaration {
+    pub symbol: CodeSymbol,
+    pub qualified_name: String,
+    pub start_byte: usize,
+    pub start_line: usize,
+    pub end_byte: usize,
+    pub end_line: usize,
+    pub signature: String,
+}
+
+pub(crate) fn extract_declarations(
+    path: &Path,
+    content: &str,
+) -> Result<Vec<SourceDeclaration>, ContextCreatorError> {
+    Ok(extract_declarations_with_diagnostics(path, content)?.0)
+}
+
+pub(crate) fn extract_declarations_with_diagnostics(
+    path: &Path,
+    content: &str,
+) -> Result<(Vec<SourceDeclaration>, bool), ContextCreatorError> {
     let Some(language) = super::grammar_for_source(path, content) else {
-        return Ok(Vec::new());
+        return Ok((Vec::new(), false));
     };
     let mut parser = Parser::new();
     parser
@@ -118,11 +146,54 @@ pub fn extract_symbols(path: &Path, content: &str) -> Result<Vec<CodeSymbol>, Co
                     .collect::<Vec<_>>()
                     .join(" ");
                 if !signature.is_empty() {
-                    symbols.push(CodeSymbol {
+                    let symbol = CodeSymbol {
                         name: content[name.byte_range()].to_string(),
                         kind: kind.into(),
                         line: node.start_position().row + 1,
                         signature,
+                    };
+                    let mut envelope = node;
+                    if node.kind() == "variable_declarator" {
+                        if let Some(parent) = node.parent() {
+                            envelope = parent;
+                        }
+                    }
+                    if let Some(parent) = envelope.parent() {
+                        if matches!(parent.kind(), "decorated_definition" | "export_statement") {
+                            envelope = parent;
+                        }
+                    }
+                    let mut start_byte = envelope.start_byte();
+                    let mut start_line = envelope.start_position().row + 1;
+                    let mut sibling = envelope.prev_named_sibling();
+                    while let Some(attribute) =
+                        sibling.filter(|node| node.kind() == "attribute_item")
+                    {
+                        start_byte = attribute.start_byte();
+                        start_line = attribute.start_position().row + 1;
+                        sibling = attribute.prev_named_sibling();
+                    }
+                    let mut names = vec![symbol.name.clone()];
+                    let mut parent = node.parent();
+                    while let Some(ancestor) = parent {
+                        if let Some(name) = declaration_name(ancestor) {
+                            let name = &content[name.byte_range()];
+                            if names.last().is_none_or(|previous| previous != name) {
+                                names.push(name.into());
+                            }
+                        }
+                        parent = ancestor.parent();
+                    }
+                    names.reverse();
+                    symbols.push(SourceDeclaration {
+                        qualified_name: names.join("::"),
+                        start_byte,
+                        start_line,
+                        end_byte: envelope.end_byte(),
+                        end_line: envelope.end_position().row
+                            + usize::from(envelope.end_position().column > 0),
+                        signature: content[start_byte..end].trim().into(),
+                        symbol,
                     });
                 }
             }
@@ -136,7 +207,7 @@ pub fn extract_symbols(path: &Path, content: &str) -> Result<Vec<CodeSymbol>, Co
             }
         }
     }
-    Ok(symbols)
+    Ok((symbols, tree.root_node().has_error()))
 }
 
 fn declaration_name(node: Node<'_>) -> Option<Node<'_>> {

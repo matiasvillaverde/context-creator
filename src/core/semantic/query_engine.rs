@@ -9,6 +9,7 @@ use crate::core::semantic::analyzer::{
 use crate::core::semantic::parsing::ParserExt;
 use crate::utils::error::ContextCreatorError;
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex, OnceLock};
 use tree_sitter::StreamingIterator;
 use tree_sitter::{Language, Parser, Query, QueryCursor, Tree};
 
@@ -18,28 +19,59 @@ pub struct QueryEngine {
     language: Language,
     #[allow(dead_code)]
     language_name: String,
-    import_query: Query,
-    function_call_query: Query,
-    type_reference_query: Query,
-    function_definition_query: Query,
+    import_query: Arc<Query>,
+    function_call_query: Arc<Query>,
+    type_reference_query: Arc<Query>,
+    function_definition_query: Arc<Query>,
 }
+
+#[derive(Clone)]
+struct CompiledQueries {
+    imports: Arc<Query>,
+    calls: Arc<Query>,
+    types: Arc<Query>,
+    definitions: Arc<Query>,
+}
+
+type QueryCache = Mutex<HashMap<(Language, String), CompiledQueries>>;
+static COMPILED_QUERIES: OnceLock<QueryCache> = OnceLock::new();
 
 impl QueryEngine {
     /// Create a new query engine for the specified language
     pub fn new(language: Language, language_name: &str) -> Result<Self, ContextCreatorError> {
-        let import_query = Self::create_import_query(&language, language_name)?;
-        let function_call_query = Self::create_function_call_query(&language, language_name)?;
-        let type_reference_query = Self::create_type_reference_query(&language, language_name)?;
-        let function_definition_query =
-            Self::create_function_definition_query(&language, language_name)?;
+        let key = (language.clone(), language_name.to_string());
+        let mut cache = COMPILED_QUERIES
+            .get_or_init(|| Mutex::new(HashMap::new()))
+            .lock()
+            .map_err(|_| {
+                ContextCreatorError::ParseError("Compiled query cache is unavailable".into())
+            })?;
+        let queries = if let Some(queries) = cache.get(&key) {
+            queries.clone()
+        } else {
+            // Queries contain grammar metadata only. Cursors, trees, and source remain request-local.
+            let queries = CompiledQueries {
+                imports: Arc::new(Self::create_import_query(&language, language_name)?),
+                calls: Arc::new(Self::create_function_call_query(&language, language_name)?),
+                types: Arc::new(Self::create_type_reference_query(&language, language_name)?),
+                definitions: Arc::new(Self::create_function_definition_query(
+                    &language,
+                    language_name,
+                )?),
+            };
+            if cache.len() < 32 {
+                cache.insert(key, queries.clone());
+            }
+            queries
+        };
 
         Ok(Self {
             language,
             language_name: language_name.to_string(),
-            import_query,
-            function_call_query,
-            type_reference_query,
-            function_definition_query,
+            import_query: queries.imports,
+            function_call_query: queries.calls,
+            type_reference_query: queries.types,
+            function_definition_query: queries.definitions,
         })
     }
 
@@ -1672,6 +1704,43 @@ impl QueryEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cached_queries_keep_grammar_and_request_state_isolated() {
+        let first = QueryEngine::new(tree_sitter_python::LANGUAGE.into(), "python").unwrap();
+        let second = QueryEngine::new(tree_sitter_python::LANGUAGE.into(), "python").unwrap();
+        assert!(Arc::ptr_eq(&first.import_query, &second.import_query));
+        let mut parser = Parser::new();
+        parser
+            .set_language(&tree_sitter_python::LANGUAGE.into())
+            .unwrap();
+        let one = first
+            .analyze_with_parser(&mut parser, "def first_task():\n    return 1\n")
+            .unwrap();
+        let two = second
+            .analyze_with_parser(&mut parser, "def second_task():\n    return 2\n")
+            .unwrap();
+        assert!(one
+            .exported_functions
+            .iter()
+            .any(|function| function.name == "first_task"));
+        assert!(!two
+            .exported_functions
+            .iter()
+            .any(|function| function.name == "first_task"));
+        assert!(two
+            .exported_functions
+            .iter()
+            .any(|function| function.name == "second_task"));
+        let typescript = QueryEngine::new(
+            tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
+            "typescript",
+        )
+        .unwrap();
+        let tsx =
+            QueryEngine::new(tree_sitter_typescript::LANGUAGE_TSX.into(), "typescript").unwrap();
+        assert!(!Arc::ptr_eq(&typescript.import_query, &tsx.import_query));
+    }
 
     #[test]
     fn test_rust_query_creation() {

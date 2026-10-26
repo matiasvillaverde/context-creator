@@ -41,6 +41,25 @@ A typical agent workflow is:
 3. **Expand:** add related imports, callers, or types, then return the context to
    your agent's model for reasoning, editing, or review.
 
+For task-oriented tools, use the shared **`build_context`** API. It selects
+complete functions or signatures, related types/tests/configuration, and static
+dependencies, with reasons and known gaps. Revision-checked sessions return
+changed or newly selected source. Recipes support debugging, explaining features,
+and reviewing Git changes; contract hints connect literal HTTP calls, OpenAPI
+JSON operations, and handlers across languages.
+
+```bash
+context-creator context --root . --task "Fix session expiration" \
+  --recipe debug_failure --max-tokens 8000
+context-creator context --root . --recipe review_change --base-ref HEAD
+context-creator recipes
+```
+
+These commands return bounded JSON and make no model calls. The same request and
+response types are available through `agent::AgentService` and the MCP
+`build_context`/`list_recipes` tools. See the [agent tools guide](docs/agent-tools.md)
+for integration, custom recipes, session updates, evidence, and limits.
+
 ## Key Advantages
 
 - **Dependency-aware**: Uses tree-sitter AST parsing to extract imports, declarations, calls, and types
@@ -238,6 +257,8 @@ and the alternative npm launcher.
 
 ## MCP Tools
 
+- `build_context` - Task context, selection explanations, change impact, contract hints, and session deltas
+- `list_recipes` - Discover built-in and supplied custom tool recipes
 - `repository_map` - Get bounded declarations and source locations without an LLM call
 - `read_file` - Page through source under line and token limits
 - `analyze_local` - Build local code context, with optional provider CLI handoff
@@ -282,6 +303,7 @@ weight = 100
 
 ## Documentation
 
+- [Agent Tools Guide](docs/agent-tools.md) - Task context, reusable recipes, sessions, and change impact
 - [Installation Guide](docs/installation.md) - Detailed setup instructions
 - [Usage Examples](docs/usage.md) - CLI commands and workflows
 - [Configuration](docs/configuration.md) - Advanced configuration

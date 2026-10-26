@@ -26,6 +26,7 @@ use super::{
 pub struct ContextCreatorServer {
     cache: Arc<crate::mcp_server::cache::McpCache>,
     tool_router: ToolRouter<Self>,
+    agent: Arc<crate::agent::AgentService>,
 }
 
 impl ContextCreatorServer {
@@ -33,6 +34,7 @@ impl ContextCreatorServer {
         Self {
             cache: Arc::new(crate::mcp_server::cache::McpCache::new()),
             tool_router: Self::tool_router(),
+            agent: Arc::new(crate::agent::AgentService::new()),
         }
     }
 }
@@ -45,6 +47,35 @@ impl Default for ContextCreatorServer {
 
 #[tool_router]
 impl ContextCreatorServer {
+    #[tool(
+        description = "Build bounded task context with selection reasons, change impact, contract hints, and revision-checked session deltas; never calls an LLM"
+    )]
+    pub async fn build_context(
+        &self,
+        Parameters(request): Parameters<crate::agent::ContextRequest>,
+    ) -> Result<Json<crate::agent::ContextResponse>, ErrorData> {
+        let service = self.agent.clone();
+        tokio::task::spawn_blocking(move || service.build_context(request))
+            .await
+            .map_err(|error| ErrorData::new(ErrorCode::INTERNAL_ERROR, error.to_string(), None))?
+            .map(Json)
+            .map_err(|error| ErrorData::new(ErrorCode::INVALID_PARAMS, error.to_string(), None))
+    }
+
+    #[tool(
+        description = "List review_change, debug_failure, explain_feature, and supplied reusable custom recipes"
+    )]
+    pub async fn list_recipes(
+        &self,
+        Parameters(request): Parameters<crate::agent::RecipeBook>,
+    ) -> Result<Json<Vec<crate::agent::Recipe>>, ErrorData> {
+        tokio::task::spawn_blocking(move || crate::agent::list_recipes(&request))
+            .await
+            .map_err(|error| ErrorData::new(ErrorCode::INTERNAL_ERROR, error.to_string(), None))?
+            .map(Json)
+            .map_err(|error| ErrorData::new(ErrorCode::INVALID_PARAMS, error.to_string(), None))
+    }
+
     #[tool(
         description = "Get a bounded repository map of declarations and line numbers without calling an LLM"
     )]
@@ -241,6 +272,7 @@ impl ServerHandler for ContextCreatorServer {
             concat!(
             "Context Creator MCP Server - Analyze codebases and answer questions about them.\n\n",
             "This server provides tools to:\n",
+            "- Build task context with 'build_context' and discover presets with 'list_recipes'\n",
             "- Analyze local directories with 'analyze_local'\n",
             "- Analyze remote Git repositories with 'analyze_remote'\n",
             "- Explore declarations with 'repository_map', then page source with 'read_file'\n",

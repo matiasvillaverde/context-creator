@@ -33,16 +33,64 @@ impl HealthRpcServer for HealthRpcImpl {
 /// Implementation of codebase processing RPC handlers
 pub struct CodebaseRpcImpl {
     cache: std::sync::Arc<crate::mcp_server::cache::McpCache>,
+    agent: std::sync::Arc<crate::agent::AgentService>,
 }
 
 impl CodebaseRpcImpl {
     pub fn new(cache: std::sync::Arc<crate::mcp_server::cache::McpCache>) -> Self {
-        Self { cache }
+        Self {
+            cache,
+            agent: std::sync::Arc::new(crate::agent::AgentService::new()),
+        }
     }
 }
 
 #[jsonrpsee::core::async_trait]
 impl CodebaseRpcServer for CodebaseRpcImpl {
+    async fn build_context(
+        &self,
+        request: crate::agent::ContextRequest,
+    ) -> RpcResult<crate::agent::ContextResponse> {
+        let service = self.agent.clone();
+        tokio::task::spawn_blocking(move || service.build_context(request))
+            .await
+            .map_err(|error| {
+                jsonrpsee::types::ErrorObject::owned(
+                    -32603,
+                    "Agent worker failed",
+                    Some(error.to_string()),
+                )
+            })?
+            .map_err(|error| {
+                jsonrpsee::types::ErrorObject::owned(
+                    -32602,
+                    "Invalid context request",
+                    Some(error.to_string()),
+                )
+            })
+    }
+
+    async fn list_recipes(
+        &self,
+        request: crate::agent::RecipeBook,
+    ) -> RpcResult<Vec<crate::agent::Recipe>> {
+        tokio::task::spawn_blocking(move || crate::agent::list_recipes(&request))
+            .await
+            .map_err(|error| {
+                jsonrpsee::types::ErrorObject::owned(
+                    -32603,
+                    "Recipe worker failed",
+                    Some(error.to_string()),
+                )
+            })?
+            .map_err(|error| {
+                jsonrpsee::types::ErrorObject::owned(
+                    -32602,
+                    "Invalid recipes",
+                    Some(error.to_string()),
+                )
+            })
+    }
     async fn repository_map(
         &self,
         request: super::RepositoryMapRequest,

@@ -4,6 +4,7 @@
 //! processing files, and generating formatted Markdown output suitable for
 //! large language model consumption.
 
+pub mod agent;
 pub mod cli;
 pub mod commands;
 pub mod config;
@@ -34,6 +35,12 @@ pub fn run(mut config: Config) -> Result<()> {
 
     // Handle commands if present
     match &config.command {
+        Some(cli::Commands::Context(args)) => return commands::context::run_context(args),
+        Some(cli::Commands::Recipes { recipe_file }) => {
+            let book = commands::context::load_recipe_book(recipe_file.as_deref())?;
+            print!("{}", serde_json::to_string(&agent::list_recipes(&book)?)?);
+            return Ok(());
+        }
         Some(cli::Commands::Search { .. }) => return commands::run_search(config),
         Some(cli::Commands::Diff { .. }) => return commands::run_diff(config),
         Some(cli::Commands::Telemetry { .. }) => return commands::run_telemetry(config),
