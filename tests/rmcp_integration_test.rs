@@ -557,3 +557,50 @@ printf '{tool} response\n'
     client.shutdown().await?;
     Ok(())
 }
+
+#[tokio::test]
+async fn task_context_tools_are_discoverable_and_sessions_work_over_stdio() -> Result<()> {
+    let project = TempDir::new()?;
+    std::fs::write(
+        project.path().join("session.rs"),
+        "pub fn session_expired(now: u64) -> bool { now > 10 }\n",
+    )?;
+    let mut client = RmcpTestClient::spawn().await?;
+    client.initialize().await?;
+    let tools = client.request(2, "tools/list", json!({})).await?;
+    let tools = tools["result"]["tools"]
+        .as_array()
+        .context("missing tools")?;
+    for name in ["build_context", "list_recipes"] {
+        assert!(tools.iter().any(|tool| tool["name"] == name));
+    }
+    let catalog = client
+        .request(
+            3,
+            "tools/call",
+            json!({"name":"list_recipes", "arguments":{}}),
+        )
+        .await?;
+    assert_ne!(catalog["result"]["isError"], true);
+    let response = client.request(4, "tools/call", json!({"name":"build_context", "arguments":{"root":project.path(), "task":"session expiration", "session_id":"stdio-agent"}})).await?;
+    let content = response["result"]["content"][0]["text"]
+        .as_str()
+        .context("missing context")?;
+    let first: context_creator::agent::ContextResponse = serde_json::from_str(content)?;
+    assert!(first
+        .snippets
+        .iter()
+        .any(|snippet| snippet.symbol.as_deref() == Some("session_expired")));
+    let response = client.request(5, "tools/call", json!({"name":"build_context", "arguments":{"root":project.path(), "task":"session expiration", "session_id":"stdio-agent", "expected_revision":first.revision}})).await?;
+    let content = response["result"]["content"][0]["text"]
+        .as_str()
+        .context("missing delta")?;
+    let delta: context_creator::agent::ContextResponse = serde_json::from_str(content)?;
+    assert!(delta
+        .snippets
+        .iter()
+        .all(|snippet| snippet.content.is_none()));
+    assert!(delta.index.analysis_reused);
+    client.shutdown().await?;
+    Ok(())
+}

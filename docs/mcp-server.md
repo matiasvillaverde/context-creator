@@ -8,6 +8,8 @@ context-creator includes a built-in MCP (Model Context Protocol) server that all
 
 When connected to an MCP client, you'll have access to these tools:
 
+- **`build_context`** - Bounded task context with explanations, Git impact, contract hints, and revision-checked sessions
+- **`list_recipes`** - Built-in and supplied reusable agent-tool recipes
 - **`repository_map`** - Bounded declarations/signatures and source locations, without a model call
 - **`read_file`** - Root-confined, paginated source reads, without a model call
 - **`analyze_local`** - Analyze a local codebase directory and answer questions about it
@@ -18,6 +20,13 @@ When connected to an MCP client, you'll have access to these tools:
 - **`diff`** - Generate diffs between two files
 
 ## Progressive exploration
+
+For a complete task request, call `build_context` with arguments such as
+`{"root":"/path/to/repo","task":"Fix session expiration","recipe":"debug_failure","max_tokens":8000}`.
+The compact JSON response fits this budget; the outer protocol envelope is extra.
+This tool never invokes an LLM. `list_recipes` accepts `{}` or a `recipes` object.
+Both method names are shared by RMCP and legacy JSON-RPC. See the
+[agent tools guide](agent-tools.md) for schemas, recipes, and session update rules.
 
 Start with `repository_map` and then request only the files/ranges needed for a
 task. Both tools work through RMCP stdio/Streamable HTTP and the legacy JSON-RPC

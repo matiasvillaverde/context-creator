@@ -286,6 +286,14 @@ impl LlmTool {
 /// Available commands for context-creator
 #[derive(Subcommand, Debug, Clone)]
 pub enum Commands {
+    /// Build task context, selection explanations, change impact, and session deltas as JSON
+    Context(crate::commands::context::ContextArgs),
+
+    /// List built-in and custom agent-tool recipes as JSON
+    Recipes {
+        #[arg(long)]
+        recipe_file: Option<PathBuf>,
+    },
     /// Search for files containing the specified term
     Search {
         /// Search pattern (case-insensitive)
@@ -576,6 +584,17 @@ impl Config {
     /// Validate the configuration
     pub fn validate(&self) -> Result<(), crate::utils::error::ContextCreatorError> {
         use crate::utils::error::ContextCreatorError;
+
+        if let Some(Commands::Context(args)) = &self.command {
+            if self.mcp || self.rmcp {
+                return Err(ContextCreatorError::InvalidConfiguration(
+                    "Commands cannot be used with MCP server mode".into(),
+                ));
+            }
+            return args
+                .validate()
+                .map_err(|error| ContextCreatorError::InvalidConfiguration(error.to_string()));
+        }
 
         crate::core::native_tokens::validate_config(self)
             .map_err(|error| ContextCreatorError::InvalidConfiguration(error.to_string()))?;

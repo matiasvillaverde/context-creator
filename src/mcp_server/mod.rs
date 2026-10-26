@@ -271,6 +271,17 @@ pub struct SemanticSearchResponse {
 /// RPC trait for codebase processing
 #[rpc(server)]
 pub trait CodebaseRpc {
+    #[method(name = "build_context")]
+    async fn build_context(
+        &self,
+        request: crate::agent::ContextRequest,
+    ) -> RpcResult<crate::agent::ContextResponse>;
+
+    #[method(name = "list_recipes")]
+    async fn list_recipes(
+        &self,
+        request: crate::agent::RecipeBook,
+    ) -> RpcResult<Vec<crate::agent::Recipe>>;
     /// Compact map for progressive exploration without an LLM call.
     #[method(name = "repository_map")]
     async fn repository_map(

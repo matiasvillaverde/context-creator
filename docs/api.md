@@ -2,6 +2,12 @@
 
 Complete API reference for using context-creator programmatically and integrating it into other applications.
 
+For the current task-oriented Rust API, use `context_creator::agent::{AgentService,
+ContextRequest, ContextResponse}` and the [agent tools guide](agent-tools.md).
+It provides tested examples for recipes, revision-checked sessions, selection
+explanations, and change/contract context. The older examples below describe
+historical APIs; Rust source and generated crate documentation are authoritative.
+
 ## Library Usage
 
 ### Basic Library Integration

@@ -16,6 +16,11 @@ pub struct FileCache {
 }
 
 impl FileCache {
+    /// Share a validated, already transformed source snapshot with semantic analysis.
+    pub(crate) fn insert_snapshot(&self, path: PathBuf, content: Arc<str>) {
+        self.cache.insert(path, content);
+    }
+
     /// Create a new empty cache
     pub fn new() -> Self {
         FileCache {

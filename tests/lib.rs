@@ -12,6 +12,8 @@ mod semantic_test_helpers;
 mod test_env;
 
 // Core functionality tests
+#[path = "modules/agent_context_test.rs"]
+mod agent_context_test;
 #[path = "modules/binary_filtering_integration_test.rs"]
 mod binary_filtering_integration_test;
 #[path = "modules/binary_name_test.rs"]

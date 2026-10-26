@@ -59,3 +59,16 @@ vocabulary. Existing benchmarks separately cover walking, token-cache hits,
 first-time encoding, prioritization, full rendering, and type resolution.
 
 The [2026-10-24 dataset](results/2026-10-24.json) and its [interpretation](../docs/modernization.md#release-measurements-2026-10-24) are checked in. Raw build outputs and generated corpora are not tracked.
+
+For task selection and incremental sessions, run:
+
+```bash
+cargo run --release --locked --example agent_workflow
+```
+
+The experiment uses one task, five expected source/test/configuration paths, and
+120 distractor files. It checks full-response token budgets, unchanged-session
+content reuse, and a single-file edit. JSON reports cold/warm/edited latency,
+response tokens, delivered content bytes, and analysis reuse. Tokenizer
+initialization is excluded; source scanning and final JSON accounting are included.
+These are local retrieval checks, not live model task-completion scores.
