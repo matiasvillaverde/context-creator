@@ -1,5 +1,11 @@
 # Reproducible context measurements
 
+For random-file checks against pinned real projects, see the
+[open-source language audit](../docs/oss-language-audit.md), its
+[87 selected files](oss-corpus.json), and [manual expectations](oss-oracles.json).
+These results include failures and are separate from the synthetic navigation
+measurements below.
+
 Build the release binary before measuring:
 
 ```bash

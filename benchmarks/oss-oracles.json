@@ -1,0 +1,1278 @@
+{
+  "schema_version": 1,
+  "method": "Human source inspection; expectations are recorded separately from observed analyzer output. A sampled file may exercise only some features.",
+  "cases": {
+    "clojure-0": {
+      "expected_symbols": [],
+      "expected_imports": [],
+      "notes": "Leiningen defproject configuration, not a function definition. Preserve dependency configuration as source; caller/type support is not established by this file."
+    },
+    "clojure-1": {
+      "expected_symbols": [
+        "cookie-session-read-not-exist",
+        "seal-code-injection",
+        "parse-instant",
+        "print-method"
+      ],
+      "expected_imports": [
+        "ring.middleware.session.cookie",
+        "ring.util.codec",
+        "crypto.random"
+      ],
+      "expected_calls": [
+        "cookie-store",
+        "read-session"
+      ],
+      "expected_types": [
+        "Instant",
+        "Writer"
+      ],
+      "notes": "Manual review also found defmethod print-method and Java :import forms. Reader quoting, metadata, regexes, custom tagged values and macro calls need explicit coverage."
+    },
+    "clojure-2": {
+      "expected_symbols": [
+        "test-upgrade-request?",
+        "test-request-protocols",
+        "test-map-listeners"
+      ],
+      "expected_imports": [
+        "ring.websocket",
+        "ring.websocket.protocols"
+      ],
+      "expected_calls": [
+        "upgrade-request?",
+        "request-protocols"
+      ],
+      "notes": "Aliased namespace calls, reify protocol implementations and anonymous listener closures; exact runtime dispatch is not statically proven."
+    },
+    "perl-0": {
+      "expected_parse_error": true,
+      "notes": "The upstream fixture is intentionally malformed: sub foo opens at line 4 and never closes. A parse gap is expected, not a valid-source parser regression."
+    },
+    "perl-1": {
+      "expected_symbols": [
+        "AWAIT_GET",
+        "map",
+        "new",
+        "_timer"
+      ],
+      "expected_imports": [
+        "Mojo::Base",
+        "Carp",
+        "Mojo::Exception",
+        "Mojo::IOLoop",
+        "Scalar::Util"
+      ],
+      "expected_calls": [
+        "_await",
+        "_settle_await"
+      ],
+      "notes": "Named subroutines and local module imports should work; arrow dispatch, anonymous callbacks and Moose-style generated accessors remain dynamic. Reviewed executable source before POD documentation."
+    },
+    "perl-2": {
+      "expected_symbols": [
+        "compact",
+        "new",
+        "to_array",
+        "_flatten"
+      ],
+      "expected_imports": [
+        "Mojo::Base",
+        "Mojo::ByteStream",
+        "List::Util"
+      ],
+      "notes": "POD examples after line 120 are documentation and must not contribute calls or imports. Dynamic callback/arrow dispatch remains inferred."
+    },
+    "sql-0": {
+      "expected_symbols": [],
+      "expected_imports": [],
+      "expected_parse_error": true,
+      "notes": "Two-line psql client guard using backslash echo/quit, not plain SQL. Do not invent ALTER EXTENSION declarations from a quoted message."
+    },
+    "sql-1": {
+      "expected_symbols": [],
+      "expected_calls": [
+        "sparsevec_cmp",
+        "l2_norm",
+        "cosine_distance"
+      ],
+      "expected_parse_error": false,
+      "notes": "Valid PostgreSQL expressions include :: casts and custom <->, <#>, <=> and <+> operators. Invalid sparse-vector literal values are runtime test inputs, not SQL syntax errors."
+    },
+    "sql-2": {
+      "expected_symbols": [],
+      "expected_imports": [],
+      "expected_parse_error": true,
+      "notes": "Another randomly selected psql client guard. Kept unchanged rather than redrawing a DDL-rich file."
+    },
+    "css-0": {
+      "expected_symbols": [
+        ".rubberBand"
+      ],
+      "expected_parse_error": false,
+      "notes": "A selector refers to same-file @keyframes rubberBand. Full source must preserve the keyframe body; keyframes need separate indexing for a complete map. Calls/types in the programming-language sense are not applicable."
+    },
+    "css-1": {
+      "expected_symbols": [
+        ".backOutRight"
+      ],
+      "expected_parse_error": false,
+      "notes": "Same-file @keyframes backOutRight with percentage steps and CSS transform functions. Check selector, source preservation and map limitation; programming-language callers/types are not applicable."
+    },
+    "css-2": {
+      "expected_symbols": [
+        ".slideOutDown"
+      ],
+      "expected_parse_error": false,
+      "notes": "@keyframes slideOutDown uses from/to blocks and translate3d percentages. Both animation and selector must remain available as source."
+    },
+    "rust-0": {
+      "expected_symbols": [
+        "local",
+        "task_local_available_on_abort",
+        "MyFuture",
+        "poll",
+        "get_value"
+      ],
+      "expected_calls": [
+        "spawn",
+        "channel"
+      ],
+      "expected_types": [
+        "Context",
+        "Poll",
+        "Pin"
+      ],
+      "notes": "Nested repeated MyFuture structs, async blocks, impl methods, cfg attributes and task_local macros. Macro-generated KEY/REQ_ID members and active cfg conditions are not compiler-resolved."
+    },
+    "rust-1": {
+      "expected_symbols": [],
+      "expected_imports": [
+        "loom_cancellation_token"
+      ],
+      "notes": "Two-line cfg(loom) module declaration. A forward file graph should expose the local mod file as a conditional/static dependency, not claim an unconditional runtime import."
+    },
+    "rust-2": {
+      "expected_symbols": [
+        "Dump",
+        "Tasks",
+        "Task",
+        "BacktraceSymbol",
+        "Trace",
+        "resolve_backtraces",
+        "capture"
+      ],
+      "expected_imports": [
+        "crate::task",
+        "crate::runtime::task::trace"
+      ],
+      "notes": "Re-exports, generic where clauses, crate-private methods, unsafe trait impls and std/backtrace types. Reviewed declaration/import windows and representative method bodies."
+    },
+    "python-0": {
+      "expected_symbols": [
+        "Environment",
+        "DispatchingJinjaLoader",
+        "render_template",
+        "generate"
+      ],
+      "expected_imports": [
+        "ctx",
+        "helpers",
+        "signals"
+      ],
+      "expected_types": [
+        "AppContext",
+        "Template"
+      ],
+      "expected_calls": [
+        "explain_template_loading_attempts"
+      ],
+      "notes": "Relative imports inside functions, TYPE_CHECKING imports, aliases, nested generator functions, union/generic annotations and Jinja inheritance. Template names and dynamic loader dispatch require runtime knowledge."
+    },
+    "python-1": {
+      "expected_symbols": [
+        "AppContext",
+        "_AppCtxGlobals",
+        "copy_current_request_context",
+        "wrapper",
+        "push",
+        "pop",
+        "__getattr__"
+      ],
+      "expected_imports": [
+        "globals",
+        "helpers",
+        "sessions",
+        "wrappers"
+      ],
+      "expected_types": [
+        "SessionMixin",
+        "Request",
+        "Flask"
+      ],
+      "notes": "Properties, classmethods, positional-only arguments, annotated attributes, nested closures, walrus expressions, docstring code examples and dynamic module __getattr__. Docstring examples must not become declarations/imports."
+    },
+    "python-2": {
+      "expected_symbols": [
+        "common_object_test",
+        "test_session_lifetime",
+        "test_config_from_class",
+        "Base",
+        "Test"
+      ],
+      "expected_imports": [
+        "flask",
+        "pytest",
+        "tomllib"
+      ],
+      "expected_calls": [
+        "common_object_test",
+        "from_file"
+      ],
+      "notes": "Nested classes, parametrized decorators, f-strings and config loading from Python/JSON/TOML or environment variables; runtime configuration filenames are not statically executed."
+    },
+    "javascript-0": {
+      "expected_symbols": [
+        "defineGetter",
+        "header",
+        "range"
+      ],
+      "expected_imports": [
+        "accepts",
+        "node:net",
+        "node:http"
+      ],
+      "expected_calls": [
+        "defineGetter",
+        "typeis"
+      ],
+      "notes": "CommonJS modules, prototype function assignments, chained aliases and getter callbacks. Public request methods should be visible without treating JSDoc examples as code."
+    },
+    "javascript-1": {
+      "expected_symbols": [
+        "ferrets",
+        "count",
+        "users",
+        "count2",
+        "users2"
+      ],
+      "expected_imports": [
+        "../..",
+        "./user"
+      ],
+      "expected_calls": [
+        "render",
+        "count"
+      ],
+      "notes": "CommonJS directory import, local user module, nested callbacks and route middleware references. Block-commented routes must not create calls or contract relationships."
+    },
+    "javascript-2": {
+      "expected_symbols": [
+        "map",
+        "list",
+        "get",
+        "delete"
+      ],
+      "expected_imports": [
+        "../../lib/express",
+        "escape-html"
+      ],
+      "expected_calls": [
+        "map",
+        "escapeHtml"
+      ],
+      "notes": "Anonymous functions assigned to object properties, duplicate list/delete names on distinct objects, recursive app.map and dynamic app[key] dispatch. Names alone cannot prove bindings."
+    },
+    "typescript-0": {
+      "expected_symbols": [
+        "error",
+        "getSizing"
+      ],
+      "expected_imports": [
+        "../core/checks.js",
+        "../core/errors.js",
+        "../core/util.js"
+      ],
+      "expected_types": [
+        "$ZodStringFormats"
+      ],
+      "expected_calls": [
+        "getSizing",
+        "parsedType"
+      ],
+      "notes": "Typed arrow variable, nested function, import type, namespace imports, Unicode strings and .js specifiers targeting .ts source. Default anonymous exports may have no stable function name."
+    },
+    "typescript-1": {
+      "expected_symbols": [
+        "MetaLine",
+        "Page",
+        "generateStaticParams",
+        "generateMetadata",
+        "isHidden"
+      ],
+      "expected_imports": [
+        "@/components/blog-toc",
+        "@/loaders/source"
+      ],
+      "expected_types": [
+        "TocEntry",
+        "ComponentType"
+      ],
+      "expected_calls": [
+        "notFound",
+        "formatDate"
+      ],
+      "notes": "TSX, async default export, path aliases, bracketed Next.js route directories, type casts, optional chaining and JSX callbacks. tsconfig alias resolution and JSX dispatch need explicit limitations."
+    },
+    "typescript-2": {
+      "expected_symbols": [],
+      "expected_imports": [
+        "vitest",
+        "../../../../index.js",
+        "../../../locales/fr.js"
+      ],
+      "expected_calls": [
+        "test",
+        "safeParse"
+      ],
+      "notes": "Tests are anonymous callbacks and need whole-file fallback when no named declaration is extracted. Chained calls, Unicode messages and multi-line receivers must parse."
+    },
+    "go-0": {
+      "expected_symbols": [
+        "TestError",
+        "TestErrorSlice",
+        "TestErr",
+        "Error",
+        "TestErrorUnwrap",
+        "customError"
+      ],
+      "expected_imports": [
+        "github.com/gin-gonic/gin/codec/json"
+      ],
+      "expected_calls": [
+        "New",
+        "SetMeta"
+      ],
+      "expected_types": [
+        "Error",
+        "TestErr"
+      ],
+      "notes": "Method receivers, local structs, composite literals, same-package Error/H definitions and imported packages. Same-package bindings and build tags need verification independently of explicit imports."
+    },
+    "go-1": {
+      "expected_symbols": [
+        "LoadHTMLGlob",
+        "Group",
+        "GET",
+        "RunFd"
+      ],
+      "expected_imports": [
+        "github.com/gin-gonic/gin"
+      ],
+      "expected_calls": [
+        "Default",
+        "engine"
+      ],
+      "expected_types": [
+        "Engine",
+        "RouterGroup"
+      ],
+      "notes": "sync.OnceValue function-valued global, variadic wrappers and aliased package-qualified return types. Importing gin should include its package source; exact method dispatch remains approximate."
+    },
+    "go-2": {
+      "expected_symbols": [
+        "uriBinding",
+        "Name",
+        "BindUri"
+      ],
+      "expected_calls": [
+        "mapURI",
+        "validate"
+      ],
+      "notes": "No explicit imports, but mapURI and validate live in sibling files of the same Go package. A file-only dependency view must acknowledge or include this implicit package context."
+    },
+    "swift-0": {
+      "expected_symbols": [
+        "HTTPMethod"
+      ],
+      "expected_types": [
+        "RawRepresentable",
+        "Equatable",
+        "Hashable",
+        "Sendable"
+      ],
+      "notes": "RawRepresentable struct with static constants, stored rawValue and init. Fields/initializer must survive full source selection. Combined expansion exceeded 90 seconds on the first run."
+    },
+    "swift-1": {
+      "expected_symbols": [
+        "BaseRetryPolicyTestCase",
+        "StubRequest",
+        "RetryPolicyTestCase",
+        "request",
+        "urlError"
+      ],
+      "expected_imports": [
+        "Alamofire",
+        "Foundation",
+        "XCTest"
+      ],
+      "expected_calls": [
+        "retry",
+        "XCTAssertEqual"
+      ],
+      "expected_types": [
+        "HTTPMethod",
+        "RetryPolicy"
+      ],
+      "notes": "@testable import, @unchecked Sendable, @MainActor, nested subclasses, overrides, implicit-member enum values and trailing closures. Local target membership and imported SDK types are distinct."
+    },
+    "swift-2": {
+      "expected_symbols": [
+        "AlamofireExtension",
+        "AlamofireExtended"
+      ],
+      "expected_types": [
+        "AlamofireExtension"
+      ],
+      "notes": "Generic struct, associatedtype protocol and extension accessors with get/set. Generic parameters should not be mistaken for missing concrete files."
+    },
+    "java-0": {
+      "expected_symbols": [
+        "JUnit4TestCaseWithNotFilterableRunner",
+        "someTest"
+      ],
+      "expected_imports": [
+        "org.junit.Test",
+        "org.junit.vintage.engine.samples.junit4.ConfigurableRunner.ChildCount"
+      ],
+      "expected_types": [
+        "NotFilterableRunner"
+      ],
+      "notes": "Annotations refer to local same-package and nested imported fixture types under src/testFixtures/java. Combined expansion exceeded 90 seconds on the first run."
+    },
+    "java-1": {
+      "expected_symbols": [
+        "AssertEquals",
+        "assertEquals",
+        "failNotEqual"
+      ],
+      "expected_imports": [
+        "org.junit.jupiter.api.AssertionFailureBuilder.assertionFailure"
+      ],
+      "expected_calls": [
+        "assertionFailure",
+        "objectsAreEqual"
+      ],
+      "expected_types": [
+        "Supplier"
+      ],
+      "notes": "Many overloaded methods, private constructor, static imports and type-use @Nullable inside generics. Callers must remain inferred when overload binding is unknown."
+    },
+    "java-2": {
+      "expected_symbols": [
+        "DisabledInNativeImage"
+      ],
+      "expected_imports": [
+        "java.lang.annotation.Target",
+        "org.apiguardian.api.API"
+      ],
+      "notes": "A Java annotation declaration uses @interface, not a normal interface node. Javadoc contains annotation names but is not executable source."
+    },
+    "c-0": {
+      "expected_symbols": [
+        "renderCanvas",
+        "skyscraper",
+        "generateSkyscraper",
+        "generateSkyline",
+        "lolwut6Command"
+      ],
+      "expected_imports": [
+        "server.h",
+        "lolwut.h"
+      ],
+      "expected_calls": [
+        "lwGetPixel",
+        "generateSkyscraper"
+      ],
+      "expected_types": [
+        "lwCanvas",
+        "skyscraper"
+      ],
+      "notes": "Static functions, C struct fields/pointer parameters and include-defined typedefs/macros. Header reachability is statically local; preprocessor configurations are not evaluated."
+    },
+    "c-1": {
+      "expected_symbols": [
+        "InfoFunc",
+        "info_get",
+        "RedisModule_OnLoad"
+      ],
+      "expected_imports": [
+        "redismodule.h"
+      ],
+      "expected_calls": [
+        "RedisModule_Init",
+        "info_get"
+      ],
+      "expected_types": [
+        "RedisModuleCtx",
+        "RedisModuleString"
+      ],
+      "notes": "Redis module API function pointers, callback registration and builtin casts. Callback bindings are not ordinary direct-call relationships."
+    },
+    "c-2": {
+      "expected_symbols": [
+        "_dictExpandIfNeeded",
+        "dictDelete",
+        "_dictKeyIndex"
+      ],
+      "expected_imports": [
+        "alloc.h",
+        "dict.h"
+      ],
+      "expected_calls": [
+        "dictFind",
+        "dictHashKey"
+      ],
+      "expected_types": [
+        "dict",
+        "dictEntry"
+      ],
+      "notes": "Random draw selected bundled hiredis source; this was retained. Static prototypes/definitions, function-like macros and ownership callbacks require careful inferred binding."
+    },
+    "cpp-0": {
+      "expected_symbols": [
+        "output_redirect",
+        "flush",
+        "restore",
+        "restore_and_read",
+        "read"
+      ],
+      "expected_imports": [
+        "gtest-extra.h"
+      ],
+      "expected_calls": [
+        "restore",
+        "fflush"
+      ],
+      "notes": "Out-of-line constructor/destructor, noexcept, qualified names, exception handling and a preprocessor-controlled region."
+    },
+    "cpp-1": {
+      "expected_imports": [
+        "fmt/core.h",
+        "gtest/gtest.h"
+      ],
+      "notes": "Both test bodies are generated by the TEST macro. Compiler-equivalent function identities require macro expansion; a static source map must retain the macro bodies and disclose the limitation."
+    },
+    "cpp-2": {
+      "expected_symbols": [
+        "file_access",
+        "write_buffer",
+        "streamed_view",
+        "basic_ostream_formatter",
+        "streamed",
+        "vprint",
+        "print",
+        "println"
+      ],
+      "expected_imports": [
+        "chrono.h"
+      ],
+      "notes": "This .h is C++, using templates, member pointers, trailing return types, namespaces, macro namespace wrappers and platform conditionals. A recoverable parse gap from unexpanded macro wrappers is a limitation, not evidence the source is invalid C++."
+    },
+    "csharp-0": {
+      "expected_symbols": [],
+      "expected_imports": [
+        "Serilog.Context",
+        "Serilog.Core",
+        "Serilog.Events"
+      ],
+      "notes": "Global using-only file. Preserve it as source and namespace context; no function/type declarations are expected in this file."
+    },
+    "csharp-1": {
+      "expected_symbols": [
+        "ReusableStringWriter",
+        "GetOrCreate",
+        "Dispose",
+        "Write",
+        "WriteLine"
+      ],
+      "expected_calls": [
+        "GetStringBuilder",
+        "Clear"
+      ],
+      "expected_types": [
+        "StringWriter",
+        "IFormatProvider"
+      ],
+      "notes": "File-scoped namespace, nullable fields/arguments, constructor initializer, ThreadStatic and FEATURE_SPAN conditional overrides. Global/implicit imports require package context."
+    },
+    "csharp-2": {
+      "expected_symbols": [
+        "AllocationsBenchmark",
+        "LogEmpty",
+        "LogScalar",
+        "FormatMessage"
+      ],
+      "expected_imports": [
+        "Serilog.Core.Enrichers"
+      ],
+      "expected_calls": [
+        "CreateLogger",
+        "Format"
+      ],
+      "expected_types": [
+        "ILogger",
+        "LogEvent"
+      ],
+      "notes": "Attributes, target-typed new, deeply nested anonymous objects, nullable casts and global using dependencies from another file."
+    },
+    "kotlin-0": {
+      "expected_symbols": [
+        "SocketChannelTest",
+        "testHttp",
+        "testHttps",
+        "testConnection",
+        "TlsInstance",
+        "Provider",
+        "Channel",
+        "Standard"
+      ],
+      "expected_imports": [
+        "mockwebserver3.MockWebServer",
+        "okhttp3.Protocol.HTTP_1_1"
+      ],
+      "expected_calls": [
+        "burstValues",
+        "assumeFalse"
+      ],
+      "expected_types": [
+        "SSLSocket",
+        "SocketMode"
+      ],
+      "notes": "Default arguments, nested anonymous object overrides, data/sealed/enum classes and imported constants in a multiplatform source root. Both mapping and combined expansion exceeded 90 seconds in the baseline."
+    },
+    "kotlin-1": {
+      "expected_symbols": [
+        "OkHttpFeature",
+        "beforeAnalysis"
+      ],
+      "expected_imports": [
+        "org.graalvm.nativeimage.hosted.Feature"
+      ],
+      "expected_types": [
+        "Feature"
+      ],
+      "notes": "Expression-bodied override with a nullable nested external interface type and annotation."
+    },
+    "kotlin-2": {
+      "expected_symbols": [
+        "String"
+      ],
+      "expected_imports": [
+        "okio.Buffer",
+        "okio.Path.Companion.toPath"
+      ],
+      "expected_calls": [
+        "Buffer",
+        "writeUtf8CodePoint",
+        "readUtf8"
+      ],
+      "expected_types": [
+        "Path"
+      ],
+      "notes": "Top-level property getter, extension/companion import, vararg function named String and overload ambiguity with the builtin type."
+    },
+    "ruby-0": {
+      "expected_symbols": [
+        "TestThemeAssetsReader",
+        "setup",
+        "assert_file_with_relative_path"
+      ],
+      "expected_imports": [
+        "helper"
+      ],
+      "expected_calls": [
+        "fixture_site"
+      ],
+      "notes": "Shoulda block DSL, inheritance, Ruby calls without parentheses, interpolation, block arguments and symlink test code. The audit never executes the fixture filesystem operations."
+    },
+    "ruby-1": {
+      "expected_symbols": [
+        "TestStaticFile",
+        "make_dummy_file",
+        "setup_static_file_with_defaults"
+      ],
+      "expected_imports": [
+        "helper"
+      ],
+      "expected_calls": [
+        "setup_static_file"
+      ],
+      "notes": "Nested test DSL blocks, hash arguments, predicate methods and class constructors. Generated test methods are not available without executing the DSL."
+    },
+    "ruby-2": {
+      "expected_symbols": [
+        "Jekyll",
+        "Converter",
+        "highlighter_prefix",
+        "highlighter_suffix",
+        "initialize"
+      ],
+      "notes": "Module nesting, inherited Plugin without a require in this file, singleton def self methods and duplicate singleton/instance method names. Autoload dependencies are not equivalent to literal require edges."
+    },
+    "php-0": {
+      "expected_symbols": [
+        "DatabaseNotificationCollection",
+        "markAsRead",
+        "markAsUnread"
+      ],
+      "expected_imports": [
+        "Illuminate\\Database\\Eloquent\\Collection"
+      ],
+      "expected_types": [
+        "EloquentCollection"
+      ],
+      "notes": "Aliased parent type, PHPDoc templates and Laravel higher-order property proxy calls. Static names cannot establish the dynamically forwarded receiver."
+    },
+    "php-1": {
+      "expected_symbols": [
+        "EntityNotFoundException",
+        "__construct"
+      ],
+      "expected_imports": [
+        "InvalidArgumentException"
+      ],
+      "expected_calls": [
+        "__construct"
+      ],
+      "notes": "Builtin exception inheritance, constructor, parent static scope and interpolated strings. The builtin is external, not a missing local class."
+    },
+    "php-2": {
+      "expected_symbols": [
+        "DatabaseManager",
+        "connection",
+        "connectUsing",
+        "usingConnection",
+        "__call"
+      ],
+      "expected_imports": [
+        "Illuminate\\Database\\Connectors\\ConnectionFactory",
+        "Illuminate\\Support\\Traits\\Macroable"
+      ],
+      "expected_calls": [
+        "enum_value",
+        "getDefaultConnection"
+      ],
+      "expected_types": [
+        "ConnectionFactory",
+        "UnitEnum"
+      ],
+      "notes": "Trait method adaptation, imported functions, union types, magic forwarding, anonymous closures and Composer PSR-4 paths. PHPDoc mixins/runtime macros cannot prove concrete dispatch."
+    },
+    "zig-0": {
+      "expected_symbols": [
+        "trace",
+        "traceNamed",
+        "Allocator",
+        "allocFn",
+        "messageColor",
+        "Frame"
+      ],
+      "expected_imports": [
+        "std",
+        "builtin",
+        "options"
+      ],
+      "expected_calls": [
+        "messageColor",
+        "bufPrint"
+      ],
+      "notes": "Comptime branches, conditional container alias Ctx, duplicate method names, function-pointer vtables, extern prototypes/structs and std-qualified types. Named options/Tracy C bindings are build-provided; do not resolve them by filename guess."
+    },
+    "zig-1": {
+      "expected_symbols": [
+        "func",
+        "Unknown"
+      ],
+      "expected_calls": [
+        "Unknown"
+      ],
+      "notes": "ZLS semantic fixture uses addrspace, linksection, callconv, type-valued function and undefined member access. The latter is a deliberate semantic unknown, not malformed syntax."
+    },
+    "zig-2": {
+      "expected_symbols": [
+        "gen",
+        "testDiff"
+      ],
+      "expected_imports": [
+        "std",
+        "zls"
+      ],
+      "expected_calls": [
+        "testDiff",
+        "applyTextEdits"
+      ],
+      "expected_types": [
+        "Random",
+        "Encoding"
+      ],
+      "notes": "Error unions, sentinel strings, inline test declaration, builtin types, pointer captures and quoted enum tags. Named zls is a build module and remains a gap; current models need that uncertainty."
+    },
+    "bash-0": {
+      "expected_symbols": [
+        "_omb_theme_PROMPT_COMMAND"
+      ],
+      "expected_calls": [
+        "_omb_prompt_get_python_venv",
+        "scm_prompt_info"
+      ],
+      "notes": "Parameter expansion, command substitution, Unicode prompt strings and function registration. No literal source import exists; shell framework autoloading is outside literal loader resolution."
+    },
+    "bash-1": {
+      "expected_symbols": [
+        "ansible-version",
+        "ansible-role-init"
+      ],
+      "expected_calls": [
+        "ansible",
+        "_omb_util_print"
+      ],
+      "notes": "Hyphenated function names and alias strings. An awkward test expression can fail at runtime while still being valid Bash syntax; aliases must not be parsed as executable calls from their quoted values."
+    },
+    "bash-2": {
+      "expected_symbols": [
+        "current_branch",
+        "current_repository",
+        "git_main_branch",
+        "gccd",
+        "ggpnp"
+      ],
+      "expected_calls": [
+        "git_current_branch",
+        "_omb_module_require"
+      ],
+      "notes": "Unparenthesized function syntax, command prefixes, arrays/brace expansion, nested substitutions and aliases containing commands. Framework _omb_module_require completion:git is not a literal source statement and needs explicit limitation."
+    },
+    "dart-0": {
+      "expected_symbols": [
+        "handleResponseStream",
+        "stopWatchReceiveTimeout",
+        "watchReceiveTimeout",
+        "addErrorAndClose"
+      ],
+      "expected_imports": [
+        "../adapter.dart",
+        "../dio_exception.dart",
+        "../options.dart"
+      ],
+      "expected_calls": [
+        "watchReceiveTimeout",
+        "stopWatchReceiveTimeout"
+      ],
+      "expected_types": [
+        "RequestOptions",
+        "ResponseBody",
+        "Uint8List"
+      ],
+      "notes": "Named nullable callback parameters, nested functions, generic streams, cascade syntax, closures and an unnamed extension method. SDK/meta imports are external; local relatives must resolve."
+    },
+    "dart-1": {
+      "expected_symbols": [
+        "main"
+      ],
+      "expected_imports": [
+        "package:dio/dio.dart",
+        "mock/adapters.dart"
+      ],
+      "expected_calls": [
+        "expectLater",
+        "group"
+      ],
+      "notes": "A monorepo package under dio/, package: imports, generated mock import, async nested test callbacks and generic isA. Root-level pubspec alone is insufficient for workspace package binding."
+    },
+    "dart-2": {
+      "expected_symbols": [
+        "addProgress",
+        "_transform"
+      ],
+      "expected_imports": [
+        "../options.dart"
+      ],
+      "expected_calls": [
+        "_transform",
+        "fromList"
+      ],
+      "expected_types": [
+        "RequestOptions",
+        "Uint8List"
+      ],
+      "notes": "Generic function bounds, nullable values, type tests, named constructor calls and cascade invocations. A generic parameter S is not an unresolved local source type.",
+      "expected_private_functions": [
+        "_transform"
+      ]
+    },
+    "lua-0": {
+      "expected_symbols": [],
+      "expected_imports": [
+        "test.functional.testnvim",
+        "test.testutil"
+      ],
+      "expected_calls": [
+        "describe",
+        "expect"
+      ],
+      "notes": "Immediately-called require result, destructured local aliases and Lua long strings containing Vimscript. Embedded Vimscript must not become Lua symbols/imports."
+    },
+    "lua-1": {
+      "expected_symbols": [
+        "should_fail",
+        "should_succeed",
+        "setto"
+      ],
+      "expected_imports": [
+        "test.testutil",
+        "test.functional.testnvim"
+      ],
+      "expected_calls": [
+        "should_fail",
+        "should_succeed"
+      ],
+      "notes": "Local functions including one nested in an anonymous test callback, aliased test functions and multi-level API fields. Calls can be indexed while dynamic receiver binding remains uncertain.",
+      "expected_private_functions": [
+        "should_fail",
+        "should_succeed",
+        "setto"
+      ]
+    },
+    "lua-2": {
+      "expected_symbols": [
+        "ls_dir_sorted"
+      ],
+      "expected_imports": [
+        "test.testutil",
+        "test.functional.testnvim"
+      ],
+      "expected_calls": [
+        "ls_dir_sorted",
+        "write_file"
+      ],
+      "notes": "Generic for iterator calls, dotted vim.fs APIs, nested anonymous setup/teardown functions and long-bracket string fixtures; no upstream filesystem code is executed.",
+      "expected_private_functions": [
+        "ls_dir_sorted"
+      ]
+    },
+    "scala-0": {
+      "expected_symbols": [
+        "ContTSuite",
+        "arbContT",
+        "mapContLaw",
+        "withContLaw",
+        "contT"
+      ],
+      "expected_imports": [
+        "cats.Eval",
+        "cats.data.ContT"
+      ],
+      "expected_calls": [
+        "Arbitrary",
+        "assert"
+      ],
+      "expected_types": [
+        "ContT",
+        "Eq"
+      ],
+      "notes": "Higher-kinded types, implicit parameters, wildcard and selector imports, nested expression-bodied methods and typeclass extension syntax. Local Cats sources live in component source roots, beyond a flat root/src assumption."
+    },
+    "scala-1": {
+      "expected_symbols": [
+        "RenameTupleApplySyntaxTests",
+        "Foo2",
+        "Foo3",
+        "Foo4"
+      ],
+      "expected_imports": [
+        "cats.instances.all",
+        "cats.syntax.apply"
+      ],
+      "expected_calls": [
+        "mapN",
+        "contramapN"
+      ],
+      "notes": "Scalafix output fixture uses older wildcard syntax, nested case classes, curried calls and implicit extension methods; exact typeclass dispatch remains uncertain."
+    },
+    "scala-2": {
+      "expected_symbols": [
+        "RenameCartesianTests",
+        "prod"
+      ],
+      "expected_imports": [
+        "cats.Cartesian",
+        "cats.syntax.cartesian"
+      ],
+      "expected_calls": [
+        "product"
+      ],
+      "notes": "Historical Scalafix input refers to an old Cats API, so a missing current Cartesian definition is not automatically a resolver bug. Context bounds and higher-kinded function signatures still need preservation."
+    },
+    "elixir-0": {
+      "expected_symbols": [
+        "Phoenix.Integration.CodeGeneration.AppWithMySQLAdapterJsonTest"
+      ],
+      "expected_imports": [
+        "Phoenix.Integration.CodeGeneratorCase"
+      ],
+      "expected_calls": [
+        "with_installer_tmp",
+        "generate_phoenix_app"
+      ],
+      "notes": "use/describe/test macros, sigils and heredoc containing generated router code. String contents must not become actual module or handler definitions."
+    },
+    "elixir-1": {
+      "expected_symbols": [
+        "Phoenix.Digester",
+        "compile",
+        "now",
+        "migrate_manifest",
+        "clean_all"
+      ],
+      "expected_calls": [
+        "filter_files",
+        "load_manifest"
+      ],
+      "notes": "Private definitions, guard clauses, multiple heads, pipelines, captures, specs, dynamic module calls and regex sigils. Multiple same-name clauses require distinct source identities.",
+      "expected_private_functions": [
+        "now",
+        "filter_files"
+      ]
+    },
+    "elixir-2": {
+      "expected_symbols": [
+        "PhoenixWeb.DupChannel",
+        "Ecto.Adapters.SQL",
+        "Mix.Tasks.Phx.Gen.ChannelTest"
+      ],
+      "expected_imports": [
+        "../../../installer/test/mix_helper.exs",
+        "MixHelper"
+      ],
+      "expected_calls": [
+        "in_tmp_project",
+        "assert_file"
+      ],
+      "notes": "Code.require_file relative to __DIR__, alias prefixes, generated-module snippets inside sigils and ExUnit macros. Do not turn the asserted source strings into live declarations."
+    },
+    "r-0": {
+      "expected_symbols": [],
+      "expected_calls": [
+        "test_that",
+        "when_all",
+        "when_any"
+      ],
+      "notes": "Anonymous test blocks, named arguments and snapshot macros. No explicit source/library loader; package-level NAMESPACE/global function bindings require broader R package knowledge."
+    },
+    "r-1": {
+      "expected_symbols": [],
+      "expected_calls": [
+        "with_groups",
+        "group_by"
+      ],
+      "notes": "Native pipe, captured expressions, function-valued arguments and tidy evaluation. Calls are present even though there are no named function declarations."
+    },
+    "r-2": {
+      "expected_symbols": [
+        "select",
+        "select.list",
+        "select.data.frame",
+        "ensure_group_vars"
+      ],
+      "expected_calls": [
+        "UseMethod",
+        "eval_select",
+        "dplyr_col_select"
+      ],
+      "notes": "S3 generics/methods, namespace operator, dotted identifiers, nonstandard evaluation and roxygen examples. Runtime S3 dispatch and package NAMESPACE imports are unverified."
+    },
+    "julia-0": {
+      "expected_symbols": [
+        "loss"
+      ],
+      "expected_calls": [
+        "mse",
+        "setup",
+        "trainstep!"
+      ],
+      "notes": "Repeated local short-form loss definitions inside testset macros, Unicode identifiers, do blocks, comprehensions and mutating calls. Reactant code is inspected only; no GPU training runs."
+    },
+    "julia-1": {
+      "expected_symbols": [
+        "vgg16"
+      ],
+      "expected_imports": [
+        "BenchmarkTools",
+        "Flux",
+        "CUDA",
+        "Zygote"
+      ],
+      "expected_calls": [
+        "Chain",
+        "Conv",
+        "run_benchmark"
+      ],
+      "notes": "using imports, selective import after colon, constructors, named keyword arguments and let-bound execution code. External package sources are not fetched; local Flux module should be distinguished where possible."
+    },
+    "julia-2": {
+      "expected_symbols": [
+        "_macro_big_show",
+        "_big_show",
+        "_flat_children",
+        "_layer_show",
+        "_layer_string"
+      ],
+      "expected_calls": [
+        "_show_children",
+        "printstyled"
+      ],
+      "notes": "quote-generated Base.show methods, interpolation, overloaded long/short functions, callable pipelines and a large multiline block comment. Quoted definitions are templates rather than proven live runtime methods."
+    },
+    "haskell-0": {
+      "expected_symbols": [
+        "runLuaInterpreter"
+      ],
+      "expected_imports": [
+        "Text.Pandoc.Lua",
+        "System.Exit"
+      ],
+      "expected_calls": [
+        "hPutStrLn",
+        "exitWith"
+      ],
+      "notes": "CPP branches, language pragmas, separate type signature, where-bound helpers, qualified operator imports and re-exports. Both branches are static candidates, not simultaneous compiler-selected implementations."
+    },
+    "haskell-1": {
+      "expected_symbols": [
+        "isParsedMacro",
+        "isCallableMacro"
+      ],
+      "expected_imports": [
+        "Data.Set",
+        "Data.Text"
+      ],
+      "expected_calls": [
+        "member",
+        "fromList"
+      ],
+      "expected_types": [
+        "Text",
+        "Set"
+      ],
+      "notes": "Separate signatures and ordinary curried application should be represented; large string-list values are not functions. Constant pattern bindings need preservation as file context."
+    },
+    "haskell-2": {
+      "expected_symbols": [
+        "testCompareWithOpts",
+        "testCompare"
+      ],
+      "expected_imports": [
+        "Tests.Helpers",
+        "Text.Pandoc.UTF8"
+      ],
+      "expected_calls": [
+        "goldenTest",
+        "readXlsx"
+      ],
+      "expected_types": [
+        "ReaderOptions",
+        "TestTree"
+      ],
+      "notes": "Qualified aliases, point-free bindings, record updates, do notation, <$> and >>=. A map should retain the separate type signature, while overload/typeclass dispatch remains uncertain."
+    },
+    "powershell-0": {
+      "expected_symbols": [
+        "Should-NotBeEmptyString"
+      ],
+      "expected_calls": [
+        "New-ShouldAssertion"
+      ],
+      "expected_types": [
+        "String"
+      ],
+      "expected_parse_error": false,
+      "notes": "UTF-8 BOM, comment-based help, attributes, parameter pipeline binding, typed static method call and object methods. Help examples are not executable calls."
+    },
+    "powershell-1": {
+      "expected_symbols": [
+        "Test-MatchString",
+        "Should-MatchString"
+      ],
+      "expected_calls": [
+        "Test-MatchString",
+        "New-ShouldAssertion"
+      ],
+      "expected_types": [
+        "String",
+        "ArgumentException"
+      ],
+      "expected_parse_error": false,
+      "notes": "UTF-8 BOM, two hyphenated command definitions, switches, static/object methods, casts and case-sensitive regex operators. Command extraction alone does not establish method-call coverage."
+    },
+    "powershell-2": {
+      "expected_symbols": [],
+      "expected_calls": [
+        "Set-StrictMode",
+        "Should",
+        "Verify-Equal"
+      ],
+      "expected_parse_error": false,
+      "notes": "UTF-8 BOM, nested Pester scriptblocks, pipeline commands, scriptblock literals and escaped single-quoted messages. Test DSL blocks are not ordinary named functions."
+    },
+    "hcl-0": {
+      "expected_symbols": [
+        "output.vpc_id",
+        "output.vpc_arn",
+        "output.elasticache_network_acl_arn"
+      ],
+      "notes": "More than 100 output blocks reference a sibling module.vpc declaration. Terraform files in the directory should share scope; default snippet limits must report omissions without splitting blocks."
+    },
+    "hcl-1": {
+      "expected_symbols": [
+        "variable.defaults",
+        "variable.items"
+      ],
+      "notes": "Variable blocks with type=any/default={} and wrapper sibling module scope. HCL provider evaluation and generated resource graphs are outside local source resolution."
+    },
+    "hcl-2": {
+      "expected_symbols": [
+        "terraform",
+        "required_providers"
+      ],
+      "notes": "Nested configuration block contains a registry provider address, not a local file import. Provider source should not be read or executed."
+    },
+    "html-0": {
+      "expected_symbols": [
+        "description",
+        "photo"
+      ],
+      "expected_imports": [
+        "script.js"
+      ],
+      "notes": "defer script dependency, inline style, a paragraph ID and self-closing image ID. Navigation hrefs and image resources are not executable script/style imports; check ID extraction for void elements."
+    },
+    "html-1": {
+      "expected_symbols": [],
+      "expected_imports": [
+        "style.css",
+        "index.js"
+      ],
+      "notes": "Relative stylesheet and deferred script; buttons use classes rather than IDs and text mentions scroll methods. Rendered prose must not become JavaScript calls or named declarations."
+    },
+    "html-2": {
+      "expected_symbols": [
+        "toc"
+      ],
+      "expected_imports": [
+        "style.css"
+      ],
+      "notes": "Navigation ID and stylesheet. Sibling page links are navigation, not automatic module dependencies. No inline JavaScript or programming-language types/callers are present."
+    }
+  }
+}

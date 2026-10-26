@@ -57,6 +57,7 @@ jobs:
     - name: Smoke test multilingual context and repository maps
       if: runner.os == 'Linux'
       run: |
+        python3 -m unittest discover -s benchmarks -p test_oss_audit.py
         python3 benchmarks/run.py --binary target/debug/context-creator --files 29 --body-lines 5 --repeats 1 --output "$RUNNER_TEMP/context-benchmark-smoke.json"
         python3 -c 'import json,sys; report=json.load(open(sys.argv[1])); assert all(sample["navigation_tasks_passed"] == sample["navigation_tasks_total"] for tool in report["tools"] for sample in tool["samples"])' "$RUNNER_TEMP/context-benchmark-smoke.json"
 

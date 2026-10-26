@@ -6,6 +6,12 @@ additional extensions; the table describes semantic extraction and local source
 resolution, rather than compiler compatibility. In agent context, direct local
 bindings are `resolved`; search-path, namespace, and SQL candidates are `inferred`.
 
+Feature coverage differs by language and syntax form. The
+[open-source audit](oss-language-audit.md) sampled 87 files from 29 pinned public
+projects and found unresolved import, declaration, caller/type, and performance
+failures. Parser registration establishes availability; consult the audit before
+assuming a feature works for a particular language.
+
 | Language family | Source extensions | Local resolution |
 | --- | --- | --- |
 | Rust | `rs` | Modules, crate paths, local source |
