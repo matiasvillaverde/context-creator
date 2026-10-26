@@ -72,3 +72,21 @@ content reuse, and a single-file edit. JSON reports cold/warm/edited latency,
 response tokens, delivered content bytes, and analysis reuse. Tokenizer
 initialization is excluded; source scanning and final JSON accounting are included.
 These are local retrieval checks, not live model task-completion scores.
+
+The [2026-10-26 agent-context dataset](results/2026-10-26-agent-context.json)
+records five fresh release processes at source `cf423a0`, with the executable
+SHA-256, host, every sample, CPU time, and peak RSS. The corpus has 127 files and
+443,235 source bytes; five expected paths were retained in every stage/sample.
+Per-request median results on this host were:
+
+| Request | Wall ms | Complete response tokens | Source bytes delivered |
+| --- | ---: | ---: | ---: |
+| Cold task context | 434.0 | 2,195 | 4,141 |
+| Unchanged session | 22.8 | 1,320 | 0 |
+| Single-file edit | 173.8 | 2,071 | 3,697 |
+
+The edit changes four source bytes; the delta replaces the complete changed
+function. Unchanged requests still send snippet identities, current locations,
+reasons, and relationship metadata. OS caches were not flushed. Edited requests
+rebuild static relationships, so they cost more than unchanged requests. These
+numbers describe this fixture and host, not arbitrary repository latency.

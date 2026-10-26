@@ -1,0 +1,364 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-26",
+  "source_commit": "cf423a0628940da4aa91d63f20492fdaded26eb1",
+  "source_clean": true,
+  "executable_sha256": "f52c2e133fa96fff147ebb2821ff3d53330001955817a3123fb33584ef3213ad",
+  "experiment": "cargo run --release --locked --example agent_workflow",
+  "host": {
+    "platform": "Linux-7.2.8-9-omarchy-x86_64-with-glibc2.44",
+    "logical_cpus": 28
+  },
+  "notes": [
+    "Five fresh processes; OS caches uncontrolled.",
+    "Tokenizer initialization excluded from per-request timings; included in process totals.",
+    "Cold request has no source/index cache; unchanged/edited reuse the same service.",
+    "Path retrieval correctness is not model answer quality.",
+    "Response token counts include compact JSON metadata and content.",
+    "Measurements made while GitHub CI ran remotely; no local cargo builds active."
+  ],
+  "medians": {
+    "cold": {
+      "wall_ms": 433.971151,
+      "response_tokens": 2195,
+      "content_bytes": 4141
+    },
+    "unchanged": {
+      "wall_ms": 22.797577999999998,
+      "response_tokens": 1320,
+      "content_bytes": 0
+    },
+    "edited": {
+      "wall_ms": 173.82536000000002,
+      "response_tokens": 2071,
+      "content_bytes": 3697
+    }
+  },
+  "samples": [
+    {
+      "cold": {
+        "content_bytes": 4141,
+        "content_snippets": 9,
+        "expected_paths_found": 5,
+        "expected_paths_total": 5,
+        "index": {
+          "analysis_reused": false,
+          "declarations_reparsed": 127,
+          "files_scanned": 127,
+          "source_bytes": 443235
+        },
+        "reset": true,
+        "response_tokens": 2193,
+        "snippets": 9,
+        "stale": false,
+        "wall_ms": 430.560721
+      },
+      "corpus": "session-expiration-v1",
+      "distractor_files": 120,
+      "edited": {
+        "content_bytes": 3697,
+        "content_snippets": 1,
+        "expected_paths_found": 5,
+        "expected_paths_total": 5,
+        "index": {
+          "analysis_reused": false,
+          "declarations_reparsed": 1,
+          "files_scanned": 127,
+          "source_bytes": 443239
+        },
+        "reset": false,
+        "response_tokens": 2072,
+        "snippets": 9,
+        "stale": true,
+        "wall_ms": 202.638982
+      },
+      "max_tokens": 8000,
+      "measures": "local path retrieval and delta behavior; not model answer quality",
+      "schema_version": 1,
+      "tokenizer": "o200k-base",
+      "unchanged": {
+        "content_bytes": 0,
+        "content_snippets": 0,
+        "expected_paths_found": 5,
+        "expected_paths_total": 5,
+        "index": {
+          "analysis_reused": true,
+          "declarations_reparsed": 0,
+          "files_scanned": 127,
+          "source_bytes": 443235
+        },
+        "reset": false,
+        "response_tokens": 1320,
+        "snippets": 9,
+        "stale": false,
+        "wall_ms": 21.60076
+      },
+      "version": "1.6.0",
+      "process": {
+        "wall_ms": 879.4686349865515,
+        "cpu_seconds": 1.119827,
+        "peak_rss_kib": 67708
+      }
+    },
+    {
+      "cold": {
+        "content_bytes": 4141,
+        "content_snippets": 9,
+        "expected_paths_found": 5,
+        "expected_paths_total": 5,
+        "index": {
+          "analysis_reused": false,
+          "declarations_reparsed": 127,
+          "files_scanned": 127,
+          "source_bytes": 443235
+        },
+        "reset": true,
+        "response_tokens": 2195,
+        "snippets": 9,
+        "stale": false,
+        "wall_ms": 468.353982
+      },
+      "corpus": "session-expiration-v1",
+      "distractor_files": 120,
+      "edited": {
+        "content_bytes": 3697,
+        "content_snippets": 1,
+        "expected_paths_found": 5,
+        "expected_paths_total": 5,
+        "index": {
+          "analysis_reused": false,
+          "declarations_reparsed": 1,
+          "files_scanned": 127,
+          "source_bytes": 443239
+        },
+        "reset": false,
+        "response_tokens": 2073,
+        "snippets": 9,
+        "stale": true,
+        "wall_ms": 186.25072400000002
+      },
+      "max_tokens": 8000,
+      "measures": "local path retrieval and delta behavior; not model answer quality",
+      "schema_version": 1,
+      "tokenizer": "o200k-base",
+      "unchanged": {
+        "content_bytes": 0,
+        "content_snippets": 0,
+        "expected_paths_found": 5,
+        "expected_paths_total": 5,
+        "index": {
+          "analysis_reused": true,
+          "declarations_reparsed": 0,
+          "files_scanned": 127,
+          "source_bytes": 443235
+        },
+        "reset": false,
+        "response_tokens": 1320,
+        "snippets": 9,
+        "stale": false,
+        "wall_ms": 28.926474
+      },
+      "version": "1.6.0",
+      "process": {
+        "wall_ms": 892.3939439991955,
+        "cpu_seconds": 1.164923,
+        "peak_rss_kib": 67540
+      }
+    },
+    {
+      "cold": {
+        "content_bytes": 4141,
+        "content_snippets": 9,
+        "expected_paths_found": 5,
+        "expected_paths_total": 5,
+        "index": {
+          "analysis_reused": false,
+          "declarations_reparsed": 127,
+          "files_scanned": 127,
+          "source_bytes": 443235
+        },
+        "reset": true,
+        "response_tokens": 2195,
+        "snippets": 9,
+        "stale": false,
+        "wall_ms": 423.919828
+      },
+      "corpus": "session-expiration-v1",
+      "distractor_files": 120,
+      "edited": {
+        "content_bytes": 3697,
+        "content_snippets": 1,
+        "expected_paths_found": 5,
+        "expected_paths_total": 5,
+        "index": {
+          "analysis_reused": false,
+          "declarations_reparsed": 1,
+          "files_scanned": 127,
+          "source_bytes": 443239
+        },
+        "reset": false,
+        "response_tokens": 2068,
+        "snippets": 9,
+        "stale": true,
+        "wall_ms": 172.579559
+      },
+      "max_tokens": 8000,
+      "measures": "local path retrieval and delta behavior; not model answer quality",
+      "schema_version": 1,
+      "tokenizer": "o200k-base",
+      "unchanged": {
+        "content_bytes": 0,
+        "content_snippets": 0,
+        "expected_paths_found": 5,
+        "expected_paths_total": 5,
+        "index": {
+          "analysis_reused": true,
+          "declarations_reparsed": 0,
+          "files_scanned": 127,
+          "source_bytes": 443235
+        },
+        "reset": false,
+        "response_tokens": 1320,
+        "snippets": 9,
+        "stale": false,
+        "wall_ms": 31.334187999999997
+      },
+      "version": "1.6.0",
+      "process": {
+        "wall_ms": 804.7205509792548,
+        "cpu_seconds": 1.082506,
+        "peak_rss_kib": 67244
+      }
+    },
+    {
+      "cold": {
+        "content_bytes": 4141,
+        "content_snippets": 9,
+        "expected_paths_found": 5,
+        "expected_paths_total": 5,
+        "index": {
+          "analysis_reused": false,
+          "declarations_reparsed": 127,
+          "files_scanned": 127,
+          "source_bytes": 443235
+        },
+        "reset": true,
+        "response_tokens": 2196,
+        "snippets": 9,
+        "stale": false,
+        "wall_ms": 434.835898
+      },
+      "corpus": "session-expiration-v1",
+      "distractor_files": 120,
+      "edited": {
+        "content_bytes": 3697,
+        "content_snippets": 1,
+        "expected_paths_found": 5,
+        "expected_paths_total": 5,
+        "index": {
+          "analysis_reused": false,
+          "declarations_reparsed": 1,
+          "files_scanned": 127,
+          "source_bytes": 443239
+        },
+        "reset": false,
+        "response_tokens": 2070,
+        "snippets": 9,
+        "stale": true,
+        "wall_ms": 168.56143300000002
+      },
+      "max_tokens": 8000,
+      "measures": "local path retrieval and delta behavior; not model answer quality",
+      "schema_version": 1,
+      "tokenizer": "o200k-base",
+      "unchanged": {
+        "content_bytes": 0,
+        "content_snippets": 0,
+        "expected_paths_found": 5,
+        "expected_paths_total": 5,
+        "index": {
+          "analysis_reused": true,
+          "declarations_reparsed": 0,
+          "files_scanned": 127,
+          "source_bytes": 443235
+        },
+        "reset": false,
+        "response_tokens": 1322,
+        "snippets": 9,
+        "stale": false,
+        "wall_ms": 19.167326
+      },
+      "version": "1.6.0",
+      "process": {
+        "wall_ms": 760.7659840141423,
+        "cpu_seconds": 1.045817,
+        "peak_rss_kib": 67756
+      }
+    },
+    {
+      "cold": {
+        "content_bytes": 4141,
+        "content_snippets": 9,
+        "expected_paths_found": 5,
+        "expected_paths_total": 5,
+        "index": {
+          "analysis_reused": false,
+          "declarations_reparsed": 127,
+          "files_scanned": 127,
+          "source_bytes": 443235
+        },
+        "reset": true,
+        "response_tokens": 2195,
+        "snippets": 9,
+        "stale": false,
+        "wall_ms": 433.971151
+      },
+      "corpus": "session-expiration-v1",
+      "distractor_files": 120,
+      "edited": {
+        "content_bytes": 3697,
+        "content_snippets": 1,
+        "expected_paths_found": 5,
+        "expected_paths_total": 5,
+        "index": {
+          "analysis_reused": false,
+          "declarations_reparsed": 1,
+          "files_scanned": 127,
+          "source_bytes": 443239
+        },
+        "reset": false,
+        "response_tokens": 2071,
+        "snippets": 9,
+        "stale": true,
+        "wall_ms": 173.82536000000002
+      },
+      "max_tokens": 8000,
+      "measures": "local path retrieval and delta behavior; not model answer quality",
+      "schema_version": 1,
+      "tokenizer": "o200k-base",
+      "unchanged": {
+        "content_bytes": 0,
+        "content_snippets": 0,
+        "expected_paths_found": 5,
+        "expected_paths_total": 5,
+        "index": {
+          "analysis_reused": true,
+          "declarations_reparsed": 0,
+          "files_scanned": 127,
+          "source_bytes": 443235
+        },
+        "reset": false,
+        "response_tokens": 1319,
+        "snippets": 9,
+        "stale": false,
+        "wall_ms": 22.797577999999998
+      },
+      "version": "1.6.0",
+      "process": {
+        "wall_ms": 813.7876229884569,
+        "cpu_seconds": 1.091368,
+        "peak_rss_kib": 67576
+      }
+    }
+  ]
+}

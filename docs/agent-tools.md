@@ -210,3 +210,9 @@ zero repeated source on an unchanged session, and a single-file edit. It reports
 cold/warm wall time, response tokens, delivered source bytes, and index reuse.
 This measures retrieval and incremental behavior; live model task-completion
 quality requires a separate evaluation.
+
+The [release measurements](../benchmarks/README.md) include all five expected
+paths in five fresh processes. Median times were 434 ms for cold context,
+22.8 ms for an unchanged session, and 173.8 ms after an edit. The unchanged
+session delivered no repeated source content; the edit delivered one complete
+function. The raw dataset pins the tested source and executable.
