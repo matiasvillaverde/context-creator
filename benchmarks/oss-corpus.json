@@ -1,0 +1,1034 @@
+{
+  "schema_version": 1,
+  "seed": "38b6c7f095ce690ac6b7bea86a6ac394",
+  "samples_per_language": 3,
+  "selection": "random.Random(seed + language).sample(sorted(eligible_paths), 3); no redraws",
+  "eligibility": {
+    "max_bytes": 65536,
+    "max_lines": 600,
+    "encoding": "UTF-8",
+    "hidden_and_symlink_files": "excluded",
+    "excluded_directories": [
+      "build",
+      "dist",
+      "node_modules",
+      "target",
+      "vendor",
+      "venv"
+    ],
+    "test_files": "eligible"
+  },
+  "projects": [
+    {
+      "language": "Rust",
+      "repository": "tokio-rs/tokio",
+      "commit": "6e3d753fccf81e91567f6bc8799fdc1df860bc47",
+      "url": "https://github.com/tokio-rs/tokio",
+      "stars_at_selection": 33518,
+      "license": "MIT",
+      "extensions": [
+        "rs"
+      ],
+      "cache_key": "tokio-rs--tokio--6e3d753fccf8",
+      "candidate_pool_sha256": "0798b7de26f290e3bb6a4e0b6ac598701a7bc91221a423b9c07fe7e006ad12f2",
+      "candidate_count": 743,
+      "samples": [
+        {
+          "path": "tokio/tests/task_local.rs",
+          "sha256": "83c04949157c4e1c59d5350011637150938359db51494f21081e091edefabb08",
+          "bytes": 4245,
+          "lines": 175
+        },
+        {
+          "path": "tokio-util/src/sync/tests/mod.rs",
+          "sha256": "d85f61d32f384569a86ffe5805f9b9067a4ae21ed56f91eda016dfadcb0bc948",
+          "bytes": 42,
+          "lines": 2
+        },
+        {
+          "path": "tokio/src/runtime/dump.rs",
+          "sha256": "60e053a16058148262a45f08899cea64ee26b781e41bec8ceded2e89ea88b27c",
+          "bytes": 11170,
+          "lines": 343
+        }
+      ]
+    },
+    {
+      "language": "Python",
+      "repository": "pallets/flask",
+      "commit": "d086db856be187255b8ec61ef409357393020f32",
+      "url": "https://github.com/pallets/flask",
+      "stars_at_selection": 75088,
+      "license": "BSD-3-Clause",
+      "extensions": [
+        "py",
+        "pyi"
+      ],
+      "cache_key": "pallets--flask--d086db856be1",
+      "candidate_pool_sha256": "cc038b58a76baf030c3529be1eda59e519b49e847d14dda6d8d0bccf4211c9ea",
+      "candidate_count": 71,
+      "samples": [
+        {
+          "path": "src/flask/templating.py",
+          "sha256": "3ed7a044a96c911267e855b7359d9f159f06321f75fbe678a6656923d5e0989e",
+          "bytes": 7336,
+          "lines": 212
+        },
+        {
+          "path": "src/flask/ctx.py",
+          "sha256": "e21952d044159438765eb27848b0fe4c75f83faee8645181a09a1eccb1d5cab7",
+          "bytes": 18261,
+          "lines": 540
+        },
+        {
+          "path": "tests/test_config.py",
+          "sha256": "7d110748a4a2aad90c33489f4a50da0ac6aa19d64aab5414929be8a3fbb44dcf",
+          "bytes": 7686,
+          "lines": 250
+        }
+      ]
+    },
+    {
+      "language": "JavaScript",
+      "repository": "expressjs/express",
+      "commit": "1c6f1b0fe4000977b9a7b4f34097e4d527dd9824",
+      "url": "https://github.com/expressjs/express",
+      "stars_at_selection": 69580,
+      "license": "MIT",
+      "extensions": [
+        "js",
+        "jsx",
+        "mjs",
+        "cjs"
+      ],
+      "cache_key": "expressjs--express--1c6f1b0fe400",
+      "candidate_pool_sha256": "c26739df980ba49fe611166bd9ed1afb946dd04b8011579ba654b4d623686d98",
+      "candidate_count": 133,
+      "samples": [
+        {
+          "path": "lib/request.js",
+          "sha256": "a9fda39c4472aeaa4d696f4324f58cc1d036f84ed04145d6d56a12a59578e751",
+          "bytes": 12283,
+          "lines": 527
+        },
+        {
+          "path": "examples/view-locals/index.js",
+          "sha256": "a49cdf21100cb68afec4020e12715b329fc34c4ee4c1f259ff3102e684e8cfb9",
+          "bytes": 3127,
+          "lines": 155
+        },
+        {
+          "path": "examples/route-map/index.js",
+          "sha256": "4b921380a34e14e3da551e74520e3807a068fefd7adf2013df5caf5fc8b7a0f4",
+          "bytes": 1419,
+          "lines": 75
+        }
+      ]
+    },
+    {
+      "language": "TypeScript",
+      "repository": "colinhacks/zod",
+      "commit": "afdac65e0f80c0ccf9e8909da97c411567908b57",
+      "url": "https://github.com/colinhacks/zod",
+      "stars_at_selection": 44196,
+      "license": "MIT",
+      "extensions": [
+        "ts",
+        "tsx",
+        "mts",
+        "cts"
+      ],
+      "cache_key": "colinhacks--zod--afdac65e0f80",
+      "candidate_pool_sha256": "d1cc8fb3bc541d51c4b35f115d85ee7774e7af28b5fbf4a8eee0eb6d370e3ae1",
+      "candidate_count": 483,
+      "samples": [
+        {
+          "path": "packages/zod/src/v4/locales/mk.ts",
+          "sha256": "d480ff20633d43bfc8e2330c000c7494888a9b83c3552d3d9a6a030a1b859a54",
+          "bytes": 5196,
+          "lines": 123
+        },
+        {
+          "path": "packages/docs/app/blog/[slug]/page.tsx",
+          "sha256": "1d2d7addead45cad74a336e5277675896fb0ab66743119cf83443f2350aeaede",
+          "bytes": 5871,
+          "lines": 147
+        },
+        {
+          "path": "packages/zod/src/v4/core/tests/locales/fr.test.ts",
+          "sha256": "89c59d9efbb88d05a88cef46f394f2f488058123cea7b59135b0ab6792ea46aa",
+          "bytes": 2669,
+          "lines": 72
+        }
+      ]
+    },
+    {
+      "language": "Go",
+      "repository": "gin-gonic/gin",
+      "commit": "0f09c3a9b4626d9fe9979cf4d0521d6ae32ab646",
+      "url": "https://github.com/gin-gonic/gin",
+      "stars_at_selection": 89427,
+      "license": "MIT",
+      "extensions": [
+        "go"
+      ],
+      "cache_key": "gin-gonic--gin--0f09c3a9b462",
+      "candidate_pool_sha256": "c155445174d0e5a44047de7aec4e9a9551732083e1db1cb378022b09b65f1e4d",
+      "candidate_count": 88,
+      "samples": [
+        {
+          "path": "errors_test.go",
+          "sha256": "d42ae35757a149990173ffb942c4b8159cd2dd856ec61f36dda65ac67b67dc62",
+          "bytes": 4297,
+          "lines": 140
+        },
+        {
+          "path": "ginS/gins.go",
+          "sha256": "26ce20c97b482c0f1a1bd6add639f03f4660f78b91a0c67c390a4b1ff5b70310",
+          "bytes": 5846,
+          "lines": 164
+        },
+        {
+          "path": "binding/uri.go",
+          "sha256": "ef9e498347257b91f2679af03c3b07a09794e2cff7d02e16475b9e6939daf87c",
+          "bytes": 399,
+          "lines": 18
+        }
+      ]
+    },
+    {
+      "language": "Swift",
+      "repository": "Alamofire/Alamofire",
+      "commit": "bda9ed57d72988a3a2ada33d824583541f86eac6",
+      "url": "https://github.com/Alamofire/Alamofire",
+      "stars_at_selection": 42398,
+      "license": "MIT",
+      "extensions": [
+        "swift"
+      ],
+      "cache_key": "Alamofire--Alamofire--bda9ed57d729",
+      "candidate_pool_sha256": "054280c814c8392ca57f1424b9a3bedc5926033012a0b9fdd014eee07b18ebec",
+      "candidate_count": 75,
+      "samples": [
+        {
+          "path": "Source/Core/HTTPMethod.swift",
+          "sha256": "38a11f5cc3ef4beafe86a18debe0b9b3588ff054a3cd3681bd6371dfe5e6f64f",
+          "bytes": 2439,
+          "lines": 56
+        },
+        {
+          "path": "Tests/RetryPolicyTests.swift",
+          "sha256": "fbbd1f5d12c3211e3b5f367042f8659951cb0134511c972b9c59bee1ae44b235",
+          "bytes": 17995,
+          "lines": 458
+        },
+        {
+          "path": "Source/Features/AlamofireExtended.swift",
+          "sha256": "8c94279642a63fa1754c767c97b14cff1bedd324116ef694bd78cbc45fea67cd",
+          "bytes": 2374,
+          "lines": 61
+        }
+      ]
+    },
+    {
+      "language": "Java",
+      "repository": "junit-team/junit-framework",
+      "commit": "bf8b0f4821e5445d5d2c0f1296d523853f1b6ddb",
+      "url": "https://github.com/junit-team/junit-framework",
+      "stars_at_selection": 7060,
+      "license": "EPL-2.0",
+      "extensions": [
+        "java"
+      ],
+      "cache_key": "junit-team--junit-framework--bf8b0f4821e5",
+      "candidate_pool_sha256": "1c2f0cec77ed81f6511f95bed90c3985b66b4effedeb8094772d872764064fa6",
+      "candidate_count": 1753,
+      "samples": [
+        {
+          "path": "junit-vintage-engine/src/testFixtures/java/org/junit/vintage/engine/samples/junit4/JUnit4TestCaseWithNotFilterableRunner.java",
+          "sha256": "2037add95752013033f231e81d71dbb791875c4210bce2c594ae81ce56142cda",
+          "bytes": 756,
+          "lines": 30
+        },
+        {
+          "path": "junit-jupiter-api/src/main/java/org/junit/jupiter/api/AssertEquals.java",
+          "sha256": "378e7075dc455d6e76f880dacd80299c549d709e754ffed5fbe71d5d68526d75",
+          "bytes": 6214,
+          "lines": 204
+        },
+        {
+          "path": "junit-jupiter-api/src/main/java/org/junit/jupiter/api/condition/DisabledInNativeImage.java",
+          "sha256": "f3bcce13a8da0f0a1e04d156d346bd076d20d582ab6c3d14fb15d6294817adfd",
+          "bytes": 3906,
+          "lines": 83
+        }
+      ]
+    },
+    {
+      "language": "C",
+      "repository": "redis/redis",
+      "commit": "702897679328fef1a350945bafb26b570277880c",
+      "url": "https://github.com/redis/redis",
+      "stars_at_selection": 77108,
+      "license": "NOASSERTION",
+      "extensions": [
+        "c"
+      ],
+      "cache_key": "redis--redis--702897679328",
+      "candidate_pool_sha256": "2714f187bd73e147613b4e8c76796818c478df3af10ed846f8e5fcc91ce1d842",
+      "candidate_count": 376,
+      "samples": [
+        {
+          "path": "src/lolwut6.c",
+          "sha256": "bf055d52bd9c5de6c5421d8d0d5a188d901dd1e9f9c6916502f8b26a5a8d9870",
+          "bytes": 6764,
+          "lines": 181
+        },
+        {
+          "path": "tests/modules/infotest.c",
+          "sha256": "af78d3b5a699573582a3f6e4fbc79a6053f809ce67f5d70e8dae8cc02fe53b52",
+          "bytes": 4695,
+          "lines": 121
+        },
+        {
+          "path": "deps/hiredis/dict.c",
+          "sha256": "3d03513f88eca566db6f6c49b79c2b7bb20481ad1b8afda7e28903dc889f825a",
+          "bytes": 10650,
+          "lines": 343
+        }
+      ]
+    },
+    {
+      "language": "C++",
+      "repository": "fmtlib/fmt",
+      "commit": "f87a75e15262614ce8aa0e6a0664df9d0823fb92",
+      "url": "https://github.com/fmtlib/fmt",
+      "stars_at_selection": 25894,
+      "license": "MIT",
+      "extensions": [
+        "cc",
+        "cpp",
+        "cxx",
+        "h",
+        "hpp",
+        "hh",
+        "hxx"
+      ],
+      "cache_key": "fmtlib--fmt--f87a75e15262",
+      "candidate_pool_sha256": "7f193c1210f8d4eec518d7f64f26081be98820b9ec79bd79865ead9dd12c0fc1",
+      "candidate_count": 54,
+      "samples": [
+        {
+          "path": "test/gtest-extra.cc",
+          "sha256": "a88f5287ce7416f9756b977c9f78e55265d41887f103836e4b435c7f7dbc9758",
+          "bytes": 2053,
+          "lines": 80
+        },
+        {
+          "path": "test/assert-test.cc",
+          "sha256": "49305211b5d48d4e0fe20a4cf4b8f6a9c833e9e0172b0ba6be365cf8045c1b46",
+          "bytes": 875,
+          "lines": 31
+        },
+        {
+          "path": "include/fmt/ostream.h",
+          "sha256": "f3d624f543e74a837910a635b8f7b1e04dc8fbaee3ef34b86d3e8ec077827385",
+          "bytes": 5181,
+          "lines": 172
+        }
+      ]
+    },
+    {
+      "language": "C#",
+      "repository": "serilog/serilog",
+      "commit": "43105b35095337d77f022561a8f2d3db2f9a7937",
+      "url": "https://github.com/serilog/serilog",
+      "stars_at_selection": 8053,
+      "license": "Apache-2.0",
+      "extensions": [
+        "cs"
+      ],
+      "cache_key": "serilog--serilog--43105b350953",
+      "candidate_pool_sha256": "3450c2999478d8c5b56d7f41d75c96e4d1605d0094510853a077e517502e2b00",
+      "candidate_count": 209,
+      "samples": [
+        {
+          "path": "test/Serilog.PerformanceTests/GlobalUsings.cs",
+          "sha256": "0de15fd2dea672c8b07c02c81225ec10593ed5fed14607623a69cbb74e32a686",
+          "bytes": 509,
+          "lines": 15
+        },
+        {
+          "path": "src/Serilog/Rendering/ReusableStringWriter.cs",
+          "sha256": "45990d9b41e5c4a2470775a7a5f3c7ecf907bedd715a2a8ea1a1587d07baf48d",
+          "bytes": 2067,
+          "lines": 71
+        },
+        {
+          "path": "test/Serilog.PerformanceTests/AllocationsBenchmark.cs",
+          "sha256": "79e3ad7050e76fd8b403f577c92b3dace71fdb1e1dce993d48b230d4ae134699",
+          "bytes": 3118,
+          "lines": 113
+        }
+      ]
+    },
+    {
+      "language": "Kotlin",
+      "repository": "lysine-dev/okhttp",
+      "commit": "c3179301fc7d0266c5bf154870c2b0b9da01e7e7",
+      "url": "https://github.com/lysine-dev/okhttp",
+      "stars_at_selection": 47095,
+      "license": "Apache-2.0",
+      "extensions": [
+        "kt",
+        "kts"
+      ],
+      "cache_key": "lysine-dev--okhttp--c3179301fc7d",
+      "candidate_pool_sha256": "5e032665e0d7801d4e696593293a983ddb61ed1f0714488edd0c1603da41be86",
+      "candidate_count": 569,
+      "samples": [
+        {
+          "path": "okhttp/src/jvmTest/kotlin/okhttp3/SocketChannelTest.kt",
+          "sha256": "85ab6e90b680fa2d9941ec8ae003c2df0fb989127829ae31663fc0f86cdf7643",
+          "bytes": 8101,
+          "lines": 273
+        },
+        {
+          "path": "okhttp/src/jvmMain/kotlin/okhttp3/internal/graal/OkHttpFeature.kt",
+          "sha256": "1bab9bd5d5a492f1a59ffff13dbe4f7975d8f19bb27fdcb535f04f69ae49c0b8",
+          "bytes": 991,
+          "lines": 30
+        },
+        {
+          "path": "okhttp-testing-support/src/main/kotlin/okhttp3/TestUtilCommon.kt",
+          "sha256": "339eda9c86990cb053a1ea7c1b04af55c0103576731d7b6ed3ec91b0a52a92da",
+          "bytes": 931,
+          "lines": 31
+        }
+      ]
+    },
+    {
+      "language": "Ruby",
+      "repository": "jekyll/jekyll",
+      "commit": "97c3bdc822df9d5bea4c269b29a28de5a5e29d70",
+      "url": "https://github.com/jekyll/jekyll",
+      "stars_at_selection": 51731,
+      "license": "MIT",
+      "extensions": [
+        "rb"
+      ],
+      "cache_key": "jekyll--jekyll--97c3bdc822df",
+      "candidate_pool_sha256": "e6b7ddf50a4bbff78ae66577ad3d2935b6b4a356b61815977ef9fa6fb223375d",
+      "candidate_count": 158,
+      "samples": [
+        {
+          "path": "test/test_theme_assets_reader.rb",
+          "sha256": "aafcc81e5cf6f19c6fc85131b818c846b5c5022d4bb9f7d4b0bf85de4ff8280f",
+          "bytes": 3370,
+          "lines": 102
+        },
+        {
+          "path": "test/test_static_file.rb",
+          "sha256": "27b66b5b2a29b0711d52b78cc3eafb8fc4223a9604f5e959379ae5a4d30d1705",
+          "bytes": 6097,
+          "lines": 189
+        },
+        {
+          "path": "lib/jekyll/converter.rb",
+          "sha256": "090960d817967352f07d268bc5cb1f5c9de56f81ac8eb1914b04841b13da77d6",
+          "bytes": 1533,
+          "lines": 54
+        }
+      ]
+    },
+    {
+      "language": "PHP",
+      "repository": "laravel/framework",
+      "commit": "5d7797528723107cd4f495326838a7d7d67fbb20",
+      "url": "https://github.com/laravel/framework",
+      "stars_at_selection": 34980,
+      "license": "MIT",
+      "extensions": [
+        "php"
+      ],
+      "cache_key": "laravel--framework--5d7797528723",
+      "candidate_pool_sha256": "cea4d819fcff76088131834cfb58782fce59fe527d0d78873df5d1842c61d76f",
+      "candidate_count": 1668,
+      "samples": [
+        {
+          "path": "src/Illuminate/Notifications/DatabaseNotificationCollection.php",
+          "sha256": "38e19ec5c25e9ace39dcdb8031b89a6e075077bf6db8f05c6c6d7e5919a6f98e",
+          "bytes": 664,
+          "lines": 34
+        },
+        {
+          "path": "src/Illuminate/Contracts/Queue/EntityNotFoundException.php",
+          "sha256": "79e1a8d63ca53566ecea50a634e33833953d2a0c6a70d113d4b22c70c18ca0f2",
+          "bytes": 432,
+          "lines": 21
+        },
+        {
+          "path": "src/Illuminate/Database/DatabaseManager.php",
+          "sha256": "3c2fa7f9b84a121421505bc9fa503f39e3c74d3132fefa48b8ad60fdeee8ddfb",
+          "bytes": 14294,
+          "lines": 504
+        }
+      ]
+    },
+    {
+      "language": "Zig",
+      "repository": "zigtools/zls",
+      "commit": "432aaf8ed063c49cbb542a9025a5aa87cf876f7d",
+      "url": "https://github.com/zigtools/zls",
+      "stars_at_selection": 5296,
+      "license": "MIT",
+      "extensions": [
+        "zig"
+      ],
+      "cache_key": "zigtools--zls--432aaf8ed063",
+      "candidate_pool_sha256": "f2c4c3cbc78cba1c4ce0a85c6544b0055762cdde59af5a081d67b13b5387c377",
+      "candidate_count": 62,
+      "samples": [
+        {
+          "path": "src/tracy.zig",
+          "sha256": "d8856342ecccba6cf46f6d7ba3a24692c5df4d5863d632ef8a579cc9735cd930",
+          "bytes": 11979,
+          "lines": 322
+        },
+        {
+          "path": "tests/analysis/function.zig",
+          "sha256": "5d8631009b1e01fb1ec22568b196146227804a7459ea600d67f4bf6a5cf33a31",
+          "bytes": 426,
+          "lines": 12
+        },
+        {
+          "path": "tests/utility/diff.zig",
+          "sha256": "d13d13f879fc9485c015c0ec6abfc5c9658b9cac1941289d42ce2429a270429c",
+          "bytes": 1299,
+          "lines": 39
+        }
+      ]
+    },
+    {
+      "language": "Bash",
+      "repository": "ohmybash/oh-my-bash",
+      "commit": "4d86087c31b867a30ddaaea270804839b0988e74",
+      "url": "https://github.com/ohmybash/oh-my-bash",
+      "stars_at_selection": 7755,
+      "license": "MIT",
+      "extensions": [
+        "sh",
+        "bash"
+      ],
+      "cache_key": "ohmybash--oh-my-bash--4d86087c31b8",
+      "candidate_pool_sha256": "02a1fa0608cc9e0a926c274870c781fb5aba8d0420a64688f2336ff208f779f7",
+      "candidate_count": 225,
+      "samples": [
+        {
+          "path": "themes/robbyrussell/robbyrussell.theme.sh",
+          "sha256": "2162de0540b1fd3ac32eb5bca908232495f1e94f704df2aa6ff07d08fea75a20",
+          "bytes": 1847,
+          "lines": 46
+        },
+        {
+          "path": "plugins/ansible/ansible.plugin.sh",
+          "sha256": "4c41ced4cb35c02b9ac76a3b70a2727262037ea0e1e779e63f618f2544e37a9f",
+          "bytes": 694,
+          "lines": 29
+        },
+        {
+          "path": "plugins/git/git.plugin.sh",
+          "sha256": "5d6abf79469f756ff83d84a6c8db308ee4c812247e75c1b3f5953bb40ce789a7",
+          "bytes": 19418,
+          "lines": 565
+        }
+      ]
+    },
+    {
+      "language": "Dart",
+      "repository": "cfug/dio",
+      "commit": "f1bef462289b40992d625d4eb2a2f42321217573",
+      "url": "https://github.com/cfug/dio",
+      "stars_at_selection": 12841,
+      "license": "MIT",
+      "extensions": [
+        "dart"
+      ],
+      "cache_key": "cfug--dio--f1bef462289b",
+      "candidate_pool_sha256": "952a49011f7a6e18e2b001700849188f839f879a59a951247d04614175f19910",
+      "candidate_count": 149,
+      "samples": [
+        {
+          "path": "dio/lib/src/response/response_stream_handler.dart",
+          "sha256": "9e2c95304798dd3a206b240bed7e4b95e453a4c870c279c0283fbe8da7b8b734",
+          "bytes": 3366,
+          "lines": 118
+        },
+        {
+          "path": "dio/test/stacktrace_test.dart",
+          "sha256": "185d9306cd6744d3680260f693738031a61462b7fafc7fd948adef7385660722",
+          "bytes": 13709,
+          "lines": 436
+        },
+        {
+          "path": "dio/lib/src/progress_stream/io_progress_stream.dart",
+          "sha256": "be2a8278d40fd63faf460216032db21014a332d86ea9227d6256e919f1d68e2f",
+          "bytes": 1237,
+          "lines": 46
+        }
+      ]
+    },
+    {
+      "language": "Lua",
+      "repository": "neovim/neovim",
+      "commit": "187d13aa6047e1914244e8033b2d2f3379a0b97f",
+      "url": "https://github.com/neovim/neovim",
+      "stars_at_selection": 103172,
+      "license": "NOASSERTION",
+      "extensions": [
+        "lua"
+      ],
+      "cache_key": "neovim--neovim--187d13aa6047",
+      "candidate_pool_sha256": "2ba71848b6364accef203388b1880636647dc6165ff9971665e67b117cfd336b",
+      "candidate_count": 681,
+      "samples": [
+        {
+          "path": "test/functional/legacy/qf_title_spec.lua",
+          "sha256": "64bd48a1e10e22c12651654dd75f8402fc3906b2cf628346b13904ffff1fa6eb",
+          "bytes": 748,
+          "lines": 33
+        },
+        {
+          "path": "test/functional/options/num_options_spec.lua",
+          "sha256": "769497ffeb5b7689a37de095cc9616d2d1140653dd6918579c9ab991b5708375",
+          "bytes": 3931,
+          "lines": 109
+        },
+        {
+          "path": "test/functional/legacy/012_directory_spec.lua",
+          "sha256": "1c81c98bbf97cabc59886c37345520f022c0c245c0c9e2a260a0e09eb32903f4",
+          "bytes": 2454,
+          "lines": 93
+        }
+      ]
+    },
+    {
+      "language": "Scala",
+      "repository": "typelevel/cats",
+      "commit": "813f1bc8e357991caa587149f1a0ff97cd292d08",
+      "url": "https://github.com/typelevel/cats",
+      "stars_at_selection": 5479,
+      "license": "NOASSERTION",
+      "extensions": [
+        "scala",
+        "sc"
+      ],
+      "cache_key": "typelevel--cats--813f1bc8e357",
+      "candidate_pool_sha256": "8d4621e4445d1d7110e5a39b3ac768a15dd92535b464c8673600bc3ff2bc0081",
+      "candidate_count": 815,
+      "samples": [
+        {
+          "path": "tests/shared/src/test/scala/cats/tests/ContTSuite.scala",
+          "sha256": "89f96f3c0c9e03bf97032379dace93d1112ef9450bd640f937a57280e46e3739",
+          "bytes": 7493,
+          "lines": 259
+        },
+        {
+          "path": "scalafix/v1_0_0/output/src/main/scala/fix/v1_0_0/RenameTupleApplySyntax.scala",
+          "sha256": "34287606aedd35a3456d1c33e46441ad025aaa4c235990a68899f765d50773b2",
+          "bytes": 975,
+          "lines": 28
+        },
+        {
+          "path": "scalafix/v1_0_0/input/src/main/scala/fix/v1_0_0/RenameCartesian.scala",
+          "sha256": "5444d9efc757e07b2d12fc3a6d5433a08f4bfb57f8acd0dcaca53258094741bf",
+          "bytes": 263,
+          "lines": 13
+        }
+      ]
+    },
+    {
+      "language": "Elixir",
+      "repository": "phoenixframework/phoenix",
+      "commit": "e36472d96423be6ae17c5050dfc63c4c6852fcd4",
+      "url": "https://github.com/phoenixframework/phoenix",
+      "stars_at_selection": 23201,
+      "license": "MIT",
+      "extensions": [
+        "ex",
+        "exs"
+      ],
+      "cache_key": "phoenixframework--phoenix--e36472d96423",
+      "candidate_pool_sha256": "c4164d6985bfbadb12fe8e1c4d42430f4b35e9c0955a5525053631f2dbe54aac",
+      "candidate_count": 179,
+      "samples": [
+        {
+          "path": "integration_test/test/code_generation/app_with_mysql_adapter_json_test.exs",
+          "sha256": "af9027c479726dc4ab497939ad4ccffa2c798488bdeb99b6f870a046e5cbabda",
+          "bytes": 995,
+          "lines": 32
+        },
+        {
+          "path": "lib/phoenix/digester.ex",
+          "sha256": "01bc50dc2769f1e6e7dcbef274cb5bbe5f93b5edee6afff58cf85b6d78731d75",
+          "bytes": 12415,
+          "lines": 416
+        },
+        {
+          "path": "test/mix/tasks/phx.gen.channel_test.exs",
+          "sha256": "13c388653b4a176b82c2614abc3a1b9800c655140ad6f9ea048633028cbeb955",
+          "bytes": 7872,
+          "lines": 215
+        }
+      ]
+    },
+    {
+      "language": "R",
+      "repository": "tidyverse/dplyr",
+      "commit": "d5e94e7fa8fd4a5f79c1a707d1842216bb4c691f",
+      "url": "https://github.com/tidyverse/dplyr",
+      "stars_at_selection": 5080,
+      "license": "NOASSERTION",
+      "extensions": [
+        "r"
+      ],
+      "cache_key": "tidyverse--dplyr--d5e94e7fa8fd",
+      "candidate_pool_sha256": "e1ca67519a7f3b2784a8d5cb1ce0452dd997d364563db7ff7ab58480e952a711",
+      "candidate_count": 182,
+      "samples": [
+        {
+          "path": "tests/testthat/test-when.R",
+          "sha256": "76ffc5956d4cb1b0dd653360e8151ff00f8e8b03e01620ea2c6c4689a1bda173",
+          "bytes": 3974,
+          "lines": 131
+        },
+        {
+          "path": "tests/testthat/test-groups-with.R",
+          "sha256": "692550fccc55e2b26b3e09f7f53763f6b705997eeccb11abb2ef5775f4bf0608",
+          "bytes": 625,
+          "lines": 21
+        },
+        {
+          "path": "R/select.R",
+          "sha256": "1d12ff58fc29078edb001b4a740146e3782df659eb6fcdc58b09e529a1bf5c0f",
+          "bytes": 3075,
+          "lines": 102
+        }
+      ]
+    },
+    {
+      "language": "Julia",
+      "repository": "FluxML/Flux.jl",
+      "commit": "53a969e8132a886468fd030ad19a54e41b30bb92",
+      "url": "https://github.com/FluxML/Flux.jl",
+      "stars_at_selection": 4756,
+      "license": "NOASSERTION",
+      "extensions": [
+        "jl"
+      ],
+      "cache_key": "FluxML--Flux.jl--53a969e8132a",
+      "candidate_pool_sha256": "fc918bfa90c8020f2ac4a5d92038eb48e4aafa1a39803a850f8efda5f7906e42",
+      "candidate_count": 103,
+      "samples": [
+        {
+          "path": "test/ext_reactant/optstate_reactant.jl",
+          "sha256": "8957f0afd6c8017e2ffed0f6ba9ccb3e84fc922bf4815ab5a758d3c7534b6f96",
+          "bytes": 5380,
+          "lines": 113
+        },
+        {
+          "path": "perf/layers/vgg.jl",
+          "sha256": "cc83f2a4231fd74a3175a412a94a3c460b7d182729da345e09c290e7b373eae2",
+          "bytes": 1778,
+          "lines": 55
+        },
+        {
+          "path": "src/layers/show.jl",
+          "sha256": "9f28b87c83852af0c3c7ba91f4a4d83d4dd7f2842d874044ce4253efd121bdcd",
+          "bytes": 8967,
+          "lines": 250
+        }
+      ]
+    },
+    {
+      "language": "Haskell",
+      "repository": "jgm/pandoc",
+      "commit": "b5e35e840ca9fc4e1b11bc9392fea38b749f74c6",
+      "url": "https://github.com/jgm/pandoc",
+      "stars_at_selection": 46695,
+      "license": "GPL-2.0",
+      "extensions": [
+        "hs"
+      ],
+      "cache_key": "jgm--pandoc--b5e35e840ca9",
+      "candidate_pool_sha256": "5272899b004dc84514a62a91166f3df86d5e837b5209d13884c8e5b8510a414c",
+      "candidate_count": 306,
+      "samples": [
+        {
+          "path": "pandoc-cli/lua/PandocCLI/Lua.hs",
+          "sha256": "46faa3e7e35ec50af35998c906323a195b0b82d7add1a84aea96d8439cf84092",
+          "bytes": 2494,
+          "lines": 69
+        },
+        {
+          "path": "src/Text/Pandoc/Readers/Mdoc/Macros.hs",
+          "sha256": "3359a45654cfb6e556990837e832cbe0a0e49cce7f8ab887b306b961aebaa354",
+          "bytes": 1923,
+          "lines": 183
+        },
+        {
+          "path": "test/Tests/Readers/Xlsx.hs",
+          "sha256": "d2e68563b4e445e2202274abac9874214c029ebed7f0c62ac68904f909fea0d6",
+          "bytes": 1406,
+          "lines": 48
+        }
+      ]
+    },
+    {
+      "language": "Clojure",
+      "repository": "ring-clojure/ring",
+      "commit": "6238fe0e2e4506e28a0ce6ade9ae514f7b02cbee",
+      "url": "https://github.com/ring-clojure/ring",
+      "stars_at_selection": 3891,
+      "license": "MIT",
+      "extensions": [
+        "clj",
+        "cljs",
+        "cljc"
+      ],
+      "cache_key": "ring-clojure--ring--6238fe0e2e45",
+      "candidate_pool_sha256": "eaa9fe3aea869a19988cc7862044e182c32eef25fbcf11d1016f86dfc64f5952",
+      "candidate_count": 80,
+      "samples": [
+        {
+          "path": "ring-jakarta-servlet/project.clj",
+          "sha256": "c8f10f68f5f202b36176e34820fe42040455d41ef2f0f0fb8c8f7720f75f8e6b",
+          "bytes": 812,
+          "lines": 16
+        },
+        {
+          "path": "ring-core/test/ring/middleware/session/test/cookie.clj",
+          "sha256": "58be47cee5e48fc3caa987299230e9bda6a76c2a0673f64df11c1bbd44a9ac02",
+          "bytes": 3160,
+          "lines": 82
+        },
+        {
+          "path": "ring-core/test/ring/test/websocket.clj",
+          "sha256": "463345a9c2656d11c7b4025e3084e6ebec5926f694280b05caf20a4c65e37f09",
+          "bytes": 2159,
+          "lines": 51
+        }
+      ]
+    },
+    {
+      "language": "PowerShell",
+      "repository": "pester/Pester",
+      "commit": "98e56d65da1642a7158992b50ded240c42a3ac18",
+      "url": "https://github.com/pester/Pester",
+      "stars_at_selection": 3366,
+      "license": "NOASSERTION",
+      "extensions": [
+        "ps1",
+        "psm1",
+        "psd1"
+      ],
+      "cache_key": "pester--Pester--98e56d65da16",
+      "candidate_pool_sha256": "c6f069b4123f39edf10522a3f4b891e80c7b681642b4912068bdb65e3c531589",
+      "candidate_count": 248,
+      "samples": [
+        {
+          "path": "src/functions/assert/String/Should-NotBeEmptyString.ps1",
+          "sha256": "f6ecf36a87789f576d90d40861890f034b40e16ba01755a101496075d3e1f50a",
+          "bytes": 2354,
+          "lines": 66
+        },
+        {
+          "path": "src/functions/assert/String/Should-MatchString.ps1",
+          "sha256": "26bbcd0151cb3aa977e08131dd54baea8fef96d15ffb7b0b2d91215936217119",
+          "bytes": 3889,
+          "lines": 99
+        },
+        {
+          "path": "tst/functions/assertions/BeNullOrEmpty.Tests.ps1",
+          "sha256": "fcffa5e7dfb301ddc4938e872329912f1dc1cce3f98190c6c7d6d2c87887fb19",
+          "bytes": 1809,
+          "lines": 49
+        }
+      ]
+    },
+    {
+      "language": "Perl",
+      "repository": "mojolicious/mojo",
+      "commit": "60624d154b1b2081b9229be2c9f3d98af0039e95",
+      "url": "https://github.com/mojolicious/mojo",
+      "stars_at_selection": 2756,
+      "license": "Artistic-2.0",
+      "extensions": [
+        "pl",
+        "pm"
+      ],
+      "cache_key": "mojolicious--mojo--60624d154b1b",
+      "candidate_pool_sha256": "783aee5c1a05622950616349317ec9cbbc3f21fea7bda54689492d50edcaf3a6",
+      "candidate_count": 150,
+      "samples": [
+        {
+          "path": "t/mojolicious/lib/MojoliciousTest/SyntaxError.pm",
+          "sha256": "f34c74ed8a124acf416ac3dbd85f43ee881b076e00b1e9c9651d24bb2821c958",
+          "bytes": 95,
+          "lines": 6
+        },
+        {
+          "path": "lib/Mojo/Promise.pm",
+          "sha256": "1cfaaeea0023f759149c806e754dc7455b7eabee87ac708e5d9c9ca5dee4125c",
+          "bytes": 15528,
+          "lines": 556
+        },
+        {
+          "path": "lib/Mojo/Collection.pm",
+          "sha256": "abb725090e89aed122b4335b61d533e563e0d5bd490dc253c65d601cf8153a81",
+          "bytes": 10378,
+          "lines": 400
+        }
+      ]
+    },
+    {
+      "language": "SQL",
+      "repository": "pgvector/pgvector",
+      "commit": "5db3087b27a4fd095e7398f4b0f2706bf6d54bd3",
+      "url": "https://github.com/pgvector/pgvector",
+      "stars_at_selection": 23481,
+      "license": "NOASSERTION",
+      "extensions": [
+        "sql"
+      ],
+      "cache_key": "pgvector--pgvector--5db3087b27a4",
+      "candidate_pool_sha256": "f0551afc80310776494b94533a7101eed71fde30d6f28efda3930db4bda858a8",
+      "candidate_count": 56,
+      "samples": [
+        {
+          "path": "sql/vector--0.7.3--0.7.4.sql",
+          "sha256": "122d2985b021236c02258e3d28d9151d7eb4987ccce2875137390b5209b8c379",
+          "bytes": 153,
+          "lines": 2
+        },
+        {
+          "path": "test/sql/sparsevec.sql",
+          "sha256": "579aa54c657ead2e3bca9b4095e2dfe893965821d890b029bedeb17b6ba83dc3",
+          "bytes": 5822,
+          "lines": 138
+        },
+        {
+          "path": "sql/vector--0.1.5--0.1.6.sql",
+          "sha256": "557e3d9df2b9f5a5a2428545dbcfa7d99d62f489bbd44127445a36663a8953d1",
+          "bytes": 153,
+          "lines": 2
+        }
+      ]
+    },
+    {
+      "language": "HCL",
+      "repository": "terraform-aws-modules/terraform-aws-vpc",
+      "commit": "b3abd6df2ecf052451a361ed55b8f06f8742a795",
+      "url": "https://github.com/terraform-aws-modules/terraform-aws-vpc",
+      "stars_at_selection": 3277,
+      "license": "Apache-2.0",
+      "extensions": [
+        "tf",
+        "tfvars",
+        "hcl"
+      ],
+      "cache_key": "terraform-aws-modules--terraform-aws-vpc--b3abd6df2ecf",
+      "candidate_pool_sha256": "63da44573c8feb4fd300438af35aa9bc851046bcc32a1382bc48b95f1723d898",
+      "candidate_count": 61,
+      "samples": [
+        {
+          "path": "examples/separate-route-tables/outputs.tf",
+          "sha256": "b54297a43621bf0f920b184b079f7187f46d73b03cd449609bbb886539145950",
+          "bytes": 15162,
+          "lines": 514
+        },
+        {
+          "path": "wrappers/vpc-endpoints/variables.tf",
+          "sha256": "bdf97193a724ed243c4826302dd79e7a0d3dc539bc9072cd51d8aa1d74257613",
+          "bytes": 297,
+          "lines": 11
+        },
+        {
+          "path": "examples/ipv6-dualstack/versions.tf",
+          "sha256": "f6fdc44954ac24d2de3008657f5fdb3a53fe7870551410f354a3bcb9450437e1",
+          "bytes": 148,
+          "lines": 10
+        }
+      ]
+    },
+    {
+      "language": "HTML",
+      "repository": "mdn/dom-examples",
+      "commit": "03ae1ffb325a9202d3a64f26ab5b8361392a5368",
+      "url": "https://github.com/mdn/dom-examples",
+      "stars_at_selection": 4040,
+      "license": "CC0-1.0",
+      "extensions": [
+        "html",
+        "htm"
+      ],
+      "cache_key": "mdn--dom-examples--03ae1ffb325a",
+      "candidate_pool_sha256": "8f96d5e05de1eeb9c685a5ed91720d4b043955ab6d5d7e2af1c0885f42480534",
+      "candidate_count": 199,
+      "samples": [
+        {
+          "path": "history-api/index.html",
+          "sha256": "05879536a0457f6af5b2693d2f94df2932f536dca1f75d89f60f6783e81909f6",
+          "bytes": 708,
+          "lines": 27
+        },
+        {
+          "path": "scroll-promises/window-methods/index.html",
+          "sha256": "fbf59cf8f5609a28b7ae4c4348e3da692a4f29676f69de5bac447ad3eb024622",
+          "bytes": 7427,
+          "lines": 138
+        },
+        {
+          "path": "view-transitions/mpa-chapter-nav-transition-types/index3.html",
+          "sha256": "e69023252041c808ccbc66acf94c28fbaaf7734c8ac22127c8a3c95d655b3e45",
+          "bytes": 2294,
+          "lines": 54
+        }
+      ]
+    },
+    {
+      "language": "CSS",
+      "repository": "animate-css/animate.css",
+      "commit": "3f8ab233dbbd9d2fe577528d2296382954be3d1a",
+      "url": "https://github.com/animate-css/animate.css",
+      "stars_at_selection": 82917,
+      "license": "NOASSERTION",
+      "extensions": [
+        "css"
+      ],
+      "cache_key": "animate-css--animate.css--3f8ab233dbbd",
+      "candidate_pool_sha256": "09b6ea492370e0039da6ca9e2a0f8ff71170141aeb322878af180989516fe3d5",
+      "candidate_count": 101,
+      "samples": [
+        {
+          "path": "source/attention_seekers/rubberBand.css",
+          "sha256": "d21454d3d2b8e13d303eabbc2b5f06a0335708d76c4bbc6b7b0b3ad8684b70e5",
+          "bytes": 424,
+          "lines": 33
+        },
+        {
+          "path": "source/back_exits/backOutRight.css",
+          "sha256": "f578e7cb49bd35e39e365c5c1597d61ba2148a05cf79c2fd03a881ecd9835c94",
+          "bytes": 283,
+          "lines": 20
+        },
+        {
+          "path": "source/sliding_exits/slideOutDown.css",
+          "sha256": "4bb34f1b95e28809be317aa3570b67306244a89c32c4ab3164b2b00ec46e09e9",
+          "bytes": 205,
+          "lines": 14
+        }
+      ]
+    }
+  ]
+}

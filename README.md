@@ -77,6 +77,10 @@ assuming all dependencies fit the response.
 - **Multi-language**: Real parsers for [29 code, query, infrastructure, and markup language families](docs/languages.md), including Zig, Bash, Dart, Lua, Scala, SQL, and Terraform; the support matrix distinguishes direct resolution from inferred relationships
 - **Reusable interfaces**: The crate, CLI, and MCP server support custom agent tools
 
+Language features have different coverage. The [real-project audit](docs/oss-language-audit.md)
+records 87 random files across 29 public projects, with manual source checks and
+known failures in imports, maps, callers/types, and large-project analysis.
+
 ## Installation
 
 For the native CLI, install from a checkout with Rust 1.89 or newer:
