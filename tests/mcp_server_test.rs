@@ -191,11 +191,10 @@ async fn test_process_local_codebase_path_traversal_rejected() -> Result<()> {
     Ok(())
 }
 
-/// Test that repeated requests are cached
+/// Repeated local requests must reflect current source without waiting for a TTL.
 #[tokio::test]
-async fn test_process_local_codebase_caching() -> Result<()> {
+async fn test_process_local_codebase_refreshes_current_source() -> Result<()> {
     use std::path::PathBuf;
-    use std::time::Instant;
     use tempfile::TempDir;
 
     // Given: A running MCP server and a test directory
@@ -226,30 +225,27 @@ async fn test_process_local_codebase_caching() -> Result<()> {
         max_tokens: None,
     };
 
-    // When: We make the first request
-    let start1 = Instant::now();
     let response1: serde_json::Value = client
         .request("process_local_codebase", rpc_params![&request])
         .await?;
-    let time1 = start1.elapsed();
-
-    // And then make the same request again
-    let start2 = Instant::now();
     let response2: serde_json::Value = client
         .request("process_local_codebase", rpc_params![&request])
         .await?;
-    let time2 = start2.elapsed();
-
-    // Then: The second request should be significantly faster
-    assert!(
-        time2 < time1 / 2,
-        "Second request should be at least 2x faster due to caching: {time1:?} vs {time2:?}"
-    );
-
-    // And the responses should be identical
     assert_eq!(response1["markdown"], response2["markdown"]);
-    assert_eq!(response1["file_count"], response2["file_count"]);
     assert_eq!(response1["token_count"], response2["token_count"]);
+    std::fs::write(
+        temp_dir.path().join("main.rs"),
+        "pub fn current_source() {}\n",
+    )?;
+    let response3: serde_json::Value = client
+        .request("process_local_codebase", rpc_params![&request])
+        .await?;
+    assert!(response3["markdown"]
+        .as_str()
+        .is_some_and(|text| text.contains("current_source")));
+    assert_ne!(response1["markdown"], response3["markdown"]);
+    assert_eq!(response3["file_count"], 1);
+    server_handle.stop()?;
 
     Ok(())
 }

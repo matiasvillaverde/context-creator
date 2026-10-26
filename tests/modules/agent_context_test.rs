@@ -485,7 +485,14 @@ fn whole_declarations_and_locations_work_across_thirteen_language_families() {
         let found = response
             .snippets
             .iter()
-            .find(|snippet| snippet.symbol.as_deref() == Some(symbol))
+            .find(|snippet| {
+                snippet.symbol.as_deref() == Some(symbol)
+                    || (snippet.kind == "type"
+                        && snippet.representation == Representation::Full
+                        && snippet.content.as_ref().is_some_and(|content| {
+                            content.contains(symbol) && content.contains("return now > 10;")
+                        }))
+            })
             .unwrap_or_else(|| {
                 panic!(
                     "{filename}: {}",

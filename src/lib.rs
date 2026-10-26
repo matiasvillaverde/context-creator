@@ -35,7 +35,7 @@ pub fn run(mut config: Config) -> Result<()> {
 
     // Handle commands if present
     match &config.command {
-        Some(cli::Commands::Context(args)) => return commands::context::run_context(args),
+        Some(cli::Commands::Context(args)) => return commands::context::run_context(args, &config),
         Some(cli::Commands::Recipes { recipe_file }) => {
             let book = commands::context::load_recipe_book(recipe_file.as_deref())?;
             print!("{}", serde_json::to_string(&agent::list_recipes(&book)?)?);

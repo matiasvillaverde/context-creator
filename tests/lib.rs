@@ -30,6 +30,8 @@ mod config_rename_test;
 mod content_hash_internal_test;
 #[path = "modules/content_hash_test.rs"]
 mod content_hash_test;
+#[path = "modules/context_correctness_test.rs"]
+mod context_correctness_test;
 #[path = "modules/integration_test.rs"]
 mod integration_test;
 #[path = "modules/module_rename_test.rs"]

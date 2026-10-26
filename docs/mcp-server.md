@@ -62,7 +62,8 @@ current content rather than serving stale file pages. Both progressive tools
 support `tokenizer` and `secret_scan`, defaulting to `o200k-base` and `redact`.
 Redaction is heuristic; see the [scanning policy](configuration.md#secret-content-policy).
 Existing analyze tools preserve the default `off` policy unless requested and
-include the policy in response cache keys. All filesystem and parser work runs
+local analysis regenerates responses on every call, including secret checks.
+All filesystem and parser work runs
 on blocking workers.
 
 ## Installation and Setup
@@ -85,10 +86,16 @@ Stdio remains the simplest local client configuration.
 
 Both `analyze_local` and `analyze_remote` accept optional `model` and `tokenizer`
 fields, plus `output_reserve` and `secret_scan`. Model names pass through to the selected CLI; `tokenizer` accepts
-`o200k-base` (default) or `cl100k-base`. Cache keys include both fields. For Ollama,
+`o200k-base` (default) or `cl100k-base`. Remote-response cache keys include both fields. For Ollama,
 provide a model when sending a prompt. Omit `prompt` to build context without an
 LLM call. `token_count` measures the returned context with the selected local
 encoding, excluding provider instructions, tool schemas, and response tokens.
+
+`analyze_local` (legacy: `process_local_codebase`) reads current files and ignore
+rules on every call. Whole local responses and provider answers are not reused;
+repeated calls with a prompt invoke the selected provider again. This avoids
+returning pre-edit source or bypassing a newly detected secret. Use
+`build_context` for revision-checked source-analysis reuse and incremental sessions.
 
 Existing npm releases follow their packaged version; build this checkout to use
 these changes before the next release.
@@ -343,7 +350,7 @@ context-creator-mcp --version
 
 ## Performance Considerations
 
-1. **Caching**: The MCP server caches analysis results for better performance
+1. **Caching**: Tokenizers and compiled queries are shared; `build_context` reuses unchanged source analysis. RMCP remote responses have a ten-minute cache; local analyze responses are regenerated.
 2. **Parallel Processing**: File analysis uses all available CPU cores
 3. **Memory Management**: Large repositories are processed incrementally
 4. **Token Limits**: Responses are automatically truncated to fit context windows

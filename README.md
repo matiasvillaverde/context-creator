@@ -60,6 +60,9 @@ response types are available through `agent::AgentService` and the MCP
 `build_context`/`list_recipes` tools. See the [agent tools guide](docs/agent-tools.md)
 for integration, custom recipes, session updates, evidence, and limits.
 
+The `context` command honors top-level options and TOML filters, budgets,
+tokenizer, and secret policy; options after `context` take precedence.
+
 ## Key Advantages
 
 - **Dependency-aware**: Uses tree-sitter AST parsing to extract imports, declarations, calls, and types

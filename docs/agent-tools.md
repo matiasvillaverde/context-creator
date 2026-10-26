@@ -20,9 +20,23 @@ Imports, static dependents, matching tests/configuration, and supported contract
 expand those anchors. `--include` narrows initial task matches; dependencies can
 still be included. `--ignore` and repository ignore rules exclude files throughout.
 
+CLI settings resolve in this order: options after `context`, top-level options,
+then TOML defaults, then the agent-tool defaults (8,000 tokens, `o200k-base`,
+redaction). This applies to the root/directory, token budget, tokenizer, secret
+policy, and include/ignore patterns. Command-specific pattern lists replace
+inherited lists; recipe filters are then applied. Configuration discovery uses
+the current directory or an explicit top-level `--config PATH`.
+Inherited budgets outside 256–65,536 return an error; use
+`context --max-tokens 8000` to override a larger ordinary-context default.
+
+If a filename matches the task but its declarations use different terms, its
+declarations remain candidates and carry a `filename_match` explanation.
+
 Functions are returned whole. When a function does not fit, its declaration
-signature can be returned instead. Types containing nested methods use signatures
-plus separately selected methods. Imports and other top-level source appear as
+signature can be returned instead. Full type declarations preserve their fields
+and methods when they fit, replacing separately selected methods to avoid
+duplicating source. A type that only fits as a signature reports a
+`type_body_omitted` gap. Imports and other top-level source appear as
 `file_context` snippets. Unsupported source formats use whole-file candidates.
 No function body is cut off halfway to meet a budget.
 

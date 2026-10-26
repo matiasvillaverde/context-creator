@@ -142,6 +142,26 @@ pub(crate) fn select(
             None,
         ));
     }
+    let identifiers = if changes
+        .iter()
+        .any(|change| !change.removed_symbols.is_empty())
+    {
+        snapshot
+            .sources
+            .iter()
+            .map(|(path, source)| {
+                let names = source
+                    .text
+                    .split(|ch: char| !(ch.is_alphanumeric() || ch == '_' || ch == '$'))
+                    .filter(|name| !name.is_empty())
+                    .map(str::to_lowercase)
+                    .collect::<BTreeSet<_>>();
+                (path.as_str(), names)
+            })
+            .collect::<BTreeMap<_, _>>()
+    } else {
+        BTreeMap::new()
+    };
     for change in changes {
         if snapshot.sources.contains_key(&change.path) {
             ranks.insert(
@@ -157,12 +177,12 @@ pub(crate) fn select(
                 ),
             );
         }
-        for (path, source) in &snapshot.sources {
-            if change
-                .removed_symbols
-                .iter()
-                .any(|symbol| words(&source.text).contains(&symbol.to_lowercase()))
-                && *path != change.path
+        for path in snapshot.sources.keys() {
+            if change.removed_symbols.iter().any(|symbol| {
+                identifiers
+                    .get(path.as_str())
+                    .is_some_and(|names| names.contains(symbol.to_lowercase().as_str()))
+            }) && *path != change.path
             {
                 let entry = ranks.entry(path.clone()).or_insert((0, vec![]));
                 entry.0 = entry.0.max(400);
@@ -350,6 +370,12 @@ pub(crate) fn select(
             continue;
         }
         let source = &snapshot.sources[&path];
+        let filename_match = !terms.is_disjoint(&words(&path));
+        let declaration_match = source.declarations.iter().any(|declaration| {
+            !terms.is_disjoint(&words(
+                &source.text[declaration.start_byte..declaration.end_byte],
+            ))
+        });
         if source.parse_error {
             gaps.push(Gap {
                 kind: "parse_error".into(),
@@ -382,22 +408,14 @@ pub(crate) fn select(
                 let name = &declaration.qualified_name;
                 let occurrence = occurrences.entry(name).or_insert(0usize);
                 *occurrence += 1;
-                let contains_declarations = source.declarations.iter().any(|child| {
-                    child.start_byte > declaration.start_byte
-                        && child.end_byte <= declaration.end_byte
-                });
-                let signature_only = contains_declarations && declaration.symbol.kind == "type";
-                let content = if signature_only {
-                    declaration.signature.clone()
-                } else {
-                    source.text[declaration.start_byte..declaration.end_byte].to_string()
-                };
+                let content = source.text[declaration.start_byte..declaration.end_byte].to_string();
                 let symbol_score =
                     terms.intersection(&words(&declaration.symbol.name)).count() as i64 * 100;
                 let text_score = terms.intersection(&words(&content)).count() as i64 * 15;
                 if reasons.iter().all(|reason| reason.kind == "task_match")
                     && symbol_score == 0
                     && text_score == 0
+                    && !(filename_match && !declaration_match)
                 {
                     continue;
                 }
@@ -423,8 +441,13 @@ pub(crate) fn select(
                     (declaration.start_byte, declaration.end_byte),
                 );
                 item.snippet.symbol = Some(declaration.symbol.name.clone());
-                if signature_only {
-                    item.snippet.representation = Representation::Signature;
+                if filename_match && !declaration_match {
+                    item.snippet.reasons.push(reason(
+                        "filename_match",
+                        "File path matches the task; no declaration repeats its terms".into(),
+                        Confidence::Inferred,
+                        None,
+                    ));
                 }
                 candidates.push(item);
             }

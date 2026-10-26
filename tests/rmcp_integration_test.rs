@@ -604,3 +604,34 @@ async fn task_context_tools_are_discoverable_and_sessions_work_over_stdio() -> R
     client.shutdown().await?;
     Ok(())
 }
+
+#[tokio::test]
+async fn analyze_local_returns_current_source_after_an_edit_over_stdio() -> Result<()> {
+    let project = TempDir::new()?;
+    let source = project.path().join("session.rs");
+    let mut client = RmcpTestClient::spawn().await?;
+    client.initialize().await?;
+    for (id, name) in [(2, "before_edit"), (3, "after_edit")] {
+        std::fs::write(&source, format!("pub fn {name}() {{}}\n"))?;
+        let response = client.request(id, "tools/call", json!({
+            "name": "analyze_local", "arguments": {"path":project.path(), "include_context":true}
+        })).await?;
+        let text = response["result"]["content"][0]["text"]
+            .as_str()
+            .context("missing local analysis")?;
+        let payload: context_creator::mcp_server::ProcessLocalResponse =
+            serde_json::from_str(text)?;
+        assert!(payload
+            .context
+            .as_ref()
+            .is_some_and(|context| context.contains(name)));
+        if id == 3 {
+            assert!(!payload
+                .context
+                .as_ref()
+                .is_some_and(|context| context.contains("before_edit")));
+        }
+    }
+    client.shutdown().await?;
+    Ok(())
+}

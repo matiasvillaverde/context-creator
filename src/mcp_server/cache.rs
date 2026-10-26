@@ -6,7 +6,8 @@ use std::hash::Hash;
 use std::path::PathBuf;
 use std::time::Duration;
 
-/// Cache key for process_local_codebase requests
+/// Compatibility cache key for library callers managing local freshness themselves.
+/// Server handlers regenerate local responses rather than using request-only caching.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct ProcessLocalCacheKey {
     pub prompt: String,

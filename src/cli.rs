@@ -287,7 +287,7 @@ impl LlmTool {
 #[derive(Subcommand, Debug, Clone)]
 pub enum Commands {
     /// Build task context, selection explanations, change impact, and session deltas as JSON
-    Context(crate::commands::context::ContextArgs),
+    Context(Box<crate::commands::context::ContextArgs>),
 
     /// List built-in and custom agent-tool recipes as JSON
     Recipes {
@@ -592,7 +592,8 @@ impl Config {
                 ));
             }
             return args
-                .validate()
+                .to_request(self)
+                .map(|_| ())
                 .map_err(|error| ContextCreatorError::InvalidConfiguration(error.to_string()));
         }
 
