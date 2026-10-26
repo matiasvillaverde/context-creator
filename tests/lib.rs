@@ -36,6 +36,10 @@ mod context_correctness_test;
 mod integration_test;
 #[path = "modules/module_rename_test.rs"]
 mod module_rename_test;
+#[path = "modules/popular_languages_test.rs"]
+mod popular_languages_test;
+#[path = "modules/zig_dependency_context_test.rs"]
+mod zig_dependency_context_test;
 
 // CLI tests
 #[path = "modules/cli_combinations_test.rs"]

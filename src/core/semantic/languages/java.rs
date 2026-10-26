@@ -95,7 +95,7 @@ impl LanguageAnalyzer for JavaAnalyzer {
                             module: module.to_string(),
                             items: vec![item.to_string()],
                             is_relative: false,
-                            line: node.start_position().row,
+                            line: node.start_position().row + 1,
                         });
                     };
                 }
@@ -111,7 +111,7 @@ impl LanguageAnalyzer for JavaAnalyzer {
                             module: node
                                 .child_by_field_name("object")
                                 .map(|object| node_text(object, content).to_string()),
-                            line: node.start_position().row,
+                            line: node.start_position().row + 1,
                         });
                     }
                 }
@@ -128,14 +128,14 @@ impl LanguageAnalyzer for JavaAnalyzer {
                             is_exported: !modifiers
                                 .split_whitespace()
                                 .any(|word| word == "private"),
-                            line: node.start_position().row,
+                            line: node.start_position().row + 1,
                         });
                     }
                 }
                 "type_identifier" => result.type_references.push(TypeReference {
                     name: node_text(node, content).to_string(),
                     module: None,
-                    line: node.start_position().row,
+                    line: node.start_position().row + 1,
                     definition_path: None,
                     is_external: false,
                     external_package: None,

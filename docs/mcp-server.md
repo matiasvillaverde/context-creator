@@ -55,9 +55,18 @@ The default page is 200 lines/4,096 tokens, with limits of 1,000 lines/32,768
 tokens. Input files are limited to 10 MiB. Empty or past-EOF ranges have no
 `end_line` or cursor.
 
+Set `dependency_tokens` (256–65,536) to receive a `dependency_context` alongside
+the source page. It follows transitive local imports, returns complete
+declarations and located relationships, and reports unresolved/omitted context.
+Its complete JSON fits that separate budget; the page still uses `max_tokens`.
+Both exclude the outer read/MCP envelope. Omit it for a page-only read. See the
+[dependency context guide](agent-tools.md#task-context) for limits and examples.
+
 Paths are relative to `root`. Traversal, hidden components, symlinks, binary
 files, and repository-ignored files are denied. Ignore matching examines only
-ancestor directories, avoiding a full tree walk for each page. New calls read
+ancestor directories, avoiding a full tree walk for page-only reads. Optional
+dependency context walks/fingerprints the project and reuses unchanged analysis.
+New calls read
 current content rather than serving stale file pages. Both progressive tools
 support `tokenizer` and `secret_scan`, defaulting to `o200k-base` and `redact`.
 Redaction is heuristic; see the [scanning policy](configuration.md#secret-content-policy).

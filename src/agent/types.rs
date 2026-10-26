@@ -21,6 +21,8 @@ pub struct ContextRequest {
     #[serde(default)]
     pub task: String,
     #[serde(default)]
+    /// Files/directories relative to root. Local imports are followed transitively,
+    /// with exclusions, unresolved links, and graph/token limits reported in the response.
     pub seeds: Vec<PathBuf>,
     #[serde(default = "default_recipe")]
     pub recipe: String,

@@ -383,33 +383,34 @@ impl AgentService {
                 detail: "Type rendered as a signature to fit the budget; read the source for omitted fields and members".into(),
             })
             .collect::<Vec<_>>();
-        for gap in signatures {
-            push_gap(&mut response, gap, &counter, request.max_tokens)?;
-        }
-        for gap in selection.gaps {
-            push_gap(&mut response, gap, &counter, request.max_tokens)?;
-        }
-        for change in changes {
-            response.changes.push(change);
-            if !fits(&mut response, &counter, request.max_tokens)? {
-                response.changes.pop();
-                response.truncated_metadata += 1;
-            }
-        }
-        for relation in selection.relations {
-            response.relations.push(relation);
-            if !fits(&mut response, &counter, request.max_tokens)? {
-                response.relations.pop();
-                response.truncated_metadata += 1;
-            }
-        }
-        for omission in omitted {
-            response.omissions.push(omission);
-            if !fits(&mut response, &counter, request.max_tokens)? {
-                response.omissions.pop();
-                response.truncated_metadata += 1;
-            }
-        }
+        fit_metadata(
+            &mut response,
+            signatures.into_iter().chain(selection.gaps).collect(),
+            |response| &mut response.gaps,
+            &counter,
+            request.max_tokens,
+        )?;
+        fit_metadata(
+            &mut response,
+            changes,
+            |response| &mut response.changes,
+            &counter,
+            request.max_tokens,
+        )?;
+        fit_metadata(
+            &mut response,
+            selection.relations,
+            |response| &mut response.relations,
+            &counter,
+            request.max_tokens,
+        )?;
+        fit_metadata(
+            &mut response,
+            omitted,
+            |response| &mut response.omissions,
+            &counter,
+            request.max_tokens,
+        )?;
         while !fits(&mut response, &counter, request.max_tokens)? {
             if response.omissions.pop().is_some()
                 || response.relations.pop().is_some()
@@ -468,17 +469,40 @@ impl AgentService {
     }
 }
 
-fn push_gap(
+fn fit_metadata<T: Clone>(
     response: &mut ContextResponse,
-    gap: Gap,
+    values: Vec<T>,
+    field: fn(&mut ContextResponse) -> &mut Vec<T>,
     counter: &TokenCounter,
     budget: usize,
 ) -> Result<()> {
-    response.gaps.push(gap);
-    if !fits(response, counter, budget)? {
-        response.gaps.pop();
-        response.truncated_metadata += 1;
+    if values.is_empty() {
+        return Ok(());
     }
+    let original = field(response).len();
+    let truncated = response.truncated_metadata;
+    field(response).extend(values.iter().cloned());
+    if fits(response, counter, budget)? {
+        return Ok(());
+    }
+    field(response).truncate(original);
+    // Fit an ordered prefix in logarithmic recounts. Deep graphs must not
+    // repeatedly tokenize an almost-full response once for every omitted edge.
+    let mut low = 0;
+    let mut high = values.len();
+    while low < high {
+        let middle = low + (high - low).div_ceil(2);
+        response.truncated_metadata = truncated + values.len() - middle;
+        field(response).extend(values[..middle].iter().cloned());
+        if fits(response, counter, budget)? {
+            low = middle;
+        } else {
+            high = middle - 1;
+        }
+        field(response).truncate(original);
+    }
+    response.truncated_metadata = truncated + values.len() - low;
+    field(response).extend(values.into_iter().take(low));
     Ok(())
 }
 

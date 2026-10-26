@@ -53,6 +53,7 @@ context-creator context --root . --task "Fix session expiration" \
   --recipe debug_failure --max-tokens 8000
 context-creator context --root . --recipe review_change --base-ref HEAD
 context-creator recipes
+context-creator context --root . --seed src/main.zig --max-tokens 12000
 ```
 
 These commands return bounded JSON and make no model calls. The same request and
@@ -63,12 +64,17 @@ for integration, custom recipes, session updates, evidence, and limits.
 The `context` command honors top-level options and TOML filters, budgets,
 tokenizer, and secret policy; options after `context` take precedence.
 
+Seed one file to collect its transitive local import graph, complete declarations,
+and nearby callers/tests. MCP `read_file` can also return this context alongside a
+source page by setting `dependency_tokens`. Check omissions and gaps before
+assuming all dependencies fit the response.
+
 ## Key Advantages
 
 - **Dependency-aware**: Uses tree-sitter AST parsing to extract imports, declarations, calls, and types
 - **Predictable budgets**: Fits the complete rendered output across all input directories
 - **Focused selection**: Uses file filters, priority rules, and dependency relationships
-- **Multi-language**: Semantic extraction and local resolution for [13 language families](docs/languages.md), including C/C++, C#, Kotlin, Ruby, and PHP
+- **Multi-language**: Real parsers for [29 code, query, infrastructure, and markup language families](docs/languages.md), including Zig, Bash, Dart, Lua, Scala, SQL, and Terraform; the support matrix distinguishes direct resolution from inferred relationships
 - **Reusable interfaces**: The crate, CLI, and MCP server support custom agent tools
 
 ## Installation

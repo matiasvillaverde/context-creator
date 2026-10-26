@@ -14,6 +14,7 @@ pub struct ContextArgs {
     pub root: Option<PathBuf>,
     #[arg(long, default_value = "")]
     pub task: String,
+    /// Anchor to a relative file/directory and follow its reachable local imports
     #[arg(long = "seed")]
     pub seeds: Vec<PathBuf>,
     #[arg(long, default_value = "explain_feature")]

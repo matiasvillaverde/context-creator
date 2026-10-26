@@ -48,7 +48,7 @@ impl Default for ContextCreatorServer {
 #[tool_router]
 impl ContextCreatorServer {
     #[tool(
-        description = "Build bounded task context with selection reasons, change impact, contract hints, and revision-checked session deltas; never calls an LLM"
+        description = "Build bounded task context. Seed a file to follow its transitive local imports with whole declarations, located relationships, unresolved links, and explicit omissions. Supports change impact, contract hints, and revision-checked sessions; never calls an LLM."
     )]
     pub async fn build_context(
         &self,
@@ -91,17 +91,20 @@ impl ContextCreatorServer {
     }
 
     #[tool(
-        description = "Read a bounded source range relative to a repository root; respects ignore rules and denies symlinks and hidden paths"
+        description = "Read a bounded source page. Set dependency_tokens to also receive transitive local dependency context, whole declarations, source locations, and unresolved links within a separate budget. Respects ignores; denies hidden paths and symlinks."
     )]
     pub async fn read_file(
         &self,
         Parameters(request): Parameters<super::ReadFileRequest>,
     ) -> Result<Json<super::ReadFileResponse>, ErrorData> {
-        tokio::task::spawn_blocking(move || super::progressive::read_file_sync(request))
-            .await
-            .map_err(|error| ErrorData::new(ErrorCode::INTERNAL_ERROR, error.to_string(), None))?
-            .map(Json)
-            .map_err(|error| ErrorData::new(ErrorCode::INVALID_PARAMS, error.to_string(), None))
+        let service = self.agent.clone();
+        tokio::task::spawn_blocking(move || {
+            super::progressive::read_file_with_context_sync(request, &service)
+        })
+        .await
+        .map_err(|error| ErrorData::new(ErrorCode::INTERNAL_ERROR, error.to_string(), None))?
+        .map(Json)
+        .map_err(|error| ErrorData::new(ErrorCode::INVALID_PARAMS, error.to_string(), None))
     }
 
     #[tool(description = "Analyze a local codebase directory and answer questions about it")]
@@ -244,6 +247,7 @@ impl ServerHandler for ContextCreatorServer {
             "- Analyze local directories with 'analyze_local'\n",
             "- Analyze remote Git repositories with 'analyze_remote'\n",
             "- Explore declarations with 'repository_map', then page source with 'read_file'\n",
+            "- For a file's transitive dependencies, pass seeds to 'build_context' or dependency_tokens to 'read_file'; inspect gaps, omissions, and truncated_metadata for missing context\n",
             "- Get file metadata with 'file_metadata'\n",
             "- Search codebases with 'search'\n",
             "- Generate diffs with 'diff'\n",

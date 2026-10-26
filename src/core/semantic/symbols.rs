@@ -53,11 +53,18 @@ pub(crate) fn extract_declarations_with_diagnostics(
     let tree = parser
         .parse_bounded(content, None)
         .ok_or_else(|| ContextCreatorError::ParseError("Declaration parsing timed out".into()))?;
+    if let Some(profile) = super::languages::profiles::for_file(path) {
+        return Ok((
+            profile.declarations(content, &tree)?,
+            tree.root_node().has_error(),
+        ));
+    }
     let mut symbols = Vec::new();
     let mut cursor = tree.walk();
     'walk: loop {
         let node = cursor.node();
         let kind = match node.kind() {
+            "test_declaration" => Some("test"),
             "function_item"
             | "function_definition"
             | "function_declaration"
@@ -95,6 +102,7 @@ pub(crate) fn extract_declarations_with_diagnostics(
             {
                 Some("function")
             }
+            "variable_declaration" if zig_container(node).is_some() => Some("type"),
             _ => None,
         };
         if let Some(kind) = kind {
@@ -104,6 +112,7 @@ pub(crate) fn extract_declarations_with_diagnostics(
                     .filter(|value| {
                         matches!(value.kind(), "arrow_function" | "function_expression")
                     })
+                    .or_else(|| zig_container(node))
                     .unwrap_or(node);
                 let mut children = declaration.walk();
                 let body = declaration.child_by_field_name("body").or_else(|| {
@@ -123,10 +132,20 @@ pub(crate) fn extract_declarations_with_diagnostics(
                         )
                     })
                 });
-                let mut end = body.map(|body| body.start_byte()).unwrap_or_else(|| {
-                    let text = &content[node.byte_range()];
-                    node.start_byte() + text.find('\n').unwrap_or(text.len())
+                let container_start = zig_container(node).and_then(|container| {
+                    let mut children = container.walk();
+                    let body = container
+                        .children(&mut children)
+                        .find(|child| child.kind() == "{");
+                    body
                 });
+                let mut end = body
+                    .or(container_start)
+                    .map(|body| body.start_byte())
+                    .unwrap_or_else(|| {
+                        let text = &content[node.byte_range()];
+                        node.start_byte() + text.find('\n').unwrap_or(text.len())
+                    });
                 if matches!(
                     path.extension().and_then(|extension| extension.to_str()),
                     Some("py" | "pyi" | "pyw")
@@ -214,6 +233,13 @@ fn declaration_name(node: Node<'_>) -> Option<Node<'_>> {
     if let Some(name) = node.child_by_field_name("name") {
         return Some(name);
     }
+    if matches!(node.kind(), "variable_declaration" | "test_declaration") {
+        let mut children = node.walk();
+        return node.named_children(&mut children).find(|child| {
+            child.kind() == "identifier"
+                || node.kind() == "test_declaration" && child.kind() == "string"
+        });
+    }
     let mut current = node.child_by_field_name("declarator")?;
     for _ in 0..16 {
         if matches!(
@@ -227,4 +253,22 @@ fn declaration_name(node: Node<'_>) -> Option<Node<'_>> {
             .or_else(|| current.child_by_field_name("name"))?;
     }
     None
+}
+
+pub(crate) fn zig_container(node: Node<'_>) -> Option<Node<'_>> {
+    if node.kind() != "variable_declaration" {
+        return None;
+    }
+    let mut children = node.walk();
+    let container = node.named_children(&mut children).find(|child| {
+        matches!(
+            child.kind(),
+            "struct_declaration"
+                | "enum_declaration"
+                | "union_declaration"
+                | "opaque_declaration"
+                | "error_set_declaration"
+        )
+    });
+    container
 }

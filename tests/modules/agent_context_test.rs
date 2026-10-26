@@ -408,8 +408,13 @@ fn cli_returns_budgeted_json_and_discovers_custom_recipes() {
 }
 
 #[test]
-fn whole_declarations_and_locations_work_across_thirteen_language_families() {
+fn whole_declarations_and_locations_work_across_fourteen_language_families() {
     let fixtures = [
+        (
+            "sample.zig",
+            "pub fn session_expired(now: u64) bool { return now > 10; }\n",
+            "session_expired",
+        ),
         (
             "sample.rs",
             "pub fn session_expired(now: u64) -> bool { now > 10 }\n",

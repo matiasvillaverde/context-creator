@@ -42,6 +42,52 @@ pub trait ModuleResolver: Send + Sync {
 pub struct ResolverUtils;
 
 impl ResolverUtils {
+    /// Expand known package members without another directory walk.
+    pub(crate) fn local_module_files<'a>(
+        target: &Path,
+        source: &Path,
+        visible: impl IntoIterator<Item = &'a PathBuf>,
+    ) -> Vec<PathBuf> {
+        let go_package = source
+            .extension()
+            .is_some_and(|extension| extension == "go")
+            && target
+                .extension()
+                .is_some_and(|extension| extension == "go");
+        let directory = if target.is_dir() {
+            Some(target)
+        } else if go_package {
+            target.parent()
+        } else {
+            None
+        };
+        let Some(directory) = directory else {
+            return vec![target.into()];
+        };
+        let mut files = visible
+            .into_iter()
+            .filter(|path| path.parent() == Some(directory))
+            .filter(|path| {
+                if go_package {
+                    path.extension().is_some_and(|extension| extension == "go")
+                        && !path
+                            .file_name()
+                            .is_some_and(|name| name.to_string_lossy().ends_with("_test.go"))
+                } else if source
+                    .extension()
+                    .is_some_and(|extension| extension == "scala" || extension == "sc")
+                {
+                    path.extension()
+                        .is_some_and(|extension| extension == "scala" || extension == "sc")
+                } else {
+                    path.extension().is_some_and(|extension| extension == "tf")
+                }
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        files.sort();
+        files
+    }
     /// Try to find a file with different extensions
     pub fn find_with_extensions(base_path: &Path, extensions: &[&str]) -> Option<PathBuf> {
         // Try exact path first

@@ -151,7 +151,7 @@ Notes:
 
 - Language analyzers live in `src/core/semantic/languages/`.
 - `get_analyzer_for_file()` controls which files get semantic extraction.
-- `get_resolver_for_file()` currently provides module resolution for Rust, Python, JavaScript, TypeScript, Go, Swift, Java, C/C++, C#, Kotlin, Ruby, and PHP.
+- `get_resolver_for_file()` provides local resolution for the families in `docs/languages.md`. Shared language profiles live in `languages/profiles/`; SQL object relationships are inferred from unique declarations in the agent index.
 - Adding or expanding language support usually requires:
   - Updating `src/utils/file_ext.rs` if file type or fence-language behavior changes.
   - Updating `src/core/semantic/languages/mod.rs` and the language file.

@@ -6,7 +6,7 @@ use super::{
 };
 use anyhow::{bail, Result};
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, VecDeque},
     path::Path,
 };
 
@@ -14,6 +14,7 @@ pub(crate) struct Candidate {
     pub snippet: Snippet,
     pub signature: Option<String>,
     pub score: i64,
+    pub primary: bool,
     pub bytes: (usize, usize),
 }
 
@@ -200,8 +201,16 @@ pub(crate) fn select(
     }
     let initial = ranks.clone();
     let mut relations = Vec::new();
+    let mut import_limit =
+        recipe.depth > 0 && expand_import_tree(snapshot, request, &mut ranks, &mut relations)?;
+    let primary_paths = ranks.keys().cloned().collect::<BTreeSet<_>>();
+    let mut neighborhood = initial.keys().cloned().collect::<BTreeSet<_>>();
     for depth in 0..recipe.depth {
-        let frontier = ranks.clone();
+        let frontier = ranks
+            .iter()
+            .filter(|(path, _)| neighborhood.contains(*path))
+            .map(|(path, rank)| (path.clone(), rank.clone()))
+            .collect::<BTreeMap<_, _>>();
         for (path, (score, _)) in &frontier {
             if *score < 100 {
                 continue;
@@ -216,12 +225,24 @@ pub(crate) fn select(
                 let mut links = links.iter().collect::<Vec<_>>();
                 links.sort();
                 for target in links {
-                    let confidence =
-                        if kind == "dependency" && source.resolved_imports.contains_key(target) {
-                            Confidence::Resolved
-                        } else {
-                            confidence
-                        };
+                    let source_line = if kind == "dependency" {
+                        source
+                            .resolved_imports
+                            .get(target)
+                            .map(|edge| edge.line)
+                            .unwrap_or(1)
+                    } else {
+                        1
+                    };
+                    let confidence = if kind == "dependency" {
+                        source
+                            .resolved_imports
+                            .get(target)
+                            .map(|edge| edge.confidence)
+                            .unwrap_or(confidence)
+                    } else {
+                        confidence
+                    };
                     let Ok(relative_path) = target.strip_prefix(&request.root) else {
                         continue;
                     };
@@ -234,7 +255,7 @@ pub(crate) fn select(
                     let relation = Relation {
                         from: Location {
                             path: path.clone(),
-                            line: 1,
+                            line: source_line,
                         },
                         to: Location {
                             path: target.clone(),
@@ -243,7 +264,7 @@ pub(crate) fn select(
                         kind: kind.into(),
                         confidence,
                         evidence: if kind == "dependency" {
-                            "Local dependency candidate in the static project graph; binding may be heuristic"
+                            dependency_evidence(confidence)
                         } else {
                             "Static importing or calling client; runtime dispatch is unverified"
                         }
@@ -255,18 +276,22 @@ pub(crate) fn select(
                     if ranks.len() >= 256 && !ranks.contains_key(&target) {
                         continue;
                     }
+                    neighborhood.insert(target.clone());
+                    let lexical_anchor = initial.get(&target).is_some_and(|(_, reasons)| {
+                        reasons.iter().all(|reason| reason.kind == "task_match")
+                    });
                     let entry = ranks.entry(target).or_insert((0, vec![]));
                     entry.0 = entry
                         .0
                         .max(score.saturating_sub(150 + depth as i64 * 50).max(100));
-                    if entry.1.len() < 4 {
+                    if !lexical_anchor && entry.1.len() < 4 {
                         let why = reason(
                             kind,
                             "Related through the static project graph".into(),
                             confidence,
                             Some(Location {
                                 path: path.clone(),
-                                line: 1,
+                                line: source_line,
                             }),
                         );
                         if !entry.1.contains(&why) {
@@ -286,6 +311,7 @@ pub(crate) fn select(
                         if ranks.len() >= 256 && !ranks.contains_key(&to.path) {
                             continue;
                         }
+                        neighborhood.insert(to.path.clone());
                         let entry = ranks.entry(to.path.clone()).or_insert((0, vec![]));
                         entry.0 = entry.0.max(score.saturating_sub(100).max(100));
                         let why = reason(
@@ -309,6 +335,7 @@ pub(crate) fn select(
         }
     }
     if recipe.include_tests || recipe.include_config {
+        let zig_context = initial.keys().any(|path| path.ends_with(".zig"));
         let focus_words = initial
             .keys()
             .flat_map(|path| words(path))
@@ -325,7 +352,7 @@ pub(crate) fn select(
             }
             let score = words(path).intersection(&focus_words).count()
                 + words(&source.text).intersection(&focus_words).count();
-            if score > 0 {
+            if score > 0 || zig_context && matches!(path.as_str(), "build.zig" | "build.zig.zon") {
                 let entry = ranks.entry(path.clone()).or_insert((0, vec![]));
                 entry.0 = entry.0.max(300 + score as i64 * 10);
                 entry.1.push(reason(
@@ -341,16 +368,34 @@ pub(crate) fn select(
             }
         }
     }
+    // The recipe bounds surrounding callers/contracts. Follow the forward import
+    // closure separately so a seed's dependencies do not disappear after 2-3 hops.
+    import_limit |=
+        recipe.depth > 0 && expand_import_tree(snapshot, request, &mut ranks, &mut relations)?;
     let mut ranked = ranks.into_iter().collect::<Vec<_>>();
-    ranked.sort_by(|a, b| b.1 .0.cmp(&a.1 .0).then(a.0.cmp(&b.0)));
+    ranked.sort_by(|a, b| {
+        primary_paths
+            .contains(&b.0)
+            .cmp(&primary_paths.contains(&a.0))
+            .then(b.1 .0.cmp(&a.1 .0))
+            .then(a.0.cmp(&b.0))
+    });
     let mut candidates = Vec::new();
     let mut gaps = Vec::new();
-    if ranked.len() >= 256 || relations.len() >= 1024 {
+    if import_limit || ranked.len() >= 256 || relations.len() >= 1024 {
         gaps.push(Gap {
             kind: "graph_limit".into(),
             path: None,
             line: None,
             detail: "Task expansion reached its 256-file or 1024-relationship limit".into(),
+        });
+    }
+    if ranked.len() > 128 {
+        gaps.push(Gap {
+            kind: "candidate_limit".into(),
+            path: None,
+            line: None,
+            detail: format!("{} ranked files were not expanded into snippets because of the 128-file candidate limit", ranked.len() - 128),
         });
     }
     if ranked.is_empty() {
@@ -367,9 +412,27 @@ pub(crate) fn select(
             && !seeds.contains(&path)
             && !changes.iter().any(|change| change.path == path)
         {
+            gaps.push(Gap {
+                kind: "recipe_exclusion".into(),
+                path: Some(path),
+                line: None,
+                detail: "File was found but omitted by the recipe's test/configuration policy"
+                    .into(),
+            });
             continue;
         }
         let source = &snapshot.sources[&path];
+        if recipe.depth == 0 && !source.resolved_imports.is_empty() {
+            gaps.push(Gap {
+                kind: "dependency_traversal_disabled".into(),
+                path: Some(path.clone()),
+                line: None,
+                detail: format!(
+                    "{} local imports were not followed because this recipe sets depth to zero",
+                    source.resolved_imports.len()
+                ),
+            });
+        }
         let filename_match = !terms.is_disjoint(&words(&path));
         let declaration_match = source.declarations.iter().any(|declaration| {
             !terms.is_disjoint(&words(
@@ -501,7 +564,15 @@ pub(crate) fn select(
                 kind: "unresolved_import".into(),
                 path: Some(path.clone()),
                 line: Some(*line),
-                detail: format!("Import {module} has no visible resolved local definition"),
+                detail: format!("Import {module} has no unique visible local definition"),
+            });
+        }
+        for (module, line) in &source.external_imports {
+            gaps.push(Gap {
+                kind: "external_import".into(),
+                path: Some(path.clone()),
+                line: Some(*line),
+                detail: format!("Import {module} requires external or build-provided source; its implementation is not included"),
             });
         }
     }
@@ -519,9 +590,13 @@ pub(crate) fn select(
         );
     }
     gaps.push(Gap { kind: "static_analysis".into(), path: None, line: None, detail: "Selection uses lexical matches and static relationships; dynamic imports, dispatch, service origins, and compiler classpaths may be unresolved".into() });
+    for candidate in &mut candidates {
+        candidate.primary = primary_paths.contains(&candidate.snippet.path);
+    }
     candidates.sort_by(|a, b| {
-        b.score
-            .cmp(&a.score)
+        b.primary
+            .cmp(&a.primary)
+            .then(b.score.cmp(&a.score))
             .then(a.snippet.path.cmp(&b.snippet.path))
             .then(a.snippet.start_line.cmp(&b.snippet.start_line))
     });
@@ -588,6 +663,7 @@ fn candidate(
         },
         signature,
         score,
+        primary: false,
         bytes,
     }
 }
@@ -604,7 +680,99 @@ pub(crate) fn is_test(path: &str) -> bool {
     })
 }
 fn is_config(path: &Path) -> bool {
-    path.extension()
+    matches!(
+        path.file_name().and_then(|name| name.to_str()),
+        Some("build.zig" | "build.zig.zon")
+    ) || path
+        .extension()
         .and_then(|value| value.to_str())
         .is_some_and(|ext| ["toml", "json", "yaml", "yml", "ini", "cfg"].contains(&ext))
+}
+
+fn dependency_evidence(confidence: Confidence) -> &'static str {
+    if confidence == Confidence::Resolved {
+        "Static local file or module dependency"
+    } else {
+        "Local dependency candidate; runtime, namespace, or search-path binding is unverified"
+    }
+}
+
+fn expand_import_tree(
+    snapshot: &Snapshot,
+    request: &ContextRequest,
+    ranks: &mut BTreeMap<String, (i64, Vec<SelectionReason>)>,
+    relations: &mut Vec<Relation>,
+) -> Result<bool> {
+    let mut pending = ranks.keys().cloned().collect::<VecDeque<_>>();
+    let mut queued = ranks.keys().cloned().collect::<BTreeSet<_>>();
+    let mut edges = relations
+        .iter()
+        .enumerate()
+        .filter(|(_, relation)| relation.kind == "dependency")
+        .map(|(index, relation)| {
+            (
+                (relation.from.path.clone(), relation.to.path.clone()),
+                index,
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let mut limited = false;
+    while let Some(path) = pending.pop_front() {
+        let Some(source) = snapshot.sources.get(&path) else {
+            continue;
+        };
+        let score = ranks.get(&path).map(|rank| rank.0).unwrap_or(100);
+        for (target, import) in &source.resolved_imports {
+            let target = relative(target.strip_prefix(&request.root)?)?;
+            if !snapshot.sources.contains_key(&target) {
+                continue;
+            }
+            let relation = Relation {
+                from: Location {
+                    path: path.clone(),
+                    line: import.line,
+                },
+                to: Location {
+                    path: target.clone(),
+                    line: 1,
+                },
+                kind: "dependency".into(),
+                confidence: import.confidence,
+                evidence: dependency_evidence(import.confidence).into(),
+            };
+            let key = (path.clone(), target.clone());
+            if let Some(index) = edges.get(&key) {
+                relations[*index] = relation;
+            } else if relations.len() < 1024 {
+                edges.insert(key, relations.len());
+                relations.push(relation);
+            } else {
+                limited = true;
+            }
+            if ranks.len() >= 256 && !ranks.contains_key(&target) {
+                limited = true;
+                continue;
+            }
+            let already_selected = ranks.contains_key(&target);
+            let entry = ranks.entry(target.clone()).or_insert((0, vec![]));
+            entry.0 = entry.0.max(score.saturating_sub(100).max(100));
+            let why = reason(
+                "dependency",
+                "Reachable through a local import".into(),
+                import.confidence,
+                Some(Location {
+                    path: path.clone(),
+                    line: import.line,
+                }),
+            );
+            // Existing lexical anchors keep their declaration-level relevance filter.
+            if !already_selected && entry.1.len() < 4 && !entry.1.contains(&why) {
+                entry.1.push(why);
+            }
+            if queued.insert(target.clone()) {
+                pending.push_back(target);
+            }
+        }
+    }
+    Ok(limited)
 }

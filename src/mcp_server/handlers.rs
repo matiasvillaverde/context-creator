@@ -116,22 +116,21 @@ impl CodebaseRpcServer for CodebaseRpcImpl {
         &self,
         request: super::ReadFileRequest,
     ) -> RpcResult<super::ReadFileResponse> {
-        tokio::task::spawn_blocking(move || super::progressive::read_file_sync(request))
-            .await
-            .map_err(|error| {
-                jsonrpsee::types::ErrorObject::owned(
-                    -32603,
-                    "Worker failed",
-                    Some(error.to_string()),
-                )
-            })?
-            .map_err(|error| {
-                jsonrpsee::types::ErrorObject::owned(
-                    -32602,
-                    "Invalid file request",
-                    Some(error.to_string()),
-                )
-            })
+        let service = self.agent.clone();
+        tokio::task::spawn_blocking(move || {
+            super::progressive::read_file_with_context_sync(request, &service)
+        })
+        .await
+        .map_err(|error| {
+            jsonrpsee::types::ErrorObject::owned(-32603, "Worker failed", Some(error.to_string()))
+        })?
+        .map_err(|error| {
+            jsonrpsee::types::ErrorObject::owned(
+                -32602,
+                "Invalid file request",
+                Some(error.to_string()),
+            )
+        })
     }
 
     async fn process_local_codebase(

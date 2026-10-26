@@ -52,6 +52,9 @@ pub struct ReadFileRequest {
     pub max_tokens: Option<usize>,
     pub tokenizer: Option<TokenEncoding>,
     pub secret_scan: Option<SecretPolicy>,
+    /// Add complete, transitive agent context with this separate JSON token budget (256..=65536).
+    /// Omit to read only the requested source page without project analysis.
+    pub dependency_tokens: Option<usize>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -65,6 +68,9 @@ pub struct ReadFileResponse {
     pub truncated: bool,
     /// Counts content only, excluding the MCP JSON envelope.
     pub token_count: usize,
+    /// Optional dependency context; its token_count bounds its complete compact JSON.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dependency_context: Option<crate::agent::ContextResponse>,
 }
 
 fn token_limit(requested: Option<usize>) -> Result<usize> {
@@ -126,7 +132,21 @@ pub fn repository_map_sync(request: RepositoryMapRequest) -> Result<RepositoryMa
 }
 
 pub fn read_file_sync(request: ReadFileRequest) -> Result<ReadFileResponse> {
+    read_file_with_context_sync(request, &crate::agent::AgentService::new())
+}
+
+/// Reuse one AgentService across reads to retain unchanged source analysis.
+pub fn read_file_with_context_sync(
+    request: ReadFileRequest,
+    service: &crate::agent::AgentService,
+) -> Result<ReadFileResponse> {
     let limit = token_limit(request.max_tokens)?;
+    if request
+        .dependency_tokens
+        .is_some_and(|budget| !(256..=65536).contains(&budget))
+    {
+        bail!("dependency_tokens must be between 256 and 65536");
+    }
     let start = request.start_line.unwrap_or(1);
     let lines = request.max_lines.unwrap_or(200);
     if start == 0 || !(1..=1000).contains(&lines) {
@@ -208,6 +228,17 @@ pub fn read_file_sync(request: ReadFileRequest) -> Result<ReadFileResponse> {
     } else {
         Some(start.saturating_add(selected.len() - 1))
     };
+    let dependency_context = request
+        .dependency_tokens
+        .map(|budget| {
+            let mut context = crate::agent::ContextRequest::new(&root, "");
+            context.seeds.push(request.path.clone());
+            context.max_tokens = budget;
+            context.tokenizer = request.tokenizer.unwrap_or_default();
+            context.secret_scan = request.secret_scan.unwrap_or(SecretPolicy::Redact);
+            service.build_context(context)
+        })
+        .transpose()?;
     Ok(ReadFileResponse {
         path: request.path,
         content: rendered.text,
@@ -220,5 +251,6 @@ pub fn read_file_sync(request: ReadFileRequest) -> Result<ReadFileResponse> {
         },
         truncated,
         token_count: rendered.token_count.unwrap_or(0),
+        dependency_context,
     })
 }

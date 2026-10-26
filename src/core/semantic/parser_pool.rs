@@ -87,6 +87,22 @@ impl ParserPoolManager {
             ("kotlin", "file.kt"),
             ("ruby", "file.rb"),
             ("php", "file.php"),
+            ("zig", "file.zig"),
+            ("bash", "file.sh"),
+            ("dart", "file.dart"),
+            ("lua", "file.lua"),
+            ("scala", "file.scala"),
+            ("elixir", "file.ex"),
+            ("r", "file.R"),
+            ("julia", "file.jl"),
+            ("haskell", "file.hs"),
+            ("clojure", "file.clj"),
+            ("powershell", "file.ps1"),
+            ("perl", "file.pm"),
+            ("sql", "file.sql"),
+            ("hcl", "file.tf"),
+            ("html", "file.html"),
+            ("css", "file.css"),
         ] {
             if let Some(language) = super::grammar_for_file(std::path::Path::new(path)) {
                 if let Ok(pool) = Pool::builder(ParserManager::new(language, name))
