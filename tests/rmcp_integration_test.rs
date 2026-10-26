@@ -635,3 +635,75 @@ async fn analyze_local_returns_current_source_after_an_edit_over_stdio() -> Resu
     client.shutdown().await?;
     Ok(())
 }
+
+#[tokio::test]
+async fn modern_stdio_reads_discoverable_transitive_context_and_refreshes_deep_edits() -> Result<()>
+{
+    let project = TempDir::new()?;
+    for index in 0..7 {
+        let code = if index < 6 {
+            format!("const next = @import(\"level{}.zig\");\npub fn step{index}() u32 {{ return next.step{}(); }}\n", index + 1, index + 1)
+        } else {
+            "pub fn step6() u32 { return 1; }\n".into()
+        };
+        std::fs::write(project.path().join(format!("level{index}.zig")), code)?;
+    }
+    let mut client = RmcpTestClient::spawn().await?;
+    client
+        .request(1, "server/discover", modern_params(json!({})))
+        .await?;
+    let tools = client
+        .request(2, "tools/list", modern_params(json!({})))
+        .await?;
+    let read = tools["result"]["tools"]
+        .as_array()
+        .context("missing tools")?
+        .iter()
+        .find(|tool| tool["name"] == "read_file")
+        .context("missing read_file")?;
+    assert!(read["inputSchema"]["properties"]
+        .get("dependency_tokens")
+        .is_some());
+    let mut revision = None;
+    for id in [3, 4] {
+        if id == 4 {
+            std::fs::write(
+                project.path().join("level6.zig"),
+                "pub fn step6() u32 { return 42; }\n",
+            )?;
+        }
+        let response = client.request(id, "tools/call", modern_params(json!({"name":"read_file", "arguments":{"root":project.path(), "path":"level0.zig", "max_lines":1, "dependency_tokens":16000}}))).await?;
+        let text = response["result"]["content"][0]["text"]
+            .as_str()
+            .context("missing read response")?;
+        let payload: context_creator::mcp_server::ReadFileResponse = serde_json::from_str(text)?;
+        let context = payload
+            .dependency_context
+            .context("missing dependency context")?;
+        assert!(context.token_count <= 16000);
+        assert_eq!(
+            context
+                .snippets
+                .iter()
+                .map(|snippet| &snippet.path)
+                .collect::<std::collections::BTreeSet<_>>()
+                .len(),
+            7
+        );
+        if id == 4 {
+            assert_ne!(revision, Some(context.source_revision.clone()));
+            assert_eq!(context.index.declarations_reparsed, 1);
+            assert!(context
+                .snippets
+                .iter()
+                .any(|snippet| snippet.path == "level6.zig"
+                    && snippet
+                        .content
+                        .as_ref()
+                        .is_some_and(|content| content.contains("return 42"))));
+        }
+        revision = Some(context.source_revision);
+    }
+    client.shutdown().await?;
+    Ok(())
+}

@@ -19,6 +19,7 @@ fn read_request(root: &Path, path: &str) -> ReadFileRequest {
         max_tokens: None,
         tokenizer: None,
         secret_scan: None,
+        dependency_tokens: None,
     }
 }
 fn map_request(root: &Path) -> RepositoryMapRequest {
@@ -30,6 +31,118 @@ fn map_request(root: &Path) -> RepositoryMapRequest {
         tokenizer: None,
         secret_scan: None,
     }
+}
+
+#[tokio::test]
+async fn dependency_aware_reads_match_across_both_servers_and_reuse_current_analysis() {
+    let project = TempDir::new().unwrap();
+    for index in 0..7 {
+        let content = if index < 6 {
+            format!("const next = @import(\"level{}.zig\");\npub fn step{index}() u32 {{ return next.step{}(); }}\n", index + 1, index + 1)
+        } else {
+            "pub fn step6() u32 { return 1; }\n".into()
+        };
+        fs::write(project.path().join(format!("level{index}.zig")), content).unwrap();
+    }
+    let modern = ContextCreatorServer::new();
+    let legacy = context_creator::mcp_server::start_server("127.0.0.1:0")
+        .await
+        .unwrap();
+    let client = HttpClientBuilder::default()
+        .build(format!("http://{}", legacy.local_addr().unwrap()))
+        .unwrap();
+    let mut request = read_request(project.path(), "level0.zig");
+    request.dependency_tokens = Some(16000);
+    for phase in 0..3 {
+        if phase == 2 {
+            fs::write(
+                project.path().join("level6.zig"),
+                "pub fn step6() u32 { return 42; }\n",
+            )
+            .unwrap();
+        }
+        let modern_response = modern
+            .read_file(Parameters(request.clone()))
+            .await
+            .unwrap()
+            .0;
+        let legacy_response: ReadFileResponse = client
+            .request("read_file", rpc_params![request.clone()])
+            .await
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(&modern_response).unwrap(),
+            serde_json::to_value(&legacy_response).unwrap()
+        );
+        let context = modern_response.dependency_context.unwrap();
+        assert_eq!(
+            context
+                .snippets
+                .iter()
+                .map(|snippet| &snippet.path)
+                .collect::<std::collections::BTreeSet<_>>()
+                .len(),
+            7
+        );
+        assert!(context.token_count <= 16000);
+        if phase == 1 {
+            assert!(context.index.analysis_reused);
+            assert_eq!(context.index.declarations_reparsed, 0);
+        }
+        if phase == 2 {
+            assert_eq!(context.index.declarations_reparsed, 1);
+            assert!(context
+                .snippets
+                .iter()
+                .any(|snippet| snippet.path == "level6.zig"
+                    && snippet
+                        .content
+                        .as_ref()
+                        .is_some_and(|content| content.contains("return 42"))));
+        }
+    }
+    legacy.stop().unwrap();
+}
+
+#[test]
+fn dependency_reads_validate_budgets_and_apply_secret_policy_to_dependencies() {
+    let project = TempDir::new().unwrap();
+    fs::write(
+        project.path().join("main.zig"),
+        "const next = @import(\"private.zig\");\npub fn run() void {}\n",
+    )
+    .unwrap();
+    let secret = format!("ghp_{}", "z".repeat(36));
+    fs::write(
+        project.path().join("private.zig"),
+        format!("// {secret}\npub fn value() u32 {{ return 1; }}\n"),
+    )
+    .unwrap();
+    let mut request = read_request(project.path(), "main.zig");
+    for budget in [0, 255, 65537] {
+        request.dependency_tokens = Some(budget);
+        assert!(read_file_sync(request.clone())
+            .unwrap_err()
+            .to_string()
+            .contains("dependency_tokens"));
+    }
+    request.dependency_tokens = Some(8000);
+    let response = read_file_sync(request.clone()).unwrap();
+    assert!(!serde_json::to_string(&response).unwrap().contains(&secret));
+    assert!(response
+        .dependency_context
+        .unwrap()
+        .snippets
+        .iter()
+        .any(|snippet| snippet
+            .content
+            .as_ref()
+            .is_some_and(|content| content.contains("REDACTED"))));
+    request.secret_scan = Some(SecretPolicy::Error);
+    assert!(read_file_sync(request)
+        .unwrap_err()
+        .to_string()
+        .contains("Secret detected"));
 }
 
 #[test]

@@ -180,7 +180,7 @@ impl Dialect {
                         result.exported_functions.push(FunctionDefinition {
                             name: text(name, source).into(),
                             is_exported: !private,
-                            line: node.start_position().row,
+                            line: node.start_position().row + 1,
                         });
                     }
                 }
@@ -206,7 +206,7 @@ impl Dialect {
                                 module: node
                                     .child_by_field_name("receiver")
                                     .map(|receiver| text(receiver, source).into()),
-                                line: node.start_position().row,
+                                line: node.start_position().row + 1,
                             });
                         }
                     }
@@ -236,7 +236,7 @@ impl Dialect {
                                     .child_by_field_name("object")
                                     .or_else(|| node.child_by_field_name("scope"))
                                     .map(|module| text(module, source).into()),
-                                line: node.start_position().row,
+                                line: node.start_position().row + 1,
                             });
                         }
                     }
@@ -255,7 +255,7 @@ impl Dialect {
                     result.type_references.push(TypeReference {
                         name: name.into(),
                         module: None,
-                        line: node.start_position().row,
+                        line: node.start_position().row + 1,
                         definition_path: None,
                         is_external: false,
                         external_package: None,
@@ -356,7 +356,7 @@ fn import(module: &str, is_relative: bool, node: Node<'_>) -> Import {
         module: module.into(),
         items: Vec::new(),
         is_relative,
-        line: node.start_position().row,
+        line: node.start_position().row + 1,
     }
 }
 fn import_at_line(module: &str, line: usize) -> Import {

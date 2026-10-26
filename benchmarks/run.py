@@ -22,7 +22,7 @@ import time
 
 
 def corpus(root, count, body_lines):
-    """Versioned, deterministic, valid declaration shapes in 13 languages."""
+    """Versioned, deterministic declaration shapes in 29 language families."""
     templates = [
         ("rs", "pub fn {name}(value: i32) -> i32 {{\n{body}    value\n}}\n", "    let _step_{j} = value + {j};\n"),
         ("py", "def {name}(value: int) -> int:\n{body}    return value\n", "    step_{j} = value + {j}\n"),
@@ -37,6 +37,22 @@ def corpus(root, count, body_lines):
         ("kt", "fun {name}(value: Int): Int {{\n{body}    return value\n}}\n", "    val step_{j} = value + {j}\n"),
         ("rb", "def {name}(value)\n{body}    value\nend\n", "    step_{j} = value + {j}\n"),
         ("php", "<?php\nfunction {name}(int $value): int {{\n{body}    return $value;\n}}\n", "    $step_{j} = $value + {j};\n"),
+        ("zig", "pub fn {name}(value: i32) i32 {{\n{body}    return value;\n}}\n", "    _ = value + {j};\n"),
+        ("sh", "{name}() {{\n    local value=${{1:-0}}\n{body}    printf '%s\\n' \"$value\"\n}}\n", "    local step_{j}=$((value + {j}))\n"),
+        ("dart", "int {name}(int value) {{\n{body}    return value;\n}}\n", "    final step_{j} = value + {j};\n"),
+        ("lua", "function {name}(value)\n{body}    return value\nend\n", "    local step_{j} = value + {j}\n"),
+        ("scala", "object Sample{i} {{\ndef {name}(value: Int): Int = {{\n{body}    value\n}}\n}}\n", "    val step_{j} = value + {j}\n"),
+        ("ex", "defmodule Sample{i} do\n  def {name}(value) do\n{body}    value\n  end\nend\n", "    step_{j} = value + {j}\n"),
+        ("R", "{name} <- function(value) {{\n{body}    value\n}}\n", "    step_{j} <- value + {j}\n"),
+        ("jl", "function {name}(value)\n{body}    return value\nend\n", "    step_{j} = value + {j}\n"),
+        ("hs", "{name} value =\n  let\n{body}  in value\n", "    step_{j} = value + {j}\n"),
+        ("clj", "(defn {name} [value]\n{body}    value)\n", "    (+ value {j})\n"),
+        ("ps1", "function {name} {{\n    param($value)\n{body}    return $value\n}}\n", "    $step_{j} = $value + {j}\n"),
+        ("pl", "sub {name} {{\n    my ($value) = @_;\n{body}    return $value;\n}}\n", "    my $step_{j} = $value + {j};\n"),
+        ("sql", "CREATE TABLE {name} (\n    id INTEGER{body}\n);\n", ",\n    step_{j} INTEGER"),
+        ("tf", "resource \"sample\" \"{name}\" {{\n{body}}}\n", "    step_{j} = {j}\n"),
+        ("html", "<section id=\"{name}\">\n{body}</section>\n", "    <span>step {j}</span>\n"),
+        ("css", ".{name} {{\n{body}}}\n", "    --step-{j}: {j};\n"),
     ]
     tasks = []
     for i in range(count):
@@ -55,7 +71,7 @@ def corpus(root, count, body_lines):
             data = path.read_bytes()
             size += len(data)
             digest.update(path.relative_to(root).as_posix().encode() + b"\0" + data + b"\0")
-    return {"generator_version": 1, "files": count, "source_bytes": size,
+    return {"generator_version": 2, "files": count, "source_bytes": size,
             "body_lines": body_lines, "sha256": digest.hexdigest()}, tasks
 
 
@@ -99,7 +115,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", default="target/release/context-creator")
     parser.add_argument("--output", required=True, type=Path)
-    parser.add_argument("--files", type=int, default=130)
+    parser.add_argument("--files", type=int, default=290)
     parser.add_argument("--body-lines", type=int, default=40)
     parser.add_argument("--repeats", type=int, default=5)
     parser.add_argument("--map-tokens", type=int, default=4096)

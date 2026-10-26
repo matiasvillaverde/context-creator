@@ -7,12 +7,15 @@ cargo build --release --locked
 python3 benchmarks/run.py --output /tmp/context-results.json
 ```
 
-The versioned generator creates a deterministic corpus across thirteen language
+Generator version 2 creates a deterministic corpus across 29 language
 families. Reports include its SHA-256, file/source/output sizes, local tokens,
 CPU time and peak RSS on Unix, per-stage context-creator timings, and recall of
 fixed symbol-plus-path navigation tasks. Each process gets a fresh corpus copy
 and application caches. OS filesystem caches are uncontrolled. No LLM is called,
 so navigation recall is not a measure of generated-answer quality.
+Version 2 adds Zig and fifteen application, scripting, query, infrastructure,
+and markup families; historical version 1 datasets keep their original
+thirteen-language corpus and hashes. Run at least 29 files to cover every family.
 
 For the pinned cross-tool comparison, install packages in an isolated Python
 3.12 environment and place Code2prompt 4.2.0 on its PATH. Install Repomix in a
@@ -24,7 +27,7 @@ uv venv --python 3.12 /tmp/context-bench-env
 uv pip install --python /tmp/context-bench-env/bin/python -r benchmarks/requirements.txt
 npm install --prefix /tmp/context-bench-node repomix@1.18.1
 PATH="/tmp/context-bench-env/bin:/tmp/context-bench-node/node_modules/.bin:$PATH" /tmp/context-bench-env/bin/python benchmarks/run.py \
-  --comparators --files 130 --body-lines 40 --repeats 5 \
+  --comparators --files 290 --body-lines 40 --repeats 5 \
   --output /tmp/context-comparison.json
 ```
 

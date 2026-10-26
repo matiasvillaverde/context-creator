@@ -102,7 +102,9 @@ pub fn get_analyzer_for_file(
         "kt" | "kts" => Some(Box::new(languages::kotlin::KotlinAnalyzer::new())),
         "rb" => Some(Box::new(languages::ruby::RubyAnalyzer::new())),
         "php" => Some(Box::new(languages::php::PhpAnalyzer::new())),
-        _ => None,
+        "zig" => Some(Box::new(languages::zig::ZigAnalyzer)),
+        _ => languages::profiles::for_file(path)
+            .map(|profile| Box::new(profile) as Box<dyn LanguageAnalyzer>),
     };
 
     Ok(analyzer)
@@ -127,7 +129,8 @@ pub fn grammar_for_file(path: &Path) -> Option<tree_sitter::Language> {
         "kt" | "kts" => Some(tree_sitter_kotlin_ng::LANGUAGE.into()),
         "rb" => Some(tree_sitter_ruby::LANGUAGE.into()),
         "php" => Some(tree_sitter_php::LANGUAGE_PHP.into()),
-        _ => None,
+        "zig" => Some(tree_sitter_zig::LANGUAGE.into()),
+        _ => languages::profiles::for_file(path).map(|profile| profile.grammar()),
     }
 }
 
@@ -189,7 +192,10 @@ pub fn get_resolver_for_file(
         "php" => Some(Box::new(languages::structural::StructuralResolver(
             languages::structural::Dialect::Php,
         ))),
-        _ => None,
+        "zig" => Some(Box::new(languages::zig::ZigModuleResolver)),
+        _ => languages::profiles::for_file(path).map(|profile| {
+            Box::new(languages::profiles::ProfileResolver(profile)) as Box<dyn ModuleResolver>
+        }),
     };
 
     Ok(resolver)

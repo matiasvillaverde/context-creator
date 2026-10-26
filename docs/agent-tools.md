@@ -20,6 +20,47 @@ Imports, static dependents, matching tests/configuration, and supported contract
 expand those anchors. `--include` narrows initial task matches; dependencies can
 still be included. `--ignore` and repository ignore rules exclude files throughout.
 
+For context anchored to one file:
+
+```bash
+context-creator context --root . --seed src/main.zig --max-tokens 12000
+```
+
+Local import relationships are followed transitively through the indexed project,
+including beyond the recipe's caller/contract depth. Cycles terminate and retain
+their graph edges. This works across all registered language analyzers. The
+ordinary digest CLI's `--trace-imports` still honors `--semantic-depth`.
+Relationships identify importing files and one-based import locations. Confidence
+distinguishes direct bindings from namespace/search-path/SQL candidates; callers
+and contracts remain inferred. Build-provided or
+external modules, missing/ignored imports, and parse failures appear in `gaps`.
+
+Graph expansion is bounded to 256 ranked files and 1,024 relationships; at most
+128 files supply snippet candidates and the recipe/token budget then selects
+whole declarations. `graph_limit` and `candidate_limit` gaps expose these caps.
+The initial anchors and their forward dependencies take priority over surrounding
+callers when choosing candidate files and snippets.
+Inspect `omitted_snippets`, `omissions`, `gaps`, and `truncated_metadata` before
+assuming the response is complete. Fetch omitted files with `read_file` or make
+a focused request using the returned paths. A larger model context window does
+not require sending the entire repository on every call.
+
+MCP `read_file` accepts `dependency_tokens` to combine a source page with the same
+agent context in one call:
+
+```json
+{"root":"/workspace/repo","path":"src/main.zig","max_tokens":2048,"dependency_tokens":12000}
+```
+
+The optional `dependency_context` is a normal `ContextResponse`, with its own
+complete-JSON token count, locations, reasons, omissions, and analysis statistics.
+Its budget is 256–65,536 tokens, separate from the source page's `max_tokens`.
+The seed's whole declarations can overlap the page; use `build_context` alone
+when you only need declaration context. Both budgets exclude the outer read/MCP
+envelope. With `dependency_tokens` omitted, a page read performs no project
+analysis. Servers reuse their `AgentService`; crate callers can use
+`mcp_server::progressive::read_file_with_context_sync(request, &service)`.
+
 CLI settings resolve in this order: options after `context`, top-level options,
 then TOML defaults, then the agent-tool defaults (8,000 tokens, `o200k-base`,
 redaction). This applies to the root/directory, token budget, tokenizer, secret
@@ -110,7 +151,9 @@ Use `RecipeBook`/`RecipeDefinition` in the crate. MCP `list_recipes` accepts
 `{"recipes":{...}}`; pass the same definitions as `custom_recipes` to
 `build_context`. Recipe definitions are supplied per request, without server-side
 configuration writes. There are at most 32 custom recipes, 64 patterns per recipe,
-five expansion steps, and 128 selected snippets. Explicit seeds and changed files
+five caller/contract expansion steps, and 128 selected snippets. Positive `depth`
+also enables the transitive forward import closure; `depth = 0` disables it and
+reports a gap for local imports that were not followed. Explicit seeds and changed files
 can still select tests/configuration when automatic inclusion is disabled.
 
 ## Incremental sessions
@@ -166,7 +209,7 @@ including staged edits, unstaged edits, untracked files, deletions, and detected
 renames. The response describes statuses, new-source hunk ranges, and removed
 symbol names. Current source is returned, not the historical version at the base.
 
-Resolved local imports, static dependents, text references to removed symbols,
+Local imports, static dependents, text references to removed symbols,
 related tests, and matching contracts help collect impact context. A changed
 range is known Git evidence; inferred callers, name matches, and runtime effects
 are labeled accordingly. This does not prove which tests cover a change or which

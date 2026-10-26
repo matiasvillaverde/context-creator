@@ -44,6 +44,7 @@ pub struct Recipe {
     pub include_tests: bool,
     pub include_config: bool,
     pub follow_contracts: bool,
+    /// Caller/contract neighborhood steps; zero also disables transitive import traversal.
     pub depth: usize,
     pub max_snippets: usize,
 }

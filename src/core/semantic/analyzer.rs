@@ -62,7 +62,7 @@ pub struct Import {
     pub items: Vec<String>,
     /// Whether this is a relative import
     pub is_relative: bool,
-    /// Line number where import appears
+    /// One-based line number where import appears
     pub line: usize,
 }
 
@@ -73,7 +73,7 @@ pub struct FunctionCall {
     pub name: String,
     /// Module the function comes from (if known)
     pub module: Option<String>,
-    /// Line number where call appears
+    /// One-based line number where call appears
     pub line: usize,
 }
 
@@ -84,7 +84,7 @@ pub struct FunctionDefinition {
     pub name: String,
     /// Whether the function is exported/public
     pub is_exported: bool,
-    /// Line number where function is defined
+    /// One-based line number where function is defined
     pub line: usize,
 }
 
@@ -95,7 +95,7 @@ pub struct TypeReference {
     pub name: String,
     /// Module the type comes from (if known)
     pub module: Option<String>,
-    /// Line number where reference appears
+    /// One-based line number where reference appears
     pub line: usize,
     /// Path to the file that defines this type
     pub definition_path: Option<PathBuf>,

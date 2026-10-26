@@ -87,6 +87,8 @@ pub fn detect_project_root(start_path: &Path) -> PathBuf {
 
         if [
             "CMakeLists.txt",
+            "build.zig",
+            "build.zig.zon",
             "composer.json",
             "Gemfile",
             "global.json",

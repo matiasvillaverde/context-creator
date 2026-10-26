@@ -176,6 +176,8 @@ fn detect_project_root(start_path: &std::path::Path) -> PathBuf {
             || current.join("pom.xml").exists()
             || current.join("build.gradle").exists()
             || current.join("build.gradle.kts").exists()
+            || current.join("build.zig").exists()
+            || current.join("build.zig.zon").exists()
         {
             return absolute_project_root(current);
         }

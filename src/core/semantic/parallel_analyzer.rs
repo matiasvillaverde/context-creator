@@ -252,7 +252,7 @@ impl<'a> ParallelAnalyzer<'a> {
         file_path: &Path,
         project_root: &Path,
         imports: &[crate::core::semantic::analyzer::Import],
-        _valid_files: &std::collections::HashSet<PathBuf>,
+        valid_files: &std::collections::HashSet<PathBuf>,
     ) -> Result<Vec<(PathBuf, DependencyEdgeType)>> {
         let mut typed_imports = Vec::new();
 
@@ -281,13 +281,31 @@ impl<'a> ParallelAnalyzer<'a> {
                             let edge_type = DependencyEdgeType::Import {
                                 symbols: import.items.clone(),
                             };
-                            typed_imports.push((resolved.path, edge_type));
+                            for path in
+                                crate::core::semantic::resolver::ResolverUtils::local_module_files(
+                                    &resolved.path,
+                                    file_path,
+                                    valid_files,
+                                )
+                            {
+                                typed_imports.push((path, edge_type.clone()));
+                            }
                         }
                     }
                     Err(e) => {
                         tracing::debug!("  Failed to resolve: {}", e);
                         // For relative imports, try to resolve manually
-                        if import.module.starts_with(".") {
+                        if import.module.starts_with(".")
+                            && file_path
+                                .extension()
+                                .and_then(|extension| extension.to_str())
+                                .is_some_and(|extension| {
+                                    matches!(
+                                        extension,
+                                        "js" | "jsx" | "mjs" | "cjs" | "ts" | "tsx" | "mts" | "cts"
+                                    )
+                                })
+                        {
                             if let Some(parent) = file_path.parent() {
                                 let module_base = import.module.trim_start_matches("./");
 

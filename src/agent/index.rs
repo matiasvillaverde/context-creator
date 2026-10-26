@@ -10,7 +10,7 @@ use crate::{
 };
 use anyhow::{bail, Context, Result};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     io::Read,
     path::{Component, Path},
     sync::Arc,
@@ -28,8 +28,15 @@ pub(crate) struct Source {
     pub declarations: Arc<Vec<SourceDeclaration>>,
     pub parse_error: bool,
     pub raw_imports: Arc<Vec<crate::core::semantic::analyzer::Import>>,
-    pub resolved_imports: BTreeMap<std::path::PathBuf, usize>,
+    pub resolved_imports: BTreeMap<std::path::PathBuf, ImportEdge>,
     pub unresolved_imports: Vec<(String, usize)>,
+    pub external_imports: Vec<(String, usize)>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ImportEdge {
+    pub line: usize,
+    pub confidence: Confidence,
 }
 
 pub(crate) struct Snapshot {
@@ -147,6 +154,7 @@ pub(crate) fn snapshot(
                 raw_imports: Arc::new(raw_imports),
                 resolved_imports: BTreeMap::new(),
                 unresolved_imports: Vec::new(),
+                external_imports: Vec::new(),
             }
         };
         source.info = file.clone();
@@ -174,31 +182,187 @@ pub(crate) fn snapshot(
         .iter()
         .map(|file| file.path.clone())
         .collect::<std::collections::BTreeSet<_>>();
+    let mut directories: BTreeMap<std::path::PathBuf, Vec<std::path::PathBuf>> = BTreeMap::new();
+    for path in &valid_paths {
+        if let Some(parent) = path.parent() {
+            directories
+                .entry(parent.into())
+                .or_default()
+                .push(path.clone());
+        }
+    }
+    let mut sql_definitions: BTreeMap<String, BTreeSet<std::path::PathBuf>> = BTreeMap::new();
+    let type_definitions = sources
+        .values()
+        .map(|source| {
+            (
+                source.info.path.clone(),
+                source
+                    .declarations
+                    .iter()
+                    .filter(|declaration| declaration.symbol.kind == "type")
+                    .map(|declaration| declaration.symbol.name.clone())
+                    .collect::<BTreeSet<_>>(),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    for source in sources.values().filter(|source| {
+        source
+            .info
+            .path
+            .extension()
+            .is_some_and(|extension| extension == "sql")
+    }) {
+        for declaration in source
+            .declarations
+            .iter()
+            .filter(|declaration| declaration.symbol.kind == "type")
+        {
+            let name = sql_name(&declaration.symbol.name);
+            sql_definitions
+                .entry(name.clone())
+                .or_default()
+                .insert(source.info.path.clone());
+            if let Some((_, short)) = name.rsplit_once('.') {
+                sql_definitions
+                    .entry(short.into())
+                    .or_default()
+                    .insert(source.info.path.clone());
+            }
+        }
+    }
     for file in analysis.all_files {
         let name = relative(&file.relative_path)?;
         if let Some(source) = sources.get_mut(&name) {
             source.info = file;
             source.resolved_imports.clear();
             source.unresolved_imports.clear();
+            source.external_imports.clear();
             if let Some(resolver) = crate::core::semantic::get_resolver_for_file(&source.info.path)?
             {
                 for import in source.raw_imports.iter() {
-                    match resolver.resolve_import(&import.module, &source.info.path, root) {
-                        Ok(resolved)
-                            if !resolved.is_external && valid_paths.contains(&resolved.path) =>
+                    if let Some(name) = import.module.strip_prefix("sql:") {
+                        if let Some(definitions) = sql_definitions
+                            .get(&sql_name(name))
+                            .filter(|definitions| definitions.len() == 1)
                         {
-                            source.resolved_imports.insert(resolved.path, import.line);
+                            for path in definitions {
+                                source.resolved_imports.insert(
+                                    path.clone(),
+                                    ImportEdge {
+                                        line: import.line,
+                                        confidence: Confidence::Inferred,
+                                    },
+                                );
+                            }
+                        } else {
+                            source
+                                .unresolved_imports
+                                .push((import.module.clone(), import.line));
+                        }
+                        continue;
+                    }
+                    match resolver.resolve_import(&import.module, &source.info.path, root) {
+                        Ok(resolved) if !resolved.is_external => {
+                            let confidence = if resolved.confidence >= 0.9 {
+                                Confidence::Resolved
+                            } else {
+                                Confidence::Inferred
+                            };
+                            let targets =
+                                crate::core::semantic::resolver::ResolverUtils::local_module_files(
+                                    &resolved.path,
+                                    &source.info.path,
+                                    &valid_paths,
+                                );
+                            let mut visible = false;
+                            for path in targets
+                                .into_iter()
+                                .filter(|path| valid_paths.contains(path))
+                            {
+                                visible = true;
+                                source.resolved_imports.insert(
+                                    path,
+                                    ImportEdge {
+                                        line: import.line,
+                                        confidence,
+                                    },
+                                );
+                            }
+                            if !visible {
+                                source
+                                    .unresolved_imports
+                                    .push((import.module.clone(), import.line));
+                            }
                         }
                         Ok(resolved)
                             if resolved.is_external
                                 && !import.is_relative
-                                && !import.module.starts_with('.') => {}
+                                && !import.module.starts_with('.') =>
+                        {
+                            source
+                                .external_imports
+                                .push((import.module.clone(), import.line));
+                        }
                         _ => {
                             source
                                 .unresolved_imports
                                 .push((import.module.clone(), import.line));
                         }
                     }
+                }
+            }
+            // Terraform files in a directory form one module. A star retains
+            // reachability without storing a quadratic file-to-file clique.
+            if source
+                .info
+                .path
+                .extension()
+                .is_some_and(|extension| extension == "tf")
+            {
+                let members = source
+                    .info
+                    .path
+                    .parent()
+                    .and_then(|parent| directories.get(parent))
+                    .into_iter()
+                    .flatten()
+                    .filter(|path| path.extension().is_some_and(|extension| extension == "tf"))
+                    .collect::<Vec<_>>();
+                if let Some(first) = members.first().copied() {
+                    let targets = if first == &source.info.path {
+                        members
+                    } else {
+                        vec![first]
+                    };
+                    for target in targets
+                        .into_iter()
+                        .filter(|target| **target != source.info.path)
+                    {
+                        source
+                            .resolved_imports
+                            .entry(target.clone())
+                            .or_insert(ImportEdge {
+                                line: 1,
+                                confidence: Confidence::Resolved,
+                            });
+                    }
+                }
+            }
+            for reference in &mut source.info.type_references {
+                if reference.definition_path.is_some() || reference.is_external {
+                    continue;
+                }
+                let candidates = std::iter::once(&source.info.path)
+                    .chain(source.resolved_imports.keys())
+                    .filter(|path| {
+                        type_definitions
+                            .get(*path)
+                            .is_some_and(|names| names.contains(&reference.name))
+                    })
+                    .collect::<BTreeSet<_>>();
+                if candidates.len() == 1 {
+                    reference.definition_path = candidates.into_iter().next().cloned();
                 }
             }
         }
@@ -212,4 +376,18 @@ pub(crate) fn snapshot(
     (snapshot.contract_relations, snapshot.contract_gaps) =
         super::contracts::relationships(&snapshot)?;
     Ok((Arc::new(snapshot), stats))
+}
+
+fn sql_name(name: &str) -> String {
+    name.split('.')
+        .map(|part| {
+            let part = part.trim();
+            if part.starts_with(['"', '`', '[']) {
+                part.trim_matches(['"', '`', '[', ']']).to_string()
+            } else {
+                part.to_ascii_lowercase()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(".")
 }
