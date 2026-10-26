@@ -9,8 +9,9 @@ use std::{
 
 #[derive(Args, Debug, Clone)]
 pub struct ContextArgs {
-    #[arg(long, default_value = ".")]
-    pub root: PathBuf,
+    /// Repository root (inherits the configured directory, otherwise current directory)
+    #[arg(long)]
+    pub root: Option<PathBuf>,
     #[arg(long, default_value = "")]
     pub task: String,
     #[arg(long = "seed")]
@@ -19,12 +20,15 @@ pub struct ContextArgs {
     pub recipe: String,
     #[arg(long)]
     pub recipe_file: Option<PathBuf>,
-    #[arg(long, default_value = "8000")]
-    pub max_tokens: usize,
-    #[arg(long, value_enum, default_value = "o200k-base")]
-    pub tokenizer: TokenEncoding,
-    #[arg(long, value_enum, default_value = "redact")]
-    pub secret_scan: SecretPolicy,
+    /// Maximum compact JSON tokens (inherits CLI/TOML; default: 8000, range: 256..=65536)
+    #[arg(long)]
+    pub max_tokens: Option<usize>,
+    /// Token encoding (inherits CLI/TOML; default: o200k-base)
+    #[arg(long, value_enum)]
+    pub tokenizer: Option<TokenEncoding>,
+    /// Secret policy (inherits CLI/TOML; default: redact)
+    #[arg(long, value_enum)]
+    pub secret_scan: Option<SecretPolicy>,
     #[arg(long = "include")]
     pub include_patterns: Vec<String>,
     #[arg(long = "ignore")]
@@ -44,13 +48,65 @@ pub struct ContextArgs {
 
 impl ContextArgs {
     pub fn validate(&self) -> Result<()> {
-        if !(256..=65536).contains(&self.max_tokens) {
+        if self
+            .max_tokens
+            .is_some_and(|budget| !(256..=65536).contains(&budget))
+        {
             bail!("max_tokens must be between 256 and 65536");
         }
         if self.session_file.is_some() && self.session_id.is_none() {
             bail!("--session-file requires --session-id");
         }
         Ok(())
+    }
+
+    /// Resolve command flags over the already merged CLI/TOML configuration.
+    pub fn to_request(&self, config: &crate::Config) -> Result<ContextRequest> {
+        self.validate()?;
+        let root = if let Some(root) = &self.root {
+            root.clone()
+        } else {
+            let roots = config.get_directories();
+            if roots.len() != 1 {
+                bail!("context requires one repository root; use --root");
+            }
+            roots
+                .into_iter()
+                .next()
+                .ok_or_else(|| anyhow::anyhow!("Missing context root"))?
+        };
+        let mut request = ContextRequest::new(root, self.task.clone());
+        request.seeds.clone_from(&self.seeds);
+        request.recipe.clone_from(&self.recipe);
+        request.max_tokens = self
+            .max_tokens
+            .or_else(|| config.get_effective_max_tokens())
+            .unwrap_or(request.max_tokens);
+        if !(256..=65536).contains(&request.max_tokens) {
+            bail!("context max_tokens must be between 256 and 65536; override the configured budget with context --max-tokens");
+        }
+        request.tokenizer = self.tokenizer.unwrap_or_else(|| config.get_tokenizer());
+        request.secret_scan = self
+            .secret_scan
+            .or(config.secret_scan)
+            .unwrap_or(SecretPolicy::Redact);
+        request.include_patterns = if self.include_patterns.is_empty() {
+            config.get_include_patterns()
+        } else {
+            self.include_patterns.clone()
+        };
+        request.ignore_patterns = if self.ignore_patterns.is_empty() {
+            config.get_ignore_patterns()
+        } else {
+            self.ignore_patterns.clone()
+        };
+        request.session_id.clone_from(&self.session_id);
+        request
+            .expected_revision
+            .clone_from(&self.expected_revision);
+        request.reset_session = self.reset_session;
+        request.base_ref.clone_from(&self.base_ref);
+        Ok(request)
     }
 }
 
@@ -70,25 +126,10 @@ pub fn load_recipe_book(path: Option<&Path>) -> Result<RecipeBook> {
     Ok(toml::from_str(&text)?)
 }
 
-pub fn run_context(args: &ContextArgs) -> Result<()> {
-    args.validate()?;
+pub fn run_context(args: &ContextArgs, config: &crate::Config) -> Result<()> {
+    let mut request = args.to_request(config)?;
     let book = load_recipe_book(args.recipe_file.as_deref())?;
-    let request = ContextRequest {
-        root: args.root.clone(),
-        task: args.task.clone(),
-        seeds: args.seeds.clone(),
-        recipe: args.recipe.clone(),
-        custom_recipes: book.recipes,
-        max_tokens: args.max_tokens,
-        tokenizer: args.tokenizer,
-        secret_scan: args.secret_scan,
-        include_patterns: args.include_patterns.clone(),
-        ignore_patterns: args.ignore_patterns.clone(),
-        session_id: args.session_id.clone(),
-        expected_revision: args.expected_revision.clone(),
-        reset_session: args.reset_session,
-        base_ref: args.base_ref.clone(),
-    };
+    request.custom_recipes = book.recipes;
     let service = AgentService::new();
     let response = if let Some(checkpoint) = &args.session_file {
         service.build_context_with_checkpoint(request, checkpoint)?

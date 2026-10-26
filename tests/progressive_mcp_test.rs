@@ -369,3 +369,79 @@ async fn task_context_and_recipes_match_across_legacy_and_rmcp_servers() {
         .is_err());
     legacy.stop().unwrap();
 }
+
+#[tokio::test]
+async fn local_analysis_refreshes_edits_additions_ignores_deletions_and_secret_checks() {
+    use context_creator::mcp_server::{ProcessLocalRequest, ProcessLocalResponse};
+    let root = TempDir::new().unwrap();
+    let modern = ContextCreatorServer::new();
+    let legacy = context_creator::mcp_server::start_server("127.0.0.1:0")
+        .await
+        .unwrap();
+    let client = HttpClientBuilder::default()
+        .build(format!("http://{}", legacy.local_addr().unwrap()))
+        .unwrap();
+    let request: ProcessLocalRequest = serde_json::from_value(
+        serde_json::json!({"path":root.path(),"include_context":true,"secret_scan":"error"}),
+    )
+    .unwrap();
+    for (step, visible, absent, count) in [
+        (0, "before_edit", "after_edit", 1),
+        (1, "after_edit", "before_edit", 1),
+        (2, "new_source", "before_edit", 2),
+        (3, "after_edit", "new_source", 1),
+        (4, "replacement_source", "after_edit", 1),
+    ] {
+        match step {
+            0 => fs::write(root.path().join("main.rs"), "pub fn before_edit() {}\n").unwrap(),
+            1 => fs::write(root.path().join("main.rs"), "pub fn after_edit() {}\n").unwrap(),
+            2 => fs::write(root.path().join("added.rs"), "pub fn new_source() {}\n").unwrap(),
+            3 => fs::write(root.path().join(".contextignore"), "added.rs\n").unwrap(),
+            4 => {
+                fs::remove_file(root.path().join("main.rs")).unwrap();
+                fs::write(
+                    root.path().join("replacement.rs"),
+                    "pub fn replacement_source() {}\n",
+                )
+                .unwrap();
+            }
+            _ => unreachable!(),
+        }
+        let modern_response = modern
+            .analyze_local(Parameters(request.clone()))
+            .await
+            .unwrap()
+            .0;
+        let legacy_response: ProcessLocalResponse = client
+            .request("process_local_codebase", rpc_params![request.clone()])
+            .await
+            .unwrap();
+        for response in [modern_response, legacy_response] {
+            let content = response.context.unwrap();
+            assert!(content.contains(visible), "step {step}: missing {visible}");
+            assert!(!content.contains(absent), "step {step}: stale {absent}");
+            assert_eq!(response.file_count, count, "step {step}");
+        }
+    }
+    fs::write(
+        root.path().join("replacement.rs"),
+        format!(
+            "// {}{}\npub fn replacement_source() {{}}\n",
+            "ghp_",
+            "c".repeat(36)
+        ),
+    )
+    .unwrap();
+    assert!(modern
+        .analyze_local(Parameters(request.clone()))
+        .await
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("Secret detected"));
+    let result: Result<ProcessLocalResponse, _> = client
+        .request("process_local_codebase", rpc_params![request])
+        .await;
+    assert!(result.unwrap_err().to_string().contains("Secret detected"));
+    legacy.stop().unwrap();
+}

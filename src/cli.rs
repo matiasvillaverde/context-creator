@@ -592,7 +592,8 @@ impl Config {
                 ));
             }
             return args
-                .validate()
+                .to_request(self)
+                .map(|_| ())
                 .map_err(|error| ContextCreatorError::InvalidConfiguration(error.to_string()));
         }
 

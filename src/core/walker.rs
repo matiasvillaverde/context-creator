@@ -396,16 +396,6 @@ fn build_walker(root: &Path, options: &WalkOptions) -> Result<Walk> {
     if !options.include_patterns.is_empty() || !options.ignore_patterns.is_empty() {
         let mut override_builder = ignore::overrides::OverrideBuilder::new(root);
 
-        // If we have no include patterns but have ignore patterns, we need to include everything first
-        if options.include_patterns.is_empty() && !options.ignore_patterns.is_empty() {
-            // Add a pattern to include everything
-            override_builder.add("**/*").map_err(|e| {
-                ContextCreatorError::InvalidConfiguration(format!(
-                    "Failed to add include-all pattern: {e}"
-                ))
-            })?;
-        }
-
         // Add include patterns first (without prefix for inclusion)
         for pattern in &options.include_patterns {
             if !pattern.trim().is_empty() {

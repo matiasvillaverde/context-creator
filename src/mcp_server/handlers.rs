@@ -32,14 +32,13 @@ impl HealthRpcServer for HealthRpcImpl {
 
 /// Implementation of codebase processing RPC handlers
 pub struct CodebaseRpcImpl {
-    cache: std::sync::Arc<crate::mcp_server::cache::McpCache>,
     agent: std::sync::Arc<crate::agent::AgentService>,
 }
 
 impl CodebaseRpcImpl {
-    pub fn new(cache: std::sync::Arc<crate::mcp_server::cache::McpCache>) -> Self {
+    /// Retains the cache argument for library compatibility; local responses are regenerated.
+    pub fn new(_cache: std::sync::Arc<crate::mcp_server::cache::McpCache>) -> Self {
         Self {
-            cache,
             agent: std::sync::Arc::new(crate::agent::AgentService::new()),
         }
     }
@@ -152,30 +151,8 @@ impl CodebaseRpcServer for CodebaseRpcImpl {
                 )
             })??;
 
-        // Check cache first
-        let cache_key = crate::mcp_server::cache::ProcessLocalCacheKey::from_request(&request);
-        if let Some(cached) = self.cache.get_process_local(&cache_key).await {
-            let processing_time_ms = start.elapsed().as_millis() as u64;
-            let include_context =
-                request.include_context.unwrap_or(false) || request.prompt.trim().is_empty();
-            let markdown = cached.markdown;
-            return Ok(ProcessLocalResponse {
-                answer: cached.answer,
-                context: if include_context {
-                    Some(markdown.clone())
-                } else {
-                    None
-                },
-                markdown: Some(markdown),
-                file_count: cached.file_count,
-                token_count: cached.token_count,
-                processing_time_ms,
-                llm_tool: cached.llm_tool,
-            });
-        }
-
-        // Use blocking task for file I/O
-        let cache = self.cache.clone();
+        // Local source and ignore rules are mutable. Regenerate each response
+        // instead of serving complete answers keyed only by request parameters.
         let response = tokio::task::spawn_blocking(move || process_codebase_sync(request, start))
             .await
             .map_err(|e| {
@@ -188,16 +165,6 @@ impl CodebaseRpcServer for CodebaseRpcImpl {
                     Some(e.to_string()),
                 )
             })?;
-
-        // Cache the response
-        let cache_value = crate::mcp_server::cache::ProcessLocalCacheValue {
-            answer: response.answer.clone(),
-            markdown: response.markdown.clone().unwrap_or_default(),
-            file_count: response.file_count,
-            token_count: response.token_count,
-            llm_tool: response.llm_tool.clone(),
-        };
-        cache.set_process_local(cache_key, cache_value).await;
 
         Ok(response)
     }

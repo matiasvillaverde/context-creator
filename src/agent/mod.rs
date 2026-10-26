@@ -227,6 +227,16 @@ impl AgentService {
             bail!("Budget too small for context metadata");
         }
         let mut ranges = Vec::<(String, (usize, usize))>::new();
+        let bounds = selection
+            .candidates
+            .iter()
+            .map(|candidate| {
+                (
+                    candidate.snippet.id.as_str(),
+                    (candidate.snippet.path.as_str(), candidate.bytes),
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
         for candidate in &selection.candidates {
             if response.snippets.len() >= recipe.max_snippets {
                 break;
@@ -237,6 +247,24 @@ impl AgentService {
                     && *end >= candidate.bytes.1
             }) {
                 continue;
+            }
+            // A complete enclosing declaration also supplies its previously selected methods.
+            // Temporarily remove those methods so duplicated source does not consume the budget.
+            let mut covered = Vec::new();
+            let existing = std::mem::take(&mut response.snippets);
+            for (index, snippet) in existing.into_iter().enumerate() {
+                if bounds
+                    .get(snippet.id.as_str())
+                    .is_some_and(|(path, (start, end))| {
+                        *path == candidate.snippet.path
+                            && candidate.bytes.0 <= *start
+                            && candidate.bytes.1 >= *end
+                    })
+                {
+                    covered.push((index, snippet));
+                } else {
+                    response.snippets.push(snippet);
+                }
             }
             let mut item = candidate.snippet.clone();
             let full_hash = item.content_hash.clone();
@@ -251,6 +279,9 @@ impl AgentService {
             let mut accepted = fits(&mut response, &counter, request.max_tokens)?;
             if !accepted {
                 response.snippets.pop();
+                for (index, snippet) in covered {
+                    response.snippets.insert(index, snippet);
+                }
                 if let Some(signature) = &candidate.signature {
                     let mut item = candidate.snippet.clone();
                     item.representation = Representation::Signature;
@@ -339,6 +370,22 @@ impl AgentService {
                         .into(),
             })
             .collect::<Vec<_>>();
+        let signatures = response
+            .snippets
+            .iter()
+            .filter(|snippet| {
+                snippet.kind == "type" && snippet.representation == Representation::Signature
+            })
+            .map(|snippet| Gap {
+                kind: "type_body_omitted".into(),
+                path: Some(snippet.path.clone()),
+                line: Some(snippet.start_line),
+                detail: "Type rendered as a signature to fit the budget; read the source for omitted fields and members".into(),
+            })
+            .collect::<Vec<_>>();
+        for gap in signatures {
+            push_gap(&mut response, gap, &counter, request.max_tokens)?;
+        }
         for gap in selection.gaps {
             push_gap(&mut response, gap, &counter, request.max_tokens)?;
         }
