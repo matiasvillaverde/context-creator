@@ -345,3 +345,35 @@ fn cli_formats_and_agent_gaps_expose_dependency_metadata_within_budget() {
         .any(|g| g.kind == "external_type" && g.detail.contains("serde v1.0.197")));
     assert!(response.token_count <= 8000);
 }
+
+#[test]
+fn malformed_member_manifests_do_not_borrow_unrelated_root_dependencies() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+    write(
+        root,
+        "Cargo.toml",
+        "[package]\nname='root'\nversion='0.1.0'\n[dependencies]\nserde='1.0'\n",
+    );
+    write(root, "app/Cargo.toml", "not a valid manifest");
+    write(root, "app/lib.rs", "");
+    assert!(CargoPackageResolver
+        .resolve_version("serde", &root.join("app/lib.rs"), root, true)
+        .is_none());
+    write(
+        root,
+        "package.json",
+        r#"{"dependencies":{"react":"^18.0.0"}}"#,
+    );
+    write(root, "app/package.json", "invalid JSON");
+    write(root, "app/view.js", "");
+    assert!(NodePackageResolver
+        .resolve_version("react", &root.join("app/view.js"), root, true)
+        .is_none());
+    write(root, "requirements.txt", "django==3.2.0\n");
+    write(root, "app/pyproject.toml", "invalid TOML");
+    write(root, "app/view.py", "");
+    assert!(PythonPackageResolver
+        .resolve_version("django", &root.join("app/view.py"), root, true)
+        .is_none());
+}

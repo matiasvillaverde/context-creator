@@ -12,12 +12,10 @@ impl PackageVersionResolver for CargoPackageResolver {
         let root = root.canonicalize().ok()?;
         let source = manifests::confined(&root, source)?;
         let name = module.split("::").next()?;
-        let (directory, document) =
-            manifests::ancestors(source.parent()?, &root).find_map(|dir| {
-                manifests::read(&root, &dir.join("Cargo.toml"))
-                    .filter(|v| v.get("package").is_some())
-                    .map(|v| (dir, v))
-            })?;
+        let directory = manifests::ancestors(source.parent()?, &root)
+            .find(|dir| dir.join("Cargo.toml").exists())?;
+        let document = manifests::read(&root, &directory.join("Cargo.toml"))?;
+        document.get("package")?;
         let (key, mut dependency, dev) = dependency(&document, name, include_dev)?;
         let inherited;
         if dependency.get("workspace").and_then(Value::as_bool) == Some(true) {

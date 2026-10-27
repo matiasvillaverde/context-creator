@@ -38,6 +38,7 @@ impl PackageVersionResolver for PythonPackageResolver {
         for directory in manifests::ancestors(source.parent()?, &root) {
             let mut project_boundary = false;
             for file in ["pyproject.toml", "setup.py"] {
+                project_boundary |= directory.join(file).exists();
                 let Some(document) = manifests::read(&root, &directory.join(file)) else {
                     continue;
                 };

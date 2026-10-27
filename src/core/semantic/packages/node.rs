@@ -19,8 +19,9 @@ impl PackageVersionResolver for NodePackageResolver {
             .take(if module.starts_with('@') { 2 } else { 1 })
             .collect::<Vec<_>>()
             .join("/");
-        let (directory, document) = manifests::ancestors(source.parent()?, &root)
-            .find_map(|dir| manifests::read(&root, &dir.join("package.json")).map(|v| (dir, v)))?;
+        let directory = manifests::ancestors(source.parent()?, &root)
+            .find(|dir| dir.join("package.json").exists())?;
+        let document = manifests::read(&root, &directory.join("package.json"))?;
         let (declared, dev) = [
             ("dependencies", false),
             ("optionalDependencies", false),

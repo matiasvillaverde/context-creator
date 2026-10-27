@@ -55,7 +55,8 @@ package resolver to exclude development-only declarations.
 The shared manifest cache checks content, including same-size edits, and reuses
 parsed documents. Reads are bounded to 1 MiB and stay inside the explicit project
 root with hidden/symlink restrictions. Invalid or missing metadata leaves analysis
-usable. Credential-bearing URLs and arbitrary manifest strings are never copied
+usable. A malformed member manifest does not borrow unrelated ancestor declarations.
+Credential-bearing URLs and arbitrary manifest strings are never copied
 into version annotations. No package source is fetched or executed.
 
 See [workspace resolution](workspaces.md) and [agent context](agent-tools.md).
