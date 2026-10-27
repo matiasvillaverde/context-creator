@@ -6,3 +6,8 @@ include_config = true
 follow_contracts = true
 depth = 3
 max_snippets = 32
+
+[recipes.billing_security]
+extends = "security_audit"
+priority_patterns = ["src/billing/**", "src/payments/**"]
+max_snippets = 32

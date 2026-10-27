@@ -63,7 +63,7 @@ impl ContextCreatorServer {
     }
 
     #[tool(
-        description = "List review_change, debug_failure, explain_feature, and supplied reusable custom recipes"
+        description = "List review_change, debug_failure, explain_feature, security_audit, performance, and supplied reusable custom recipes"
     )]
     pub async fn list_recipes(
         &self,

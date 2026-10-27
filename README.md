@@ -94,6 +94,7 @@ context-creator . --max-tokens 16000 --secret-scan redact \
 
 # Discover the built-in recipes
 context-creator recipes
+context-creator context --recipe security_audit --max-tokens 8000
 ```
 
 Maps go to stdout. Artifact generation writes the requested files outside the

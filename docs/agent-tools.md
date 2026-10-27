@@ -118,6 +118,8 @@ rebuilt. This is an in-process cache, not a persistent database or file watcher.
 context-creator recipes
 context-creator context --task "Explain refresh tokens" --recipe explain_feature
 context-creator context --recipe review_change --base-ref HEAD
+context-creator context --recipe security_audit
+context-creator context --task "Investigate slow requests" --recipe performance
 ```
 
 | Recipe | Behavior |
@@ -125,6 +127,15 @@ context-creator context --recipe review_change --base-ref HEAD
 | `explain_feature` | Task/seed selection, tests, configuration, contracts, two expansion steps. |
 | `debug_failure` | The same building blocks with three expansion steps. |
 | `review_change` | Requires `base_ref`; prioritizes changed declarations and related static impact, with two expansion steps. |
+| `security_audit` | Favors authentication, authorization, security, database, API, and input directories. |
+| `performance` | Favors cache, async, database, profiling, concurrency, and benchmark directories. |
+
+Path preferences add a fixed score to initial file selection and are explained by
+`recipe_priority` reasons. They are static hints, not vulnerability findings or
+profiler results. Other task matches remain eligible; dependencies, tests, and
+configuration follow the usual graph rules. Ignore rules, hidden-file policy,
+secret scanning, candidate limits, and token budgets still apply. A recipe with
+path preferences can run without a task or seeds.
 
 Custom recipes extend a built-in and set bounded options. For example, save this
 as `agent-recipes.toml`:
@@ -134,6 +145,7 @@ as `agent-recipes.toml`:
 extends = "debug_failure"
 include_patterns = ["src/auth/**", "tests/auth/**"]
 ignore_patterns = ["vendor/**"]
+priority_patterns = ["src/auth/**"]
 include_tests = true
 include_config = true
 follow_contracts = true
@@ -150,8 +162,10 @@ context-creator context --task "Fix session expiration" \
 Use `RecipeBook`/`RecipeDefinition` in the crate. MCP `list_recipes` accepts
 `{"recipes":{...}}`; pass the same definitions as `custom_recipes` to
 `build_context`. Recipe definitions are supplied per request, without server-side
-configuration writes. There are at most 32 custom recipes, 64 patterns per recipe,
-five caller/contract expansion steps, and 128 selected snippets. Positive `depth`
+configuration writes. `extends = "security_audit"` or `"performance"` retains
+the preset preferences; custom `priority_patterns` add to them. `include_patterns`
+narrows initial task selection, while preferences only affect ranking. There are at most 32 custom recipes, 64 patterns per recipe,
+including inherited path preferences, five caller/contract expansion steps, and 128 selected snippets. Positive `depth`
 also enables the transitive forward import closure; `depth = 0` disables it and
 reports a gap for local imports that were not followed. Explicit seeds and changed files
 can still select tests/configuration when automatic inclusion is disabled.

@@ -89,7 +89,10 @@ impl AgentService {
         if recipe.kind == RecipeKind::ReviewChange && request.base_ref.is_none() {
             bail!("review_change requires base_ref");
         }
-        if request.task.trim().is_empty() && request.seeds.is_empty() && request.base_ref.is_none()
+        if request.task.trim().is_empty()
+            && request.seeds.is_empty()
+            && request.base_ref.is_none()
+            && recipe.priority_patterns.is_empty()
         {
             bail!("Provide a task, seeds, or base_ref");
         }
