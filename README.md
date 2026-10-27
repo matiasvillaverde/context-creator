@@ -1,220 +1,120 @@
 # context-creator
 
 [![CI](https://github.com/matiasvillaverde/context-creator/actions/workflows/ci.yml/badge.svg)](https://github.com/matiasvillaverde/context-creator/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Rust](https://img.shields.io/badge/rust-%23000000.svg?style=flat&logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Code context building blocks for AI agents, available as a **Rust crate, CLI, and MCP server**.
+**Give your agent relevant code within a token budget.**
 
-Use context-creator to build tools that let agents explore repositories, inspect
-source, and assemble dependency-aware context within a token budget. Embed the
-crate in your application, wrap the CLI in your agent framework, or connect the
-MCP server to an existing coding agent.
+context-creator turns a task, a file, or Git changes into source context with
+locations, selection reasons, and dependency relationships. Use the **Rust crate,
+CLI, or MCP server** to build tools for code review, debugging, and repository
+exploration.
 
-Your agent chooses the task, the files to investigate, and the model to use.
-context-creator handles file discovery, filtering, semantic expansion, formatting,
-and local token accounting. Context generation, repository maps, and source reads
-work locally without an LLM call. Provider CLI handoff is optional.
+Context building, repository maps, and source reads run locally without an LLM
+call or model API key. Your agent uses the returned code with the model you choose.
 
-## Build Tools for Agents
+[Quickstart](#quickstart) · [Agent integrations](#agent-integrations) ·
+[Languages and limits](#languages-and-limits) · [Documentation](#documentation)
 
-Choose the integration that fits your application:
+## Quickstart
 
-| Integration | How to use it | What your agent receives |
-| --- | --- | --- |
-| [Rust crate](#rust-crate) | Call typed helpers in-process or compose the core modules. | Typed maps and source pages, or generated context artifacts. |
-| [CLI](#cli) | Run a subprocess from Python, TypeScript, or another agent runtime. | Context on stdout or in a file, with an optional JSON accounting report. |
-| [MCP server](#mcp-server) | Expose the existing tools through stdio or Streamable HTTP. | Maps, paginated source, search results, metadata, and context through tool calls. |
-
-For example, you can combine these building blocks into your own tools:
-
-| Tool you build | Building blocks |
-| --- | --- |
-| `explore_repository` | A bounded repository map, search, and selected source pages. |
-| `review_change` | Git diffs and focused context expanded with imports, callers, and types. |
-| `investigate_failure` | Source search, related files, and optional OpenTelemetry enrichment. |
-
-A typical agent workflow is:
-
-1. **Map:** request declarations and source locations under a small token budget.
-2. **Read:** inspect the relevant files or line ranges; request the next page when needed.
-3. **Expand:** add related imports, callers, or types, then return the context to
-   your agent's model for reasoning, editing, or review.
-
-For task-oriented tools, use the shared **`build_context`** API. It selects
-complete functions or signatures, related types/tests/configuration, and static
-dependencies, with reasons and known gaps. Revision-checked sessions return
-changed or newly selected source. Recipes support debugging, explaining features,
-and reviewing Git changes; contract hints connect literal HTTP calls, OpenAPI
-JSON operations, and handlers across languages.
+Requires **Rust 1.89+**, Git, and a C/C++ build toolchain. Install from the current
+source so the examples below match your binary:
 
 ```bash
-context-creator context --root . --task "Fix session expiration" \
-  --recipe debug_failure --max-tokens 8000
-context-creator context --root . --recipe review_change --base-ref HEAD
-context-creator recipes
-context-creator context --root . --seed src/main.zig --max-tokens 12000
-```
-
-These commands return bounded JSON and make no model calls. The same request and
-response types are available through `agent::AgentService` and the MCP
-`build_context`/`list_recipes` tools. See the [agent tools guide](docs/agent-tools.md)
-for integration, custom recipes, session updates, evidence, and limits.
-
-The `context` command honors top-level options and TOML filters, budgets,
-tokenizer, and secret policy; options after `context` take precedence.
-
-Seed one file to collect its transitive local import graph, complete declarations,
-and nearby callers/tests. MCP `read_file` can also return this context alongside a
-source page by setting `dependency_tokens`. Check omissions and gaps before
-assuming all dependencies fit the response.
-
-## Key Advantages
-
-- **Dependency-aware**: Uses tree-sitter AST parsing to extract imports, declarations, calls, and types
-- **Predictable budgets**: Fits the complete rendered output across all input directories
-- **Focused selection**: Uses file filters, priority rules, and dependency relationships
-- **Multi-language**: Real parsers for [29 code, query, infrastructure, and markup language families](docs/languages.md), including Zig, Bash, Dart, Lua, Scala, SQL, and Terraform; the support matrix distinguishes direct resolution from inferred relationships
-- **Reusable interfaces**: The crate, CLI, and MCP server support custom agent tools
-
-Language features have different coverage. The [real-project audit](docs/oss-language-audit.md)
-records 87 random files across 29 public projects, with manual source checks and
-known failures in imports, maps, callers/types, and large-project analysis.
-
-## Installation
-
-For the native CLI, install from a checkout with Rust 1.89 or newer:
-
-```bash
+git clone https://github.com/matiasvillaverde/context-creator.git
+cd context-creator
 cargo install --path . --locked
 ```
 
-See [Building from Source](#building-from-source) for cloning and build commands.
-The examples below describe the APIs and flags in this checkout.
-
-For MCP clients, the published npm wrapper is also available:
+Try the included session-expiration example; no Zig compiler is needed:
 
 ```bash
-npm install -g context-creator-mcp@latest
+context-creator context --root examples/sample-zig-project \
+  --task "Fix session expiration" --recipe debug_failure \
+  --max-tokens 8000 --secret-scan redact
 ```
 
-The npm wrapper starts MCP mode automatically. Use the native `context-creator`
-binary for CLI context generation. Published packages follow their release
-versions; see the [Installation Guide](docs/installation.md) for client setup.
+The command prints **JSON to stdout**: selected source, source locations, reasons,
+relationships, and known gaps. A few selected symbols from this example are:
 
-## Usage
+| Source | Symbol | Why it was included |
+| --- | --- | --- |
+| `src/session.zig:3` | `Session` | Task terms match the source |
+| `src/handler.zig:4` | `authorize` | Task terms match the source |
+| `src/policy.zig:3` | `elapsed` | Resolved local import from `src/session.zig:1` |
 
-### CLI
+The response includes complete functions/types when they fit, or signatures when
+bodies do not fit. `omissions`, `gaps`, and `truncated_metadata` tell your agent
+what needs another read. In this example, Zig's external `std` imports are
+reported as gaps rather than supplied as local source.
+
+For your own code, change `--root` to your repository. Use `--seed` when you
+already know the entry file:
 
 ```bash
-# Give an agent a compact overview of the repository
+context-creator context --root examples/sample-zig-project \
+  --seed src/main.zig --max-tokens 8000 --secret-scan redact
+```
+
+[Other installation methods](docs/installation.md) include installing directly
+from Git, released binaries, and the npm MCP launcher. Published releases may
+have fewer features than the current source.
+
+## Build tools for agents
+
+| Tool you build | What context-creator provides |
+| --- | --- |
+| Debug a failure | Task matches, related declarations, tests, configuration, and static dependencies |
+| Review a change | Changed symbols, likely dependents, related tests, and evidence for each selection |
+| Explore a repository | Compact declaration maps and paginated source reads |
+| Keep context current | Revision-checked sessions that deliver changed or newly selected code |
+
+The built-in `debug_failure`, `review_change`, and `explain_feature` recipes share
+parameters across the crate, CLI, and MCP. Sessions track delivered snippets;
+callers retain a revision cursor and apply deltas or explicit resets. See the
+[agent tools guide](docs/agent-tools.md) for recipes, sessions, contract hints,
+and the response schema.
+
+### More CLI workflows
+
+Run these inside the repository you want to inspect:
+
+```bash
+# Start with declarations and source locations
 context-creator . --style map --max-tokens 4096 --secret-scan redact --quiet
 
-# Build context around files selected by the agent
-context-creator . --include "**/auth.py" \
-  --trace-imports --include-callers --include-types \
-  --max-tokens 16000 --secret-scan redact \
-  --output agent-context.md --report agent-context.json --quiet
+# Collect current changes and their static impact relative to a Git commit
+context-creator context --root . --recipe review_change --base-ref HEAD \
+  --max-tokens 8000 --secret-scan redact
 
-# Get changes for a review tool
-context-creator diff HEAD~1 HEAD
+# Write artifacts outside the source root
+context-creator . --max-tokens 16000 --secret-scan redact \
+  --output ../agent-context.md --report ../agent-context.json --quiet
 
-# Enrich code with OpenTelemetry runtime metrics
-context-creator telemetry -t traces.json
+# Discover the built-in recipes
+context-creator recipes
 ```
 
-The first command returns a map on stdout. The second writes source context and
-a JSON report with selected/omitted file counts, token counts, and timings. Your
-tool can pass the artifact to any model or agent framework.
+Maps go to stdout. Artifact generation writes the requested files outside the
+source root to keep generated context out of future walks. Its report includes
+selected/omitted file counts, token usage, and timings. Artifact formats
+also include XML, plain text, and paths. Optional
+[provider CLI handoff](docs/configuration.md#token-budgets) can send context and a
+prompt to an installed Gemini, Codex, Claude, or Ollama CLI.
 
-For example, a Python agent can wrap the CLI as a regular function:
+## Agent integrations
 
-```python
-import subprocess
+| Integration | Use it when |
+| --- | --- |
+| CLI | Your agent runtime can launch a subprocess and parse stdout |
+| [MCP](#mcp) | Your agent already supports MCP tools |
+| [Rust crate](#rust-crate) | You want typed requests and reusable in-process analysis |
 
+### MCP
 
-def repository_overview(repo: str) -> str:
-    result = subprocess.run(
-        [
-            "context-creator", repo,
-            "--style", "map", "--max-tokens", "4096",
-            "--secret-scan", "redact", "--quiet",
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    return result.stdout
-```
-
-Register the function as a tool using your framework's tool API. A failed command
-raises an exception, so the agent can handle errors separately from context.
-
-### Rust Crate
-
-Embed the same typed map helper used by the MCP server in your own Rust tool.
-This Git dependency follows the current repository's API:
-
-```toml
-[dependencies]
-context-creator = { git = "https://github.com/matiasvillaverde/context-creator", branch = "main" }
-anyhow = "1"
-```
-
-```rust
-use context_creator::mcp_server::{
-    progressive::repository_map_sync, RepositoryMapRequest, RepositoryMapResponse,
-};
-use std::path::PathBuf;
-
-pub fn repository_overview(path: PathBuf) -> anyhow::Result<RepositoryMapResponse> {
-    repository_map_sync(RepositoryMapRequest {
-        path,
-        include_patterns: vec![],
-        ignore_patterns: vec![],
-        max_tokens: Some(4096),
-        tokenizer: None,
-        secret_scan: None,
-    })
-}
-```
-
-The response contains `map`, `token_count`, `file_count`, and `omitted_files`.
-`secret_scan: None` uses this helper's default redaction policy. Use
-`read_file_sync(ReadFileRequest)` for paginated source, or `context_creator::run(Config)`
-to generate full context artifacts. These are blocking functions; call them on a
-blocking worker when integrating with an async agent. An MCP server does not need
-to be running to use these helpers.
-
-### Optional Provider CLI Handoff
-
-You can also ask context-creator to send the generated context and a prompt to an
-installed provider CLI:
-
-```bash
-context-creator --tool codex --model YOUR_MODEL --max-tokens 100000 \
-  --output-reserve 8000 --prompt "Review this code"
-```
-
-Model selection is passed through to Gemini CLI, Codex, Claude Code, or Ollama. Omit
-`--model` to use the provider CLI's configured default. `--ollama-model` remains
-supported. Set a budget appropriate to your model; tool defaults are working
-budgets, not discovered model limits. Local token counts are estimates for Claude
-and Gemini. Final rendered output is checked against the selected local encoding;
-multiple input directories share one budget. Whole files are retained, and a
-budget too small for the format header returns an error before output is written.
-Repository maps default to 4,096 tokens and show up to 64 declarations per file.
-`--report` records actual local counts, file selection, output bytes, and timings.
-`--native-token-count` optionally checks the supplied text with the selected
-provider API; see [configuration](docs/configuration.md#provider-native-counting).
-Secret scanning is explicit (`off`, `redact`, or `error`) for CLI context generation.
-The two progressive MCP tools default to redaction.
-
-### MCP Server
-
-To expose the existing tools directly, add the native binary to your MCP client
-configuration. Set `command` to its full path if it is not on `PATH`:
+The native binary starts a stdio server with `context-creator --rmcp`.
+For clients using the `mcpServers` configuration format:
 
 ```json
 {
@@ -227,120 +127,107 @@ configuration. Set `command` to its full path if it is not on `PATH`:
 }
 ```
 
-An agent can request a map, then read a selected source range. These are example
-`tools/call` parameters:
+Use the binary's full path if it is not on the client's `PATH`. Other clients
+have their own configuration format; the server command stays the same.
+
+Your agent can call `build_context` with parameters such as:
 
 ```json
 {
-  "name": "repository_map",
-  "arguments": { "path": "/workspace/repo", "max_tokens": 4096 }
+  "root": "/absolute/path/to/repo",
+  "task": "Fix session expiration",
+  "recipe": "debug_failure",
+  "max_tokens": 8000
 }
 ```
 
-```json
-{
-  "name": "read_file",
-  "arguments": {
-    "root": "/workspace/repo",
-    "path": "src/auth.py",
-    "start_line": 1,
-    "max_lines": 120,
-    "max_tokens": 2048
-  }
-}
-```
+For progressive exploration, use `repository_map`, then `read_file` for selected
+line ranges. `read_file` can also include transitive dependency context with
+`dependency_tokens`. See the [MCP guide](docs/mcp-server.md) for tool schemas,
+HTTP transport, and client setup.
 
-Use the returned `next_line` as `start_line` to continue reading. The read budget
-counts source content; your agent must also allow for the MCP response envelope
-and its own instructions. Both tools default to redaction and make no LLM calls.
-See the [MCP Server Guide](docs/mcp-server.md) for tool schemas, limits, HTTP setup,
-and the alternative npm launcher.
+### Rust crate
 
-## Features
-
-- Tree-sitter imports, declarations, calls, and type references
-- Import tracing and dependency resolution
-- Parallel processing with Rayon
-- Token budget management
-- Git history integration
-- MCP server with programmatic access
-- OpenTelemetry integration for runtime metrics
-- Shared tokenizer vocabularies with selectable `o200k-base` and `cl100k-base`
-- RMCP 3.7 with stdio and Streamable HTTP at `/mcp`
-
-## MCP Tools
-
-- `build_context` - Task context, selection explanations, change impact, contract hints, and session deltas
-- `list_recipes` - Discover built-in and supplied custom tool recipes
-- `repository_map` - Get bounded declarations and source locations without an LLM call
-- `read_file` - Page through source under line and token limits
-- `analyze_local` - Build local code context, with optional provider CLI handoff
-- `analyze_remote` - Analyze Git repositories
-- `search` - Text pattern search
-- `semantic_search` - AST-based code search
-- `file_metadata` - File information
-- `diff` - File comparison
-
-See [reproducible benchmarks](benchmarks/README.md) for performance and navigation-task measurements.
-
-## Configuration
-
-### .contextignore
-
-```gitignore
-node_modules/
-target/
-*.log
-.env
-```
-
-### .contextkeep
-
-Add a priority boost to matching visible files. Ignore rules still apply.
-
-```gitignore
-src/core/**
-src/api/**
-```
-
-### .context-creator.toml
+These examples use the API on `main`:
 
 ```toml
-[defaults]
-max_tokens = 200000
-
-[[priorities]]
-pattern = "src/core/**"
-weight = 100
+[dependencies]
+context-creator = { git = "https://github.com/matiasvillaverde/context-creator", branch = "main" }
+anyhow = "1"
 ```
+
+```rust
+use context_creator::agent::{AgentService, ContextRequest};
+
+fn main() -> anyhow::Result<()> {
+    let service = AgentService::new();
+    let request = ContextRequest::new(".", "Fix session expiration");
+    let context = service.build_context(request)?;
+    for snippet in context.snippets {
+        println!("{}:{} {:?}", snippet.path, snippet.start_line, snippet.representation);
+    }
+    Ok(())
+}
+```
+
+Keep one `AgentService` to reuse analysis and session state. Calls are blocking;
+use a blocking worker in async applications. No MCP server is needed for crate
+integration. See the [crate integration guide](docs/agent-tools.md#crate-integration).
+
+## Filtering and budgets
+
+Use `.contextignore` to exclude files, `.contextkeep` to boost visible files, and
+`.context-creator.toml` for CLI defaults. Ignore rules still apply to kept files.
+For example:
+
+```gitignore
+# .contextignore
+.env
+node_modules/
+target/
+```
+
+Task context defaults to secret redaction. CLI examples above request it
+explicitly. Scanning is heuristic; choose which files your agent may read through
+filters. See [configuration](docs/configuration.md) for precedence and policies.
+
+The task budget covers the **complete compact JSON response**, including its
+metadata. Reserve additional space for your instructions, the MCP envelope, and
+the model's reply. Token counts use a selected local encoding and can differ
+from a provider's tokenizer.
+
+## Languages and limits
+
+Parsers cover [29 language families](docs/languages.md), including Rust, Python,
+JavaScript, TypeScript, Go, Java, C/C++, C#, and Zig. Feature coverage varies by
+language and syntax form.
+
+The [real-project audit](docs/oss-language-audit.md) checks 87 randomly selected
+files from 29 public projects. It found unresolved JS/TS parent imports, missing
+imports/declarations/calls/types, and Java/Kotlin analysis timeouts. These issues
+remain open. The audit records both successful checks and failures.
+
+Task matching uses lexical terms and static relationships. Inferred callers and
+contract links do not establish runtime behavior or complete compiler bindings.
+Dependency traversal, candidate selection, and response size have limits; inspect
+reported gaps and omissions. Large roots can be slow, so use focused roots and
+ignore patterns. See [analysis limits](docs/agent-tools.md#explanations-limits-and-safety)
+and [reproducible measurements](benchmarks/README.md) for details.
 
 ## Documentation
 
-- [Agent Tools Guide](docs/agent-tools.md) - Task context, reusable recipes, sessions, and change impact
-- [Installation Guide](docs/installation.md) - Detailed setup instructions
-- [Usage Examples](docs/usage.md) - CLI commands and workflows
-- [Configuration](docs/configuration.md) - Advanced configuration
-- [MCP Server Guide](docs/mcp-server.md) - MCP integration details
-- [Architecture](docs/architecture.md) - Technical implementation
-- [Modernization research and roadmap](docs/modernization.md) - Implementation plan, tool comparisons, and validation
-
-## Requirements
-
-- Node.js >= v18.0.0 (for npm package)
-- or Rust >= 1.89.0 (for building from source)
-
-## Building from Source
-
-```bash
-git clone https://github.com/matiasvillaverde/context-creator
-cd context-creator
-cargo build --release --locked
-```
+- [Agent tools](docs/agent-tools.md) — Task context, recipes, sessions, and change impact
+- [Installation](docs/installation.md) — Native builds, released packages, and MCP launchers
+- [MCP server](docs/mcp-server.md) — Tools, transports, and client configuration
+- [Configuration](docs/configuration.md) — Filtering, token accounting, and secret policy
+- [Language support](docs/languages.md) — Extraction and resolution coverage
+- [Documentation index](docs/README.md) — Guides, source entry points, and research
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and checks. Report bugs and feature
+requests in [GitHub Issues](https://github.com/matiasvillaverde/context-creator/issues).
 
 ## License
 
-MIT
+[MIT](LICENSE)
