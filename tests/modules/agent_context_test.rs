@@ -197,7 +197,7 @@ fn custom_recipes_share_validated_catalog_and_selection_policy() {
     );
     assert_eq!(
         context_creator::agent::list_recipes(&book).unwrap().len(),
-        4
+        6
     );
     let mut request = ContextRequest::new(root.path(), "session expiration");
     request.recipe = "auth_review".into();
@@ -404,7 +404,7 @@ fn cli_returns_budgeted_json_and_discovers_custom_recipes() {
         .stdout
         .clone();
     let recipes: Vec<context_creator::agent::Recipe> = serde_json::from_slice(&output).unwrap();
-    assert_eq!(recipes.len(), 3);
+    assert_eq!(recipes.len(), 5);
 }
 
 #[test]
@@ -860,4 +860,86 @@ fn changed_contract_methods_and_new_dependencies_invalidate_warm_relationships()
         .relations
         .iter()
         .any(|relation| relation.kind == "http_contract"));
+}
+
+#[test]
+fn specialized_recipes_prioritize_paths_without_filtering_task_matches() {
+    let root = TempDir::new().unwrap();
+    for path in [
+        "auth/login.py",
+        "cache/store.py",
+        "misc/report.py",
+        "database/query.py",
+    ] {
+        write(root.path(), path, "def inspect_data():\n    return 42\n");
+    }
+    write(root.path(), ".env", "PRIVATE_VALUE=do-not-include\n");
+    write(
+        root.path(),
+        "auth/ignored.py",
+        "def ignored():\n    return 0\n",
+    );
+    write(root.path(), ".contextignore", "auth/ignored.py\n");
+    for (recipe, expected) in [
+        ("security_audit", "auth/login.py"),
+        ("performance", "cache/store.py"),
+    ] {
+        let mut request = ContextRequest::new(root.path(), "");
+        request.recipe = recipe.into();
+        let result = AgentService::new().build_context(request.clone()).unwrap();
+        assert!(result
+            .snippets
+            .iter()
+            .any(|s| s.path == expected && s.reasons.iter().any(|r| r.kind == "recipe_priority")));
+        assert!(!result.snippets.iter().any(|s| s.path == ".env"
+            || s.path == "auth/ignored.py"
+            || s.path == "misc/report.py"));
+        assert_budget(&result, 8000);
+        request.task = "report".into();
+        let result = AgentService::new().build_context(request).unwrap();
+        assert!(result.snippets.iter().any(|s| s.path == "misc/report.py"));
+        assert!(result.snippets.iter().any(|s| s.path == expected));
+    }
+}
+
+#[test]
+fn custom_priority_patterns_extend_presets_and_reject_invalid_input() {
+    let root = TempDir::new().unwrap();
+    write(
+        root.path(),
+        "auth/login.py",
+        "def login():\n    return True\n",
+    );
+    write(
+        root.path(),
+        "billing/pay.py",
+        "def pay():\n    return True\n",
+    );
+    let definition: RecipeDefinition =
+        toml::from_str("extends='security_audit'\npriority_patterns=['billing/**']\n").unwrap();
+    let mut request = ContextRequest::new(root.path(), "");
+    request.recipe = "billing_security".into();
+    request
+        .custom_recipes
+        .insert(request.recipe.clone(), definition);
+    let response = AgentService::new().build_context(request.clone()).unwrap();
+    for path in ["auth/login.py", "billing/pay.py"] {
+        assert!(response.snippets.iter().any(|s| s.path == path));
+    }
+    request
+        .custom_recipes
+        .get_mut("billing_security")
+        .unwrap()
+        .priority_patterns = vec!["[".into()];
+    assert!(AgentService::new().build_context(request).is_err());
+    let mut book = RecipeBook::default();
+    book.recipes.insert(
+        "too_many".into(),
+        RecipeDefinition {
+            extends: RecipeKind::SecurityAudit,
+            priority_patterns: vec!["src/**".into(); 64],
+            ..RecipeDefinition::default()
+        },
+    );
+    assert!(context_creator::agent::list_recipes(&book).is_err());
 }

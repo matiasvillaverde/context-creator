@@ -110,6 +110,11 @@ pub(crate) fn select(
         .chain(recipe.include_patterns.iter())
         .map(|pattern| glob::Pattern::new(pattern))
         .collect::<std::result::Result<Vec<_>, _>>()?;
+    let preferences = recipe
+        .priority_patterns
+        .iter()
+        .map(|pattern| glob::Pattern::new(pattern).map(|compiled| (pattern, compiled)))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
     let mut lexical = Vec::new();
     for (path, source) in &snapshot.sources {
         if (!recipe.include_tests && is_test(path)
@@ -128,20 +133,39 @@ pub(crate) fn select(
         let text_words = words(&source.text);
         let score = terms.intersection(&path_words).count() * 50
             + terms.intersection(&text_words).count() * 20;
-        if score > 0 {
-            lexical.push((path.clone(), score as i64));
+        let preference = preferences
+            .iter()
+            .find(|(_, pattern)| pattern.matches(path));
+        if score > 0 || preference.is_some() {
+            lexical.push((
+                path.clone(),
+                score as i64 + if preference.is_some() { 600 } else { 0 },
+                preference.map(|(pattern, _)| (*pattern).clone()),
+            ));
         }
     }
     lexical.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
-    for (path, score) in lexical.into_iter().take(12) {
-        let entry = ranks.entry(path).or_insert((0, vec![]));
+    for (path, score, preference) in lexical.into_iter().take(12) {
+        let entry = ranks.entry(path.clone()).or_insert((0, vec![]));
         entry.0 += score;
-        entry.1.push(reason(
-            "task_match",
-            "Task terms match source identifiers or path".into(),
-            Confidence::Inferred,
-            None,
-        ));
+        if let Some(pattern) = preference {
+            entry.1.push(reason(
+                "recipe_priority",
+                format!("Recipe path preference: {pattern}"),
+                Confidence::Inferred,
+                None,
+            ));
+        }
+        if !terms.is_disjoint(&words(&path))
+            || !terms.is_disjoint(&words(&snapshot.sources[&path].text))
+        {
+            entry.1.push(reason(
+                "task_match",
+                "Task terms match source identifiers or path".into(),
+                Confidence::Inferred,
+                None,
+            ));
+        }
     }
     let identifiers = if changes
         .iter()

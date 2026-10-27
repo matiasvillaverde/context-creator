@@ -10,6 +10,8 @@ pub enum RecipeKind {
     DebugFailure,
     #[default]
     ExplainFeature,
+    SecurityAudit,
+    Performance,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
@@ -21,6 +23,9 @@ pub struct RecipeDefinition {
     pub include_patterns: Vec<String>,
     #[serde(default)]
     pub ignore_patterns: Vec<String>,
+    /// Soft path preferences; inherited preferences are retained.
+    #[serde(default)]
+    pub priority_patterns: Vec<String>,
     pub include_tests: Option<bool>,
     pub include_config: Option<bool>,
     pub follow_contracts: Option<bool>,
@@ -41,6 +46,9 @@ pub struct Recipe {
     pub kind: RecipeKind,
     pub include_patterns: Vec<String>,
     pub ignore_patterns: Vec<String>,
+    /// Soft path preferences; inherited preferences are retained.
+    #[serde(default)]
+    pub priority_patterns: Vec<String>,
     pub include_tests: bool,
     pub include_config: bool,
     pub follow_contracts: bool,
@@ -66,12 +74,38 @@ pub fn list_recipes(book: &RecipeBook) -> Result<Vec<Recipe>> {
         ("review_change", RecipeKind::ReviewChange),
         ("debug_failure", RecipeKind::DebugFailure),
         ("explain_feature", RecipeKind::ExplainFeature),
+        ("security_audit", RecipeKind::SecurityAudit),
+        ("performance", RecipeKind::Performance),
     ] {
         recipes.push(Recipe {
             name: name.into(),
             kind,
             include_patterns: vec![],
             ignore_patterns: vec![],
+            priority_patterns: match kind {
+                RecipeKind::SecurityAudit => vec![
+                    "**/auth/**",
+                    "**/authentication/**",
+                    "**/authorization/**",
+                    "**/security/**",
+                    "**/database/**",
+                    "**/api/**",
+                    "**/input/**",
+                ],
+                RecipeKind::Performance => vec![
+                    "**/cache/**",
+                    "**/async/**",
+                    "**/database/**",
+                    "**/perf/**",
+                    "**/profiling/**",
+                    "**/concurrent/**",
+                    "**/benchmarks/**",
+                ],
+                _ => vec![],
+            }
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
             include_tests: true,
             include_config: true,
             follow_contracts: true,
@@ -84,13 +118,18 @@ pub fn list_recipes(book: &RecipeBook) -> Result<Vec<Recipe>> {
         });
     }
     for (name, definition) in &book.recipes {
-        if definition.include_patterns.len() + definition.ignore_patterns.len() > 64 {
+        if definition.include_patterns.len()
+            + definition.ignore_patterns.len()
+            + definition.priority_patterns.len()
+            > 64
+        {
             bail!("A recipe supports at most 64 patterns");
         }
         for pattern in definition
             .include_patterns
             .iter()
             .chain(&definition.ignore_patterns)
+            .chain(&definition.priority_patterns)
         {
             crate::core::walker::sanitize_pattern(pattern)?;
         }
@@ -116,6 +155,16 @@ pub fn list_recipes(book: &RecipeBook) -> Result<Vec<Recipe>> {
         recipe
             .ignore_patterns
             .clone_from(&definition.ignore_patterns);
+        recipe
+            .priority_patterns
+            .extend(definition.priority_patterns.iter().cloned());
+        if recipe.priority_patterns.len()
+            + recipe.include_patterns.len()
+            + recipe.ignore_patterns.len()
+            > 64
+        {
+            bail!("A recipe supports at most 64 patterns including inherited preferences");
+        }
         recipe.include_tests = definition.include_tests.unwrap_or(recipe.include_tests);
         recipe.include_config = definition.include_config.unwrap_or(recipe.include_config);
         recipe.follow_contracts = definition
