@@ -47,6 +47,8 @@ impl LanguageAnalyzer for PythonAnalyzer {
         // Correlate type references with imports to populate module information
         self.correlate_types_with_imports(&mut result);
 
+        crate::core::semantic::workspace::correlate_imports(&mut result, path, &context.base_dir);
+
         // Resolve type definitions for the type references found
         self.query_engine.resolve_type_definitions(
             &mut result.type_references,
@@ -119,6 +121,12 @@ impl ModuleResolver for PythonModuleResolver {
                     "Invalid relative module name: {module_path}"
                 )));
             }
+        }
+
+        if let Some(resolved) =
+            crate::core::semantic::workspace::resolve_import(module_path, from_file, base_dir)
+        {
+            return Ok(resolved);
         }
 
         // Handle standard library imports

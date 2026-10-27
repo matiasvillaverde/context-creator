@@ -12,6 +12,10 @@ projects and found unresolved import, declaration, caller/type, and performance
 failures. Parser registration establishes availability; consult the audit before
 assuming a feature works for a particular language.
 
+[Workspace context](workspaces.md) follows declared Cargo, Python, and npm/Yarn/pnpm
+local package bindings inside the selected repository boundary. It documents
+supported layouts, entry points, confidence, and unresolved build/runtime cases.
+
 | Language family | Source extensions | Local resolution |
 | --- | --- | --- |
 | Rust | `rs` | Modules, crate paths, local source |

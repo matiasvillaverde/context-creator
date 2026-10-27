@@ -47,6 +47,8 @@ impl LanguageAnalyzer for RustAnalyzer {
         // Correlate type references with imports to populate module information
         self.correlate_types_with_imports(&mut result);
 
+        crate::core::semantic::workspace::correlate_imports(&mut result, path, &context.base_dir);
+
         // Resolve type definitions for the type references found
         self.query_engine.resolve_type_definitions(
             &mut result.type_references,
@@ -133,6 +135,12 @@ impl ModuleResolver for RustModuleResolver {
 
         // Validate module name for security
         validate_module_name(module_path)?;
+
+        if let Some(resolved) =
+            crate::core::semantic::workspace::resolve_import(module_path, from_file, base_dir)
+        {
+            return Ok(resolved);
+        }
 
         // Handle current crate imports FIRST (e.g., my_lib::module)
         // Check if this might be the current crate by looking for Cargo.toml

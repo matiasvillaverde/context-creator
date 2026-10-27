@@ -38,6 +38,8 @@ mod integration_test;
 mod module_rename_test;
 #[path = "modules/popular_languages_test.rs"]
 mod popular_languages_test;
+#[path = "modules/workspace_resolution_test.rs"]
+mod workspace_resolution_test;
 #[path = "modules/zig_dependency_context_test.rs"]
 mod zig_dependency_context_test;
 

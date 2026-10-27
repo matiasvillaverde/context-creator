@@ -202,6 +202,9 @@ Parsers cover [29 language families](docs/languages.md), including Rust, Python,
 JavaScript, TypeScript, Go, Java, C/C++, C#, and Zig. Feature coverage varies by
 language and syntax form.
 
+[Workspace context](docs/workspaces.md) can follow local Cargo, Python, and
+npm/Yarn/pnpm package bindings while preserving the selected root and ignore rules.
+
 The [real-project audit](docs/oss-language-audit.md) checks 87 randomly selected
 files from 29 public projects. It found unresolved JS/TS parent imports, missing
 imports/declarations/calls/types, and Java/Kotlin analysis timeouts. These issues
