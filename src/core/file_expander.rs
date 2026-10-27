@@ -61,6 +61,10 @@ pub fn detect_project_root(start_path: &Path) -> PathBuf {
         }
     }
 
+    if let Some(root) = crate::core::semantic::workspace::root_for(start_dir) {
+        return absolute_project_root(&root);
+    }
+
     // Fallback: Look for common project markers
     current = start_dir;
     loop {
@@ -479,6 +483,8 @@ fn expand_file_list_internal(
                         type_ref.is_external
                     );
 
+                    // Each occurrence starts a new chain; file traversal has its own cycle guard.
+                    type_resolver.clear_resolution_state();
                     // Use type resolver with circuit breakers
                     match type_resolver.resolve_with_limits(type_ref, depth) {
                         Err(e) => {

@@ -44,6 +44,8 @@ impl LanguageAnalyzer for JavaScriptAnalyzer {
             .query_engine
             .analyze_with_parser(&mut parser, content)?;
 
+        crate::core::semantic::workspace::correlate_imports(&mut result, path, &context.base_dir);
+
         // Resolve type definitions for the type references found
         self.query_engine.resolve_type_definitions(
             &mut result.type_references,
@@ -74,6 +76,12 @@ impl ModuleResolver for JavaScriptModuleResolver {
     ) -> Result<ResolvedPath, ContextCreatorError> {
         // Validate module name for security
         validate_module_name(module_path)?;
+
+        if let Some(resolved) =
+            crate::core::semantic::workspace::resolve_import(module_path, from_file, base_dir)
+        {
+            return Ok(resolved);
+        }
 
         // Handle Node.js built-in modules
         if self.is_external_module(module_path) {

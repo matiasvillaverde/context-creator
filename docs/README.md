@@ -10,6 +10,7 @@ that give agents selected repository source within a token budget. Start with
 | --- | --- |
 | Install the current source or a released package | [Installation](installation.md) |
 | Select context for a task or seed file | [Agent tools](agent-tools.md#task-context) |
+| Follow sibling package types and imports | [Workspace context](workspaces.md) |
 | Embed the Rust API | [Crate integration](agent-tools.md#crate-integration) |
 | Connect an MCP client | [MCP server](mcp-server.md) |
 | Define reusable tools | [Recipes](agent-tools.md#recipes) |

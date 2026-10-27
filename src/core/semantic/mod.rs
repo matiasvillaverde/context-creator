@@ -15,6 +15,7 @@ pub mod function_call_index;
 pub mod graph_builder;
 pub mod graph_traverser;
 pub mod languages;
+pub(crate) mod manifests;
 pub mod parallel_analyzer;
 pub mod parser_pool;
 pub mod parsing;
@@ -23,6 +24,7 @@ pub mod query_engine;
 pub mod resolver;
 pub mod symbols;
 pub mod type_resolver;
+pub(crate) mod workspace;
 
 #[cfg(test)]
 mod rust_function_call_test;

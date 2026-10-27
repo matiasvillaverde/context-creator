@@ -144,7 +144,7 @@ impl QueryEngine {
                   argument: (scoped_use_list
                     path: [(scoped_identifier) (identifier)] @rust_module_path
                     list: (use_list
-                      [(scoped_identifier) (identifier)] @rust_import_item
+                      [(scoped_identifier) (identifier) (use_as_clause)] @rust_import_item
                     )
                   )
                 ) @rust_scoped_import
@@ -223,61 +223,15 @@ impl QueryEngine {
                 ) @relative_from_import_aliased
             "#
             }
-            "javascript" => {
+            "javascript" | "typescript" => {
                 r#"
-                ; Import declarations
-                (import_statement
-                  (import_clause
-                    [
-                      (identifier) @import_name
-                      (namespace_import (identifier) @import_name)
-                      (named_imports
-                        (import_specifier
-                          [
-                            (identifier) @import_name
-                            name: (identifier) @import_name
-                          ]
-                        )
-                      )
-                    ]
-                  )?
-                  source: (string) @module_path
-                ) @js_import
-
-                ; Require calls (CommonJS)
+                (import_statement source: (string) @module_path) @script_import
+                (export_statement source: (string) @module_path) @script_import
                 (call_expression
                   function: (identifier) @require_fn (#eq? @require_fn "require")
                   arguments: (arguments (string) @module_path)
                 ) @require
-            "#
-            }
-            "typescript" => {
-                r#"
-                ; Import declarations
-                (import_statement
-                  (import_clause
-                    [
-                      (identifier) @import_name
-                      (namespace_import (identifier) @import_name)
-                      (named_imports
-                        (import_specifier
-                          [
-                            (identifier) @import_name
-                            name: (identifier) @import_name
-                          ]
-                        )
-                      )
-                    ]
-                  )?
-                  source: (string) @module_path
-                ) @ts_import
-
-                ; Require calls (CommonJS)
-                (call_expression
-                  function: (identifier) @require_fn (#eq? @require_fn "require")
-                  arguments: (arguments (string) @module_path)
-                ) @require
-            "#
+                "#
             }
             "go" => {
                 r#"
@@ -925,6 +879,9 @@ impl QueryEngine {
                             items.push(format!("as {alias_text}"));
                         }
                     }
+                    "script_import" => {
+                        items.extend(Self::script_import_items(node, content));
+                    }
                     "js_import" | "ts_import" | "go_import" | "go_named_import"
                     | "swift_import" => {
                         // For JavaScript/TypeScript/Go/Swift, we rely on module_path and import_name captures
@@ -987,7 +944,16 @@ impl QueryEngine {
                     }
                     "import_name" | "import_item" => {
                         if let Ok(name) = node.utf8_text(content.as_bytes()) {
-                            items.push(name.to_string());
+                            let alias = node
+                                .parent()
+                                .filter(|parent| parent.kind() == "aliased_import")
+                                .and_then(|parent| parent.child_by_field_name("alias"))
+                                .and_then(|alias| alias.utf8_text(content.as_bytes()).ok());
+                            items.push(
+                                alias
+                                    .map(|alias| format!("{name} as {alias}"))
+                                    .unwrap_or_else(|| name.into()),
+                            );
                         }
                     }
                     "wildcard" => {
@@ -1028,6 +994,48 @@ impl QueryEngine {
         }
 
         Ok(imports)
+    }
+
+    fn script_import_items(node: tree_sitter::Node<'_>, source: &str) -> Vec<String> {
+        let mut stack = vec![node];
+        let mut items = Vec::new();
+        while let Some(node) = stack.pop() {
+            let text =
+                |node: tree_sitter::Node<'_>| node.utf8_text(source.as_bytes()).unwrap_or("");
+            match node.kind() {
+                "import_specifier" | "export_specifier" => {
+                    if let Some(name) = node.child_by_field_name("name") {
+                        let name = text(name);
+                        items.push(
+                            node.child_by_field_name("alias")
+                                .map(|alias| format!("{name} as {}", text(alias)))
+                                .unwrap_or_else(|| name.into()),
+                        );
+                    }
+                }
+                "namespace_import" | "namespace_export" => {
+                    if let Some(name) = node.named_child(0) {
+                        items.push(format!("* as {}", text(name)));
+                    }
+                }
+                "identifier"
+                    if node
+                        .parent()
+                        .is_some_and(|parent| parent.kind() == "import_clause") =>
+                {
+                    items.push(text(node).into())
+                }
+                _ => stack.extend(
+                    (0..node.named_child_count())
+                        .rev()
+                        .filter_map(|index| node.named_child(index as u32)),
+                ),
+            }
+        }
+        if items.is_empty() && node.kind() == "export_statement" {
+            items.push("*".into());
+        }
+        items
     }
 
     /// Extract function calls from query matches
@@ -1164,6 +1172,19 @@ impl QueryEngine {
             // Skip if already resolved or is external
             if type_ref.definition_path.is_some() || type_ref.is_external {
                 continue;
+            }
+
+            if let Some(module) = type_ref.module.as_deref() {
+                if let Some(definition) = crate::core::semantic::workspace::type_definition(
+                    &type_ref.name,
+                    module,
+                    current_file,
+                    project_root,
+                ) {
+                    type_ref.definition_path = definition;
+                    type_ref.is_external = false;
+                    continue;
+                }
             }
 
             // Try to resolve the type definition

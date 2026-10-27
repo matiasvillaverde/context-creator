@@ -37,13 +37,21 @@ pub struct TypeResolver {
     /// Maximum depth for type resolution
     max_depth: usize,
     /// Set of visited types in current resolution chain
-    visited_types: HashSet<String>,
+    visited_types: HashSet<TypeKey>,
     /// Cache of previously resolved types
-    resolution_cache: HashMap<String, Option<PathBuf>>,
+    resolution_cache: HashMap<TypeKey, Option<PathBuf>>,
     /// Start time of current resolution
     resolution_start: Option<Instant>,
     /// Resolution limits configuration
     limits: ResolutionLimits,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct TypeKey {
+    module: Option<String>,
+    name: String,
+    definition: Option<PathBuf>,
+    external: bool,
 }
 
 impl TypeResolver {
@@ -134,11 +142,12 @@ impl TypeResolver {
     }
 
     /// Create a cache key for a type reference
-    fn create_cache_key(&self, type_ref: &TypeReference) -> String {
-        if let Some(module) = &type_ref.module {
-            format!("{}::{}", module, type_ref.name)
-        } else {
-            type_ref.name.clone()
+    fn create_cache_key(&self, type_ref: &TypeReference) -> TypeKey {
+        TypeKey {
+            module: type_ref.module.clone(),
+            name: type_ref.name.clone(),
+            definition: type_ref.definition_path.clone(),
+            external: type_ref.is_external,
         }
     }
 
@@ -342,15 +351,17 @@ mod tests {
     }
 
     #[test]
-    fn test_cache_key_generation() {
-        let resolver = TypeResolver::new();
-
-        // Type with module
-        let type1 = create_test_type_ref("MyType", Some("my::module"));
-        assert_eq!(resolver.create_cache_key(&type1), "my::module::MyType");
-
-        // Type without module
-        let type2 = create_test_type_ref("SimpleType", None);
-        assert_eq!(resolver.create_cache_key(&type2), "SimpleType");
+    fn equal_type_names_in_different_packages_do_not_share_cached_definitions() {
+        let mut resolver = TypeResolver::new();
+        for package in ["one", "two"] {
+            let mut reference = create_test_type_ref("Account", Some("models"));
+            let path = PathBuf::from(package).join("src/lib.rs");
+            reference.definition_path = Some(path.clone());
+            resolver.clear_resolution_state();
+            assert_eq!(
+                resolver.resolve_with_limits(&reference, 0).unwrap(),
+                Some(path)
+            );
+        }
     }
 }
