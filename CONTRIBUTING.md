@@ -10,7 +10,7 @@ This project and everyone participating in it is governed by our Code of Conduct
 
 ### Prerequisites
 
-- Rust 1.74.0 or later
+- Rust 1.89.0 or later
 - Git
 - Make (optional but recommended)
 

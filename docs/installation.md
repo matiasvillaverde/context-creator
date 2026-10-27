@@ -5,11 +5,24 @@ This guide covers the actual installation methods supported by context-creator.
 ## Prerequisites
 
 - **For npm package**: Node.js >= 16.0.0
-- **For building from source**: Rust >= 1.89.0
+- **For building the current source**: Rust >= 1.89.0, Git, and a C/C++ build toolchain
 
 ## Quick Install
 
-### NPM Package (Recommended for MCP)
+### Native CLI and crate examples on main
+
+The README's task-context and crate examples target the current `main` branch.
+Install it directly from Git when you do not need a local checkout:
+
+```bash
+cargo install --git https://github.com/matiasvillaverde/context-creator --branch main --locked
+context-creator --version
+```
+
+To keep a checkout and try the bundled examples, use the
+[source build instructions](#building-from-source) below.
+
+### NPM package for MCP
 
 ```bash
 # Install globally
@@ -19,15 +32,27 @@ npm install -g context-creator-mcp@latest
 npx -y context-creator-mcp@latest
 ```
 
-### Cargo (Building from Source)
+The npm launcher starts MCP mode automatically. Use the native `context-creator`
+binary for CLI context generation. Published package versions can have fewer
+features than `main`.
+
+### Published Cargo release
 
 ```bash
 # Install from crates.io
-cargo install context-creator
+cargo install context-creator --locked
 
 # Verify installation
 context-creator --version
 ```
+
+### Prebuilt release binaries
+
+Download the asset for your operating system and architecture from
+[GitHub Releases](https://github.com/matiasvillaverde/context-creator/releases).
+Place the executable on `PATH`; on Unix systems, make it executable first.
+Released binaries follow their release's feature set. Build `main` to use the
+current README's task-context and crate APIs.
 
 ## MCP Client Setup
 
@@ -35,7 +60,8 @@ context-creator can be used as an MCP server with various AI assistants. Here's 
 
 ### Basic Configuration
 
-All MCP clients use the same basic configuration pattern:
+For clients using the `mcpServers` format, the published npm launcher can be
+configured as follows:
 
 ```json
 {
@@ -47,6 +73,11 @@ All MCP clients use the same basic configuration pattern:
   }
 }
 ```
+
+To use the native binary from the current source, set `command` to
+`context-creator` and `args` to `["--rmcp"]`. Use a full binary path when the
+client cannot find it on `PATH`. Client configuration formats differ; the native
+stdio server command is always `context-creator --rmcp`.
 
 ### Platform-Specific Setup
 
@@ -94,7 +125,9 @@ claude mcp add context-creator -- npx -y context-creator-mcp@latest
 <details>
 <summary>Other MCP Clients</summary>
 
-For other MCP clients (VS Code, Windsurf, Zed, Cline, etc.), refer to your client's MCP documentation. The configuration pattern is the same - use `npx` with `context-creator-mcp@latest`.
+For other MCP clients, use your client's documented stdio configuration format.
+Run either `context-creator --rmcp` for the native binary or
+`npx -y context-creator-mcp@latest` for the published launcher.
 </details>
 
 ## Building from Source
