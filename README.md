@@ -217,6 +217,8 @@ reported gaps and omissions. Large roots can be slow, so use focused roots and
 ignore patterns. See [analysis limits](docs/agent-tools.md#explanations-limits-and-safety)
 and [reproducible measurements](benchmarks/README.md) for details.
 
+External type references can include [declared dependency requirements and lockfile versions](docs/dependency-versions.md).
+
 ## Documentation
 
 - [Agent tools](docs/agent-tools.md) — Task context, recipes, sessions, and change impact

@@ -62,6 +62,11 @@ impl DigestFormatter for PlainFormatter {
         self.buffer
             .push_str("----------------------------------------------------------------\n\n");
 
+        let packages = super::external_packages(file);
+        if !packages.is_empty() {
+            self.buffer
+                .push_str(&format!("External packages: {}\n\n", packages.join(", ")));
+        }
         // Read and add file content
         if let Ok(content) = data.cache.get_or_load(&file.path) {
             self.buffer.push_str(&content);

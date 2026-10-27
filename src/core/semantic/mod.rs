@@ -16,6 +16,7 @@ pub mod graph_builder;
 pub mod graph_traverser;
 pub mod languages;
 pub(crate) mod manifests;
+pub mod packages;
 pub mod parallel_analyzer;
 pub mod parser_pool;
 pub mod parsing;

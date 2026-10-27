@@ -56,6 +56,7 @@ impl LanguageAnalyzer for RustAnalyzer {
             &context.base_dir,
         )?;
 
+        crate::core::semantic::packages::enrich(&mut result, path, &context.base_dir);
         Ok(result)
     }
 

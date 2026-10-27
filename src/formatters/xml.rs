@@ -70,6 +70,15 @@ impl DigestFormatter for XmlFormatter {
                     .replace('<', "&lt;")
                     .replace('>', "&gt;")
             ));
+            for package in super::external_packages(file) {
+                let package = package
+                    .replace('&', "&amp;")
+                    .replace('<', "&lt;")
+                    .replace('>', "&gt;");
+                self.buffer.push_str(&format!(
+                    "      <external_package>{package}</external_package>\n"
+                ));
+            }
             self.buffer.push_str("      <![CDATA[");
             self.buffer
                 .push_str(&content.replace("]]>", "]]]]><![CDATA[>"));

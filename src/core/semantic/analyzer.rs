@@ -101,7 +101,8 @@ pub struct TypeReference {
     pub definition_path: Option<PathBuf>,
     /// Whether this type is from an external dependency
     pub is_external: bool,
-    /// External package name and version (e.g., "serde v1.0.197")
+    /// Direct external package metadata. Declared requirements and locked versions
+    /// are labeled separately; a requirement does not prove an installed version.
     pub external_package: Option<String>,
 }
 

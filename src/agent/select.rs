@@ -550,6 +550,17 @@ pub(crate) fn select(
             }
         }
         for reference in &source.info.type_references {
+            if let Some(package) = &reference.external_package {
+                gaps.push(Gap {
+                    kind: "external_type".into(),
+                    path: Some(path.clone()),
+                    line: Some(reference.line),
+                    detail: format!(
+                        "Type {} uses {package}; external source is not included",
+                        reference.name
+                    ),
+                });
+            }
             if reference.definition_path.is_none() && !reference.is_external {
                 gaps.push(Gap {
                     kind: "unresolved_type".into(),

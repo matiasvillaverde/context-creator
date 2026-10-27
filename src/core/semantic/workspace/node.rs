@@ -167,7 +167,7 @@ pub(super) fn resolve(module: &str, source: &Path, root: &Path) -> Option<(PathB
         .map(|(path, entry_confidence)| (path, confidence.min(entry_confidence)))
 }
 
-fn satisfies(requirement: &str, version: &str) -> bool {
+pub(super) fn satisfies(requirement: &str, version: &str) -> bool {
     let Ok(version) = semver::Version::parse(version.trim_start_matches('v')) else {
         return false;
     };

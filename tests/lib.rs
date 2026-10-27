@@ -202,3 +202,6 @@ mod edge_cases;
 
 #[path = "modules/product_workflows_test.rs"]
 mod product_workflows_test;
+
+#[path = "modules/semantic_external_version_test.rs"]
+mod semantic_external_version_test;

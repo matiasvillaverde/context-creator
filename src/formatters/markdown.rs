@@ -147,6 +147,11 @@ pub(crate) fn append_fenced_content(output: &mut String, content: &str, language
 }
 
 fn add_markdown_semantic_info(output: &mut String, file: &FileInfo) {
+    let packages = super::external_packages(file);
+    if !packages.is_empty() {
+        output.push_str(&format!("External packages: {}\n\n", packages.join(", ")));
+    }
+
     if !file.imports.is_empty() {
         output.push_str("Imports: ");
         let names = format_import_names(&file.imports);

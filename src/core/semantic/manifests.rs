@@ -63,7 +63,7 @@ pub(crate) fn read(root: &Path, path: &Path) -> Option<Arc<Value>> {
     }
     let source = std::str::from_utf8(&bytes).ok()?;
     let document = match path.extension()?.to_str()? {
-        "toml" => toml::from_str::<toml::Value>(source)
+        "toml" | "lock" => toml::from_str::<toml::Value>(source)
             .ok()
             .and_then(|document| serde_json::to_value(document).ok()),
         "json" => serde_json::from_str(source).ok(),
