@@ -37,6 +37,8 @@ Parser availability does not establish complete feature coverage. Task matching
 and dependency links use lexical/static evidence; callers and contract matches
 can be inferred. Inspect each response's gaps and omissions.
 
+- [Dependency version metadata](dependency-versions.md) — Declared requirements, lockfiles, and limits
+
 ## Development and research
 
 - [Contributing](../CONTRIBUTING.md) — Setup, conventions, and checks

@@ -55,3 +55,13 @@ pub fn create_formatter(format: OutputFormat) -> Box<dyn DigestFormatter> {
         OutputFormat::Map => Box::new(map::MapFormatter::default()),
     }
 }
+
+/// Stable, deduplicated metadata already attached by semantic analysis.
+pub(crate) fn external_packages(file: &FileInfo) -> Vec<&str> {
+    file.type_references
+        .iter()
+        .filter_map(|reference| reference.external_package.as_deref())
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect()
+}

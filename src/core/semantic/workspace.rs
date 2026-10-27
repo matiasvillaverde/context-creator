@@ -229,3 +229,7 @@ fn find_definition(
     }
     None
 }
+
+pub(crate) fn node_version_matches(requirement: &str, version: &str) -> bool {
+    node::satisfies(requirement, version)
+}

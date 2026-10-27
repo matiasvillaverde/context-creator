@@ -678,6 +678,9 @@ impl QueryEngine {
             }
             "javascript" => {
                 r#"
+                ; Class inheritance through a namespace, e.g. React.Component.
+                (class_heritage (member_expression object: (identifier) @module_name property: (property_identifier) @parent_class))
+                (class_heritage (identifier) @parent_class)
                 ; JSX element types (React components)
                 (jsx_element
                   open_tag: (jsx_opening_element
@@ -695,6 +698,8 @@ impl QueryEngine {
             }
             "typescript" => {
                 r#"
+                ; Qualified annotations, e.g. React.Component.
+                (nested_type_identifier module: (identifier) @module_name name: (type_identifier) @type_name)
                 ; Type annotations
                 (type_annotation
                   (type_identifier) @type_name

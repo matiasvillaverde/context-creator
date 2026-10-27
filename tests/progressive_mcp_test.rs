@@ -558,3 +558,63 @@ async fn local_analysis_refreshes_edits_additions_ignores_deletions_and_secret_c
     assert!(result.unwrap_err().to_string().contains("Secret detected"));
     legacy.stop().unwrap();
 }
+
+#[tokio::test]
+async fn external_version_gaps_refresh_after_lock_edits_across_both_servers() {
+    use context_creator::agent::{ContextRequest, ContextResponse};
+    let root = TempDir::new().unwrap();
+    fs::write(
+        root.path().join("Cargo.toml"),
+        "[package]\nname='app'\nversion='0.1.0'\n[dependencies]\nserde='1.0'\n",
+    )
+    .unwrap();
+    fs::write(
+        root.path().join("lib.rs"),
+        "use serde::Serialize;\npub fn output<T: Serialize>(value: T) {}\n",
+    )
+    .unwrap();
+    let modern = ContextCreatorServer::new();
+    let legacy = context_creator::mcp_server::start_server("127.0.0.1:0")
+        .await
+        .unwrap();
+    let client = HttpClientBuilder::default()
+        .build(format!("http://{}", legacy.local_addr().unwrap()))
+        .unwrap();
+    let mut request = ContextRequest::new(root.path(), "output");
+    request.seeds.push("lib.rs".into());
+    request.session_id = Some("versions".into());
+    let mut previous_revision = None;
+    for version in ["1.0.197", "1.0.198"] {
+        fs::write(
+            root.path().join("Cargo.lock"),
+            format!("[[package]]\nname='serde'\nversion='{version}'\n"),
+        )
+        .unwrap();
+        request.expected_revision = previous_revision.clone();
+        let result = modern
+            .build_context(Parameters(request.clone()))
+            .await
+            .unwrap()
+            .0;
+        let old: ContextResponse = client
+            .request("build_context", rpc_params![request.clone()])
+            .await
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(&result).unwrap(),
+            serde_json::to_value(old).unwrap()
+        );
+        assert!(result
+            .gaps
+            .iter()
+            .any(|gap| gap.kind == "external_type"
+                && gap.detail.contains(&format!("serde v{version}"))));
+        assert!(result.token_count <= 8000);
+        if let Some(previous) = &previous_revision {
+            assert_ne!(&result.revision, previous);
+            assert!(result.stale);
+        }
+        previous_revision = Some(result.revision);
+    }
+    legacy.stop().unwrap();
+}
